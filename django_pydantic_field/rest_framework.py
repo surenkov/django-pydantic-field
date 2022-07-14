@@ -22,8 +22,7 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
             with suppress(AttributeError, IndexError):
                 schema = t.get_args(self.__orig_class__)[0]  # type: ignore
 
-        # a workaround to test generic type aliases against pydantic model metaclass
-        if schema is not None and not isinstance(schema, type(BaseModel)):
+        if schema is not None:
             schema = self._wrap_schema(schema)
 
         self.output_schema = schema
@@ -80,6 +79,7 @@ class PydanticSchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
 
 class PydanticSchemaParser(AnnotatedSchemaT[base.ST], parsers.JSONParser):
     schema_ctx_attr = "parser_schema"
+    renderer_class = PydanticSchemaRenderer
 
     def parse(self, stream, media_type=None, parser_context=None):
         parser_context = parser_context or {}
@@ -87,7 +87,7 @@ class PydanticSchemaParser(AnnotatedSchemaT[base.ST], parsers.JSONParser):
         schema = self.get_schema(parser_context)
 
         try:
-            return schema.parse_raw(stream.read(), encoding=encoding)
+            return schema.parse_raw(stream.read(), encoding=encoding).__root__
         except ValidationError as e:
             raise exceptions.ParseError(e.errors())
 

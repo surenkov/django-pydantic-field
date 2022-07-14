@@ -1,5 +1,3 @@
-import functools
-import inspect
 import logging
 import typing as t
 
@@ -62,28 +60,15 @@ class SchemaDecoder(t.Generic[ST]):
                 value = self.schema.parse_obj(obj).__root__  # type: ignore
             return value
         except ValidationError as e:
-            err: t.Any = e.errors()
-        except Exception as e:
-            err = str(e)
+            err = e
 
         return self.error_handler(obj, (self.schema, err))
 
 
 class SchemaWrapper(t.Generic[ST]):
-    def _wrap_schema(
-        self,
-        schema: t.Type[ST],
-        config: t.Optional[ConfigType] = None,
-        **kwargs,
-    ) -> ModelType:
-        typed_schema: t.Type[ST]
-        if inspect.isfunction(schema):
-            typed_schema = schema()
-        else:
-            typed_schema = t.cast(t.Type[ST], schema)
-
-        type_name = self._get_field_schema_name(typed_schema)
-        params = self._get_field_schema_params(typed_schema, config, **kwargs)
+    def _wrap_schema(self, schema: t.Type[ST], config: t.Optional[ConfigType] = None, **kwargs) -> ModelType:
+        type_name = self._get_field_schema_name(schema)
+        params = self._get_field_schema_params(schema, config, **kwargs)
         return create_model(type_name, **params)
 
     def _get_field_schema_name(self, schema: t.Type[t.Any]) -> str:
@@ -119,6 +104,9 @@ class SchemaWrapper(t.Generic[ST]):
 JsonClsT = t.TypeVar('JsonClsT', bound=t.Type)
 
 def bind_cls(cls: JsonClsT, **initkw) -> JsonClsT:
-    __init__ = functools.partial(cls.__init__, **initkw)
+    def __init__(self, *args, **kwargs):
+        merged_kw = dict(initkw, **kwargs)
+        super(bound_cls, self).__init__(*args, **merged_kw)
+
     bound_cls = type(cls.__name__, (cls,), {"__init__": __init__})
     return t.cast(JsonClsT, bound_cls)

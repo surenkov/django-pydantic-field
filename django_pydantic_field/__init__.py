@@ -1,1 +1,1 @@
-from .field import PydanticSchemaField
+from .fields import PydanticSchemaField

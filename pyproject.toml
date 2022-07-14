@@ -11,4 +11,9 @@ plugins = [
 [tool.django-stubs]
 django_settings_module = "tests.settings.django_test_settings"
 
-[tool.pytest]
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings.django_test_settings"
+
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_tests.py"]
+norecursedirs = [".*", "venv"]

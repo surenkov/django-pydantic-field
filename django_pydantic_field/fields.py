@@ -40,17 +40,10 @@ class PydanticSchemaField(base.SchemaWrapper[base.ST], JSONField):
         self.export_cfg = self._extract_export_kwargs(kwargs, dict.pop)
 
         field_schema = self._wrap_schema(schema, config)
-        decoder = base.bind_cls(
-            base.SchemaDecoder[base.ST],
-            schema=field_schema,
-            error_handler=error_handler,
-        )
-        encoder = base.bind_cls(
-            base.SchemaEncoder,
-            schema=field_schema,
-            export_cfg=self.export_cfg,
-        )
-        kwargs.update(decoder=encoder, encoder=decoder)
+        decoder = base.bind_cls(base.SchemaDecoder, schema=field_schema, error_handler=error_handler)
+        encoder = base.bind_cls(base.SchemaEncoder, schema=field_schema, export_cfg=self.export_cfg)
+
+        kwargs.update(decoder=decoder, encoder=encoder)
         super().__init__(*args, **kwargs)
 
     def __copy__(self):
