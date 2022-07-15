@@ -3,6 +3,7 @@
 *.log
 tmp/
 
+dist/
 .env/
 .mypy_cache/
 *.py[cod]

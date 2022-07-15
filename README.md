@@ -1,8 +1,12 @@
+![PyPI Version](https://img.shields.io/pypi/v/django-pydantic-field)
+
 # Django + Pydantic = 🖤
 
 Django JSONField with Pydantic models as a Schema
 
 ## Usage
+
+Install the package with `pip install django-pydantic-field`.
 
 ``` python
 import pydantic
@@ -16,15 +20,21 @@ class Foo(pydantic.BaseModel):
     size: float = 1.0
 
 
+class Bar(pydantic.BaseModel):
+    slug: str = "foo_bar"
+
+
 class MyModel(models.Model):
     foo_field = PydanticSchemaField(schema=Foo)
-    
+    bar_list = PydanticSchemaField(schema=list[Bar])
+
 ...
     
-model = MyModel(foo_field={"count": "5"})
+model = MyModel(foo_field={"count": "5"}, bar_list=[{}])
 model.save()
 
-assert model.foo_field = Foo(count=5, size=1.0)
+assert model.foo_field == Foo(count=5, size=1.0)
+assert model.bar_list == [Bar(slug="foo_bar")]
 ```
 
 
@@ -51,12 +61,12 @@ from django_pydantic_field.rest_framework import PydanticSchemaRenderer, Pydanti
 
 @api_view(["POST"])
 @parser_classes([PydanticSchemaParser[Foo]]):
-@renderer_classes([PydanticSchemaRenderer[Foo]])
+@renderer_classes([PydanticSchemaRenderer[list[Foo]]])
 def foo_view(request):
     assert isinstance(request.data, Foo)
 
     count = request.data.count + 1
-    return Response(Foo(count=count))
+    return Response([Foo(count=count)])
 ```
 
 

@@ -1,4 +1,6 @@
+import typing as t
 from datetime import date
+
 from django_pydantic_field import fields
 from django.db import models
 
@@ -26,13 +28,19 @@ def test_sample_field_with_raw_data():
 def test_simple_model_field():
     class SampleModel(models.Model):
         sample_field = fields.PydanticSchemaField(schema=InnerSchema)
+        sample_list = fields.PydanticSchemaField(schema=t.List[InnerSchema])
 
         class Meta:
             app_label = "sample_app"
 
 
-    existing_raw = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
-    expected_decoded = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
+    existing_raw_field = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
+    existing_raw_list = [{"stub_str": "abc", "stub_list": []}]
 
-    instance = SampleModel(sample_field=existing_raw)
-    assert instance.sample_field == expected_decoded
+    instance = SampleModel(sample_field=existing_raw_field, sample_list=existing_raw_list)
+
+    expected_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
+    expected_list = [InnerSchema(stub_str="abc", stub_list=[])]
+
+    assert instance.sample_field == expected_instance
+    assert instance.sample_list == expected_list
