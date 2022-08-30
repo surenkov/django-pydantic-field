@@ -10,8 +10,8 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "django.contrib.sessions",
     "django.contrib.messages",
-    "django.contrib.admin.apps.SimpleAdminConfig",
     "django.contrib.staticfiles",
+    "tests.sample_app",
 ]
 
 
