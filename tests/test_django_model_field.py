@@ -1,10 +1,16 @@
+import pytest
+
+import sys
 import typing as t
 from datetime import date
 
 from django_pydantic_field import fields
+
 from django.db import models
+from django.db.migrations.writer import MigrationWriter
 
 from .conftest import InnerSchema
+
 
 
 def test_sample_field():
@@ -44,3 +50,22 @@ def test_simple_model_field():
 
     assert instance.sample_field == expected_instance
     assert instance.sample_list == expected_list
+
+
+@pytest.mark.parametrize("field", [
+    fields.PydanticSchemaField(schema=InnerSchema, default=InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])),
+    fields.PydanticSchemaField(schema=InnerSchema, default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)]))),
+    fields.PydanticSchemaField(schema=InnerSchema, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}),
+    fields.PydanticSchemaField(schema=InnerSchema, default=None),
+    fields.PydanticSchemaField(schema=list[InnerSchema], default=list),
+])
+def test_field_serialization(field):
+    _, _, args, kwargs = field.deconstruct()
+
+    reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
+    assert field.get_default() == reconstructed_field.get_default()
+
+    serialized_field, _ = MigrationWriter.serialize(field)
+    deserialized_field = eval(serialized_field, globals(), sys.modules)
+
+    assert deserialized_field.get_default() == field.get_default()

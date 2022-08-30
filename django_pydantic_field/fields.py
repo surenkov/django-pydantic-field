@@ -1,4 +1,6 @@
+import json
 import typing as t
+from django.db.models.fields import NOT_PROVIDED
 
 from django.db.models.query_utils import DeferredAttribute
 from django.db.models import JSONField
@@ -50,11 +52,18 @@ class PydanticSchemaField(base.SchemaWrapper[base.ST], JSONField):
         _, _, args, kwargs = self.deconstruct()
         return type(self)(*args, **kwargs)
 
+    def get_default(self):
+        value = super().get_default()
+        return self.to_python(value)
+
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         kwargs.update(self.export_cfg, schema=self.schema, config=self.config)
-        kwargs.pop("encoder")
+
         kwargs.pop("decoder")
+        kwargs.pop("encoder")
+        self._deconstruct_default(kwargs)
+
         return name, path, args, kwargs
 
     def to_python(self, value) -> base.SchemaT:
@@ -64,3 +73,13 @@ class PydanticSchemaField(base.SchemaWrapper[base.ST], JSONField):
     def contribute_to_class(self, cls, name, *args, **kwargs):
         super().contribute_to_class(cls, name, *args, **kwargs)
         setattr(cls, name, SchemaDeferredAttribute(self))
+
+    def _deconstruct_default(self, kwargs):
+        default = kwargs.get("default", NOT_PROVIDED)
+
+        if not (default is NOT_PROVIDED or callable(default)):
+            plain_default = self.get_prep_value(default)
+            if plain_default is not None:
+                plain_default = json.loads(plain_default)
+
+            kwargs.update(default=plain_default)
