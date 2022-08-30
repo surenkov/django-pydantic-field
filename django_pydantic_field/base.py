@@ -92,11 +92,13 @@ class SchemaWrapper(t.Generic[ST]):
             exclude_unset=extractor(ctx, "exclude_unset", None),
             by_alias=extractor(ctx, "by_alias", None),
         )
-        if (include := extractor(ctx, "include", None)) is not None:
-            export_ctx["include"] = {"__root__": include}
+        include_fields = extractor(ctx, "include", None)
+        if include_fields is not None:
+            export_ctx["include"] = {"__root__": include_fields}
 
-        if (exclude := extractor(ctx, "exclude", None)) is not None:
-            export_ctx["exclude"] = {"__root__": exclude}
+        exclude_fields = extractor(ctx, "exclude", None)
+        if exclude_fields is not None:
+            export_ctx["exclude"] = {"__root__": exclude_fields}
 
         return {k: v for k, v in export_ctx.items() if v is not None}
 

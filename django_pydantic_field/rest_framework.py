@@ -18,7 +18,8 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
         with suppress(AttributeError):
             return self._schema
 
-        if (schema := ctx.get(self.schema_ctx_attr)) is None:
+        schema = ctx.get(self.schema_ctx_attr)
+        if schema is None:
             with suppress(AttributeError, IndexError):
                 schema = t.get_args(self.__orig_class__)[0]  # type: ignore
 
@@ -69,7 +70,8 @@ class PydanticSchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
         return json_str
 
     def render_data(self, data, renderer_ctx) -> bytes:
-        if (schema := self.get_schema(renderer_ctx or {})) is not None:
+        schema = self.get_schema(renderer_ctx or {})
+        if schema is not None:
             data = schema(__root__=data)
 
         export_kw = self._extract_export_kwargs(renderer_ctx)
