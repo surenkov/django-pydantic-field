@@ -30,11 +30,11 @@ class SchemaDeferredAttribute(DeferredAttribute):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
 
 
-class PydanticSchemaField(base.SchemaWrapper[base.ST], JSONField):
+class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     def __init__(
         self,
-        schema: t.Type[base.ST],
-        config: base.ConfigType = None,
+        schema: t.Type["base.ST"],
+        config: "base.ConfigType" = None,
         *args,
         error_handler=base.default_error_handler,
         **kwargs
@@ -68,7 +68,7 @@ class PydanticSchemaField(base.SchemaWrapper[base.ST], JSONField):
 
         return name, path, args, kwargs
 
-    def to_python(self, value) -> base.SchemaT:
+    def to_python(self, value) -> "base.SchemaT":
         assert self.decoder is not None
         return self.decoder().decode(value)
 

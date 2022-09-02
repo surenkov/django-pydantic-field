@@ -10,7 +10,7 @@ from django_pydantic_field import fields
 from django.db import models
 from django.db.migrations.writer import MigrationWriter
 
-from .conftest import InnerSchema
+from .conftest import InnerSchema, SampleDataclass
 
 
 
@@ -58,9 +58,9 @@ def test_simple_model_field():
     fields.PydanticSchemaField(schema=InnerSchema, default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)]))),
     fields.PydanticSchemaField(schema=InnerSchema, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}),
     fields.PydanticSchemaField(schema=InnerSchema, default=None),
-    fields.PydanticSchemaField(schema=t.Sequence[InnerSchema], default=list),
     fields.PydanticSchemaField(schema=t.List[InnerSchema], default=list),
     fields.PydanticSchemaField(schema=t.Dict[str, InnerSchema], default=list),
+    fields.PydanticSchemaField(schema=SampleDataclass, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]})
 ])
 def test_field_serialization(field):
     _, _, args, kwargs = field.deconstruct()

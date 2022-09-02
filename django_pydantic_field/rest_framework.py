@@ -9,7 +9,8 @@ from . import base
 
 __all__ = "PydanticSchemaField", "PydanticSchemaRenderer", "PydanticSchemaParser"
 
-Context = t.Dict[str, t.Any]
+if t.TYPE_CHECKING:
+    Context = t.Dict[str, t.Any]
 
 
 class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
@@ -18,7 +19,7 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
 
     _cached_annotation_schema: t.Type[BaseModel]
 
-    def get_context_schema(self, ctx: Context) -> t.Optional[t.Type[BaseModel]]:
+    def get_context_schema(self, ctx: "Context") -> t.Optional[t.Type[BaseModel]]:
         schema = ctx.get(self.schema_ctx_attr)
         if schema is not None:
             schema = self._wrap_schema(schema)
@@ -38,7 +39,7 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
         self._cached_annotation_schema = schema
         return schema
 
-    def get_schema(self, ctx: Context):
+    def get_schema(self, ctx: "Context"):
         schema = self.get_context_schema(ctx)
         if schema is None:
             schema = self.get_annotation_schema()
@@ -55,8 +56,8 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
 class PydanticSchemaField(base.SchemaWrapper[base.ST], serializers.Field):
     def __init__(
         self,
-        schema: t.Type[base.ST],
-        config: t.Optional[base.ConfigType] = None,
+        schema: t.Type["base.ST"],
+        config: t.Optional["base.ConfigType"] = None,
         **kwargs,
     ):
         self.schema = field_schema = self._wrap_schema(schema, config)
@@ -64,7 +65,7 @@ class PydanticSchemaField(base.SchemaWrapper[base.ST], serializers.Field):
         self.export_cfg = self._extract_export_kwargs(kwargs, dict.pop)
         super().__init__(**kwargs)
 
-    def to_internal_value(self, data) -> t.Optional[base.ST]:
+    def to_internal_value(self, data) -> t.Optional["base.ST"]:
         return self.decoder.decode(data)
 
     def to_representation(self, value):

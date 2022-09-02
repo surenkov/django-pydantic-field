@@ -7,10 +7,9 @@ from pydantic import BaseModel, BaseConfig, ValidationError
 from pydantic.main import create_model
 from pydantic.typing import display_as_type
 
+from pydantic.dataclasses import dataclass
+
 __all__ = (
-    "ST",
-    "SchemaT",
-    "ModelType",
     "SchemaEncoder",
     "SchemaDecoder",
     "SchemaWrapper",
@@ -18,11 +17,19 @@ __all__ = (
 
 logger = logging.getLogger(__name__)
 
-SchemaT = t.Union[None, BaseModel, t.Sequence[BaseModel], t.Mapping[str, BaseModel]]
-ST = t.TypeVar("ST", bound=SchemaT)
 
-ModelType = t.Type[BaseModel]
-ConfigType = t.Type[BaseConfig]
+if t.TYPE_CHECKING:
+    class Dataclass(t.Protocol):
+        __dataclass_fields__: t.Any
+
+    SchemaLike = t.Union[BaseModel, Dataclass]
+    SchemaT = t.Union[SchemaLike, t.Sequence[SchemaLike], t.Mapping[str, SchemaLike]]
+
+    ModelType = t.Type[BaseModel]
+    ConfigType = t.Type[BaseConfig]
+    JsonClsT = t.TypeVar("JsonClsT", bound=type)
+
+ST = t.TypeVar("ST", bound="SchemaT")
 
 
 def default_error_handler(obj, err):
@@ -31,7 +38,7 @@ def default_error_handler(obj, err):
 
 
 class SchemaEncoder(DjangoJSONEncoder):
-    def __init__(self, *args, schema: ModelType, export_cfg=None, **kwargs):
+    def __init__(self, *args, schema: "ModelType", export_cfg=None, **kwargs):
         self.schema = schema
         self.export_cfg = export_cfg or {}
         super().__init__(*args, **kwargs)
@@ -48,11 +55,11 @@ class SchemaEncoder(DjangoJSONEncoder):
 
 
 class SchemaDecoder(t.Generic[ST]):
-    def __init__(self, schema: ModelType, error_handler=default_error_handler):
+    def __init__(self, schema: "ModelType", error_handler=default_error_handler):
         self.schema = schema
         self.error_handler = error_handler
 
-    def decode(self, obj: t.Any) -> ST:
+    def decode(self, obj: t.Any) -> "ST":
         try:
             if isinstance(obj, (str, bytes)):
                 value = self.schema.parse_raw(obj).__root__  # type: ignore
@@ -66,7 +73,7 @@ class SchemaDecoder(t.Generic[ST]):
 
 
 class SchemaWrapper(t.Generic[ST]):
-    def _wrap_schema(self, schema: t.Type[ST], config: t.Optional[ConfigType] = None, **kwargs) -> ModelType:
+    def _wrap_schema(self, schema: t.Type["ST"], config: t.Optional["ConfigType"] = None, **kwargs) -> "ModelType":
         type_name = self._get_field_schema_name(schema)
         params = self._get_field_schema_params(schema, config, **kwargs)
         return create_model(type_name, **params)
@@ -74,7 +81,7 @@ class SchemaWrapper(t.Generic[ST]):
     def _get_field_schema_name(self, schema: t.Type[t.Any]) -> str:
         return f"FieldSchema[{display_as_type(schema)}]"
 
-    def _get_field_schema_params(self, schema: t.Type[ST], config: t.Optional[ConfigType] = None, **kwargs) -> dict:
+    def _get_field_schema_params(self, schema: t.Type["ST"], config: t.Optional["ConfigType"] = None, **kwargs) -> dict:
         params: t.Dict[str, t.Any] = dict(kwargs, __root__=(t.Optional[schema], ...))
 
         if config is None:
@@ -103,12 +110,10 @@ class SchemaWrapper(t.Generic[ST]):
         return {k: v for k, v in export_ctx.items() if v is not None}
 
 
-JsonClsT = t.TypeVar('JsonClsT', bound=t.Type)
-
-def bind_cls(cls: JsonClsT, **initkw) -> JsonClsT:
+def bind_cls(cls: "JsonClsT", **initkw) -> "JsonClsT":
     def __init__(self, *args, **kwargs):
         merged_kw = dict(initkw, **kwargs)
         super(bound_cls, self).__init__(*args, **merged_kw)
 
     bound_cls = type(cls.__name__, (cls,), {"__init__": __init__})
-    return t.cast(JsonClsT, bound_cls)
+    return t.cast("JsonClsT", bound_cls)
