@@ -1,3 +1,4 @@
+from _pytest.mark import deselect_by_mark
 import pytest
 
 import sys
@@ -57,15 +58,44 @@ def test_simple_model_field():
     fields.PydanticSchemaField(schema=InnerSchema, default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)]))),
     fields.PydanticSchemaField(schema=InnerSchema, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}),
     fields.PydanticSchemaField(schema=InnerSchema, default=None),
-    fields.PydanticSchemaField(schema=list[InnerSchema], default=list),
+    fields.PydanticSchemaField(schema=t.Sequence[InnerSchema], default=list),
+    fields.PydanticSchemaField(schema=t.List[InnerSchema], default=list),
+    fields.PydanticSchemaField(schema=t.Dict[str, InnerSchema], default=list),
 ])
 def test_field_serialization(field):
     _, _, args, kwargs = field.deconstruct()
 
     reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
     assert field.get_default() == reconstructed_field.get_default()
+    assert field.schema == reconstructed_field.schema
 
-    serialized_field, _ = MigrationWriter.serialize(field)
-    deserialized_field = eval(serialized_field, globals(), sys.modules)
-
+    deserialized_field = reconstruct_field(serialize_field(field))
     assert deserialized_field.get_default() == field.get_default()
+    assert field.schema == deserialized_field.schema
+
+
+@pytest.mark.parametrize("field", [
+    fields.PydanticSchemaField(schema=list[InnerSchema], default=list),
+    fields.PydanticSchemaField(schema=dict[str, InnerSchema], default=list),
+])
+def test_field_failing_serialization(field):
+    _, _, args, kwargs = field.deconstruct()
+
+    reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
+    assert field.get_default() == reconstructed_field.get_default()
+    assert field.schema == reconstructed_field.schema
+
+    deserialized_field = reconstruct_field(serialize_field(field))
+    assert deserialized_field.get_default() == field.get_default()
+
+    with pytest.raises(AssertionError):
+        assert field.schema == deserialized_field.schema
+
+
+def serialize_field(field: fields.PydanticSchemaField) -> str:
+    serialized_field, _ = MigrationWriter.serialize(field)
+    return serialized_field
+
+
+def reconstruct_field(field_repr: str) -> fields.PydanticSchemaField:
+    return eval(field_repr, globals(), sys.modules)

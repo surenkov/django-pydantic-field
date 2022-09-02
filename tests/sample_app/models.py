@@ -20,3 +20,6 @@ default_meta = BuildingMeta(type=BuildingTypes.FRAME)
 
 class Building(models.Model):
     meta = PydanticSchemaField(schema=BuildingMeta, default=default_meta)
+    meta_builtin_list = PydanticSchemaField(schema=list[BuildingMeta], default=list)
+    meta_typing_list = PydanticSchemaField(schema=t.List[BuildingMeta], default=list)
+    meta_special_list = PydanticSchemaField(schema=t.List, default=list)

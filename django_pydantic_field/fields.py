@@ -1,9 +1,11 @@
 import json
 import typing as t
-from django.db.models.fields import NOT_PROVIDED
 
+from django.db.models.fields import NOT_PROVIDED
 from django.db.models.query_utils import DeferredAttribute
 from django.db.models import JSONField
+
+from django.db.migrations import writer, serializer
 
 from . import base
 
@@ -83,3 +85,38 @@ class PydanticSchemaField(base.SchemaWrapper[base.ST], JSONField):
                 plain_default = json.loads(plain_default)
 
             kwargs.update(default=plain_default)
+
+
+## Django Migration serializer helpers
+
+
+class GenericAliasSerializer(serializer.BaseSerializer):
+    def serialize(self):
+        origin = t.get_origin(self.value)
+        _, imports = serializer.serializer_factory(origin).serialize()
+
+        for arg in t.get_args(self.value):
+            _, arg_imports = serializer.serializer_factory(arg).serialize()
+            imports.update(arg_imports)
+
+        return repr(self.value), imports
+
+
+try:
+    GenericAlias = type(list[int])
+    SpecialGenericAlias = type(t.List)
+    TypingGenericAlias = type(t.List[int])
+except TypeError:
+    # builtins.list is not subscriptable, meaning python < 3.9,
+    # which has a different inheritance models for typed generics
+    GenericAlias = type(t.List[int])
+    writer.MigrationWriter.register_serializer(GenericAlias, GenericAliasSerializer)
+else:
+
+    class SpecialGenericAliasSerializer(serializer.BaseSerializer):
+        def serialize(self):
+            return repr(self.value), {"import %s" % self.value.__module__}
+
+    writer.MigrationWriter.register_serializer(GenericAlias, GenericAliasSerializer)
+    writer.MigrationWriter.register_serializer(TypingGenericAlias, GenericAliasSerializer)
+    writer.MigrationWriter.register_serializer(SpecialGenericAlias, SpecialGenericAliasSerializer)
