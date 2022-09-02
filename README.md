@@ -55,6 +55,7 @@ class MyModelSerializer(serializers.ModelSerializer):
 
 Global approach with typed `parser` and `renderer` classes
 ``` python
+from rest_framework import views
 from rest_framework.decorators import api_view, parser_classes, renderer_classes
 from django_pydantic_field.rest_framework import PydanticSchemaRenderer, PydanticSchemaParser
 
@@ -67,8 +68,22 @@ def foo_view(request):
 
     count = request.data.count + 1
     return Response([Foo(count=count)])
-```
 
+
+class FooClassBasedView(views.APIView):
+    parser_classes = [PydanticSchemaParser[Foo]]
+    renderer_classes = [PydanticSchemaRenderer[list[Foo]]]
+
+    def get(self, request, *args, **kwargs):
+        assert isinstance(request.data, Foo)
+        return Response([request.data])
+
+    def put(self, request, *args, **kwargs):
+        assert isinstance(request.data, Foo)
+
+        count = request.data.count + 1
+        return Response([request.data])
+```
 
 ## Acknowledgement
 

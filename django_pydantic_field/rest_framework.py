@@ -9,24 +9,46 @@ from . import base
 
 __all__ = "PydanticSchemaField", "PydanticSchemaRenderer", "PydanticSchemaParser"
 
+Context = t.Dict[str, t.Any]
+
 
 class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
-    _schema: t.Type[BaseModel]
     schema_ctx_attr: t.ClassVar[str] = "schema"
+    require_explicit_schema: t.ClassVar[bool] = False
 
-    def get_schema(self, ctx) -> t.Type[BaseModel]:
-        with suppress(AttributeError):
-            return self._schema
+    _cached_annotation_schema: t.Type[BaseModel]
 
+    def get_context_schema(self, ctx: Context) -> t.Optional[t.Type[BaseModel]]:
         schema = ctx.get(self.schema_ctx_attr)
-        if schema is None:
-            with suppress(AttributeError, IndexError):
-                schema = t.get_args(self.__orig_class__)[0]  # type: ignore
-
         if schema is not None:
             schema = self._wrap_schema(schema)
 
-        self.output_schema = schema
+        return schema
+
+    def get_annotation_schema(self) -> t.Optional[t.Type[BaseModel]]:
+        with suppress(AttributeError):
+            return self._cached_annotation_schema
+
+        try:
+            schema = t.get_args(self.__orig_class__)[0]  # type: ignore
+        except (AttributeError, IndexError):
+            return None
+
+        schema = self._wrap_schema(schema)
+        self._cached_annotation_schema = schema
+        return schema
+
+    def get_schema(self, ctx: Context):
+        schema = self.get_context_schema(ctx)
+        if schema is None:
+            schema = self.get_annotation_schema()
+
+        if self.require_explicit_schema and schema is None:
+            raise ValueError(
+                "Schema should be either explicitly set with annotation "
+                "or passed in the context"
+            )
+
         return schema
 
 
@@ -75,18 +97,19 @@ class PydanticSchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
             data = schema(__root__=data)
 
         export_kw = self._extract_export_kwargs(renderer_ctx)
-        json_str = data.json(**export_kw)
+        json_str = data.json(**export_kw, ensure_ascii=self.ensure_ascii)
         return json_str.encode()
 
 
 class PydanticSchemaParser(AnnotatedSchemaT[base.ST], parsers.JSONParser):
     schema_ctx_attr = "parser_schema"
     renderer_class = PydanticSchemaRenderer
+    require_explicit_schema = True
 
     def parse(self, stream, media_type=None, parser_context=None):
         parser_context = parser_context or {}
         encoding = parser_context.get("encoding", settings.DEFAULT_CHARSET)
-        schema = self.get_schema(parser_context)
+        schema = t.cast(BaseModel, self.get_schema(parser_context))
 
         try:
             return schema.parse_raw(stream.read(), encoding=encoding).__root__

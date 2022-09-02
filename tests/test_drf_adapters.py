@@ -4,9 +4,9 @@ from datetime import date
 
 import pytest
 
+from rest_framework import serializers, views, exceptions
 from rest_framework.decorators import api_view, renderer_classes, parser_classes
 from rest_framework.response import Response
-from rest_framework import serializers, exceptions
 
 from django_pydantic_field import rest_framework
 
@@ -81,19 +81,47 @@ def test_schema_parser():
     assert parser.parse(io.StringIO(existing_encoded)) == expected_instance
 
 
-def test_end_to_end_api_view(request_factory):
+@api_view(["POST"])
+@parser_classes([rest_framework.PydanticSchemaParser[InnerSchema]])
+@renderer_classes([rest_framework.PydanticSchemaRenderer[t.List[InnerSchema]]])
+def sample_view(request):
+    assert isinstance(request.data, InnerSchema)
+    return Response([request.data])
+
+
+class ClassBasedView(views.APIView):
+    parser_classes = [rest_framework.PydanticSchemaParser[InnerSchema]]
+    renderer_classes = [rest_framework.PydanticSchemaRenderer[t.List[InnerSchema]]]
+
+    def post(self, request, *args, **kwargs):
+        assert isinstance(request.data, InnerSchema)
+        return Response([request.data])
+
+
+class ClassBasedViewWithSchemaContext(ClassBasedView):
+    parser_classes = [rest_framework.PydanticSchemaParser]
+    renderer_classes = [rest_framework.PydanticSchemaRenderer]
+
+    def get_renderer_context(self):
+        ctx = super().get_renderer_context()
+        return dict(ctx, render_schema=t.List[InnerSchema])
+
+    def get_parser_context(self, http_request):
+        ctx = super().get_parser_context(http_request)
+        return dict(ctx, parser_schema=InnerSchema)
+
+
+@pytest.mark.parametrize("view", [
+    sample_view,
+    ClassBasedView.as_view(),
+    ClassBasedViewWithSchemaContext.as_view(),
+])
+def test_end_to_end_api_view(view, request_factory):
     expected_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
     existing_encoded = b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
 
-    @api_view(["POST"])
-    @parser_classes([rest_framework.PydanticSchemaParser[InnerSchema]])
-    @renderer_classes([rest_framework.PydanticSchemaRenderer[t.List[InnerSchema]]])
-    def sample_view(request):
-        assert request.data == expected_instance
-        return Response([request.data])
-
     request = request_factory.post("/", existing_encoded, content_type="application/json")
-    response = sample_view(request)
+    response = view(request)
 
     assert response.data == [expected_instance]
     assert response.data[0] is not expected_instance
