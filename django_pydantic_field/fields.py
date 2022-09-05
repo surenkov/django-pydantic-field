@@ -5,7 +5,8 @@ from django.db.models.fields import NOT_PROVIDED
 from django.db.models.query_utils import DeferredAttribute
 from django.db.models import JSONField
 
-from django.db.migrations import writer, serializer
+from django.db.migrations.writer import MigrationWriter
+from django.db.migrations.serializer import serializer_factory, BaseSerializer
 
 from . import base
 
@@ -33,12 +34,15 @@ class SchemaDeferredAttribute(DeferredAttribute):
 class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     def __init__(
         self,
-        schema: t.Type["base.ST"],
+        schema: t.Union[t.Type["base.ST"], "GenericContainer"],
         config: "base.ConfigType" = None,
         *args,
         error_handler=base.default_error_handler,
         **kwargs
     ):
+        if isinstance(schema, GenericContainer):
+            schema = t.cast(t.Type[base.ST], schema.reconstruct_schema())
+
         self.schema = schema
         self.config = config
         self.export_cfg = self._extract_export_kwargs(kwargs, dict.pop)
@@ -60,11 +64,12 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
-        kwargs.update(self.export_cfg, schema=self.schema, config=self.config)
+        self._deconstruct_schema(kwargs)
+        self._deconstruct_default(kwargs)
+        self._deconstruct_config(kwargs)
 
         kwargs.pop("decoder")
         kwargs.pop("encoder")
-        self._deconstruct_default(kwargs)
 
         return name, path, args, kwargs
 
@@ -86,37 +91,89 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
 
             kwargs.update(default=plain_default)
 
+    def _deconstruct_schema(self, kwargs):
+        schema = self.schema
+        if isinstance(schema, GenericTypes):
+            schema = GenericContainer.from_generic(self.schema)
 
-## Django Migration serializer helpers
+        kwargs.update(schema=schema)
+
+    def _deconstruct_config(self, kwargs):
+        kwargs.update(self.export_cfg, config=self.config)
 
 
-class GenericAliasSerializer(serializer.BaseSerializer):
+# Django Migration serializer helpers
+#
+# [Built-in generic annotations](https://peps.python.org/pep-0585/)
+#   introduced in Python 3.9 are having a different semantics from `typing` collections.
+#   Due to how Django treats field serialization/reconstruction while writing migrations,
+#   it is not possible to distnguish between `types.GenericAlias` and any other regular types,
+#   thus annotations are being erased by `MigrationWriter` serializers.
+#
+#   To mitigate this, I had to introduce custom container for schema deconstruction.
+
+
+class GenericContainer:
+    __slots__ = "origin", "args"
+
+    def __init__(self, origin, args=()):
+        self.origin = origin
+        self.args = args
+
+    @classmethod
+    def from_generic(cls, type_):
+        return cls(t.get_origin(type_), t.get_args(type_))
+
+    def reconstruct_schema(self):
+        if not self.args:
+            return self.origin
+        return GenericAlias(self.origin, self.args)
+
+    def __repr__(self):
+        return repr(self.reconstruct_schema())
+
+    __str__ = __repr__
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.origin, self.args == other.origin, other.args
+        if isinstance(other, GenericTypes):
+            return self == self.from_generic(other)
+        return NotImplemented
+
+
+class _GenericSerializer(BaseSerializer):
+    value: GenericContainer
+
     def serialize(self):
-        origin = t.get_origin(self.value)
-        _, imports = serializer.serializer_factory(origin).serialize()
+        value = self.value
 
-        for arg in t.get_args(self.value):
-            _, arg_imports = serializer.serializer_factory(arg).serialize()
+        tp_repr, imports = serializer_factory(type(value)).serialize()
+        orig_repr, orig_imports = serializer_factory(value.origin).serialize()
+        imports.update(orig_imports)
+
+        args = []
+        for arg in value.args:
+            arg_repr, arg_imports = serializer_factory(arg).serialize()
+            args.append(arg_repr)
             imports.update(arg_imports)
 
-        return repr(self.value), imports
+        if args:
+            args_repr = ", ".join(args)
+            generic_repr = "%s(%s, (%s,))" % (tp_repr, orig_repr, args_repr)
+        else:
+            generic_repr = "%s(%s)" % (tp_repr, orig_repr)
+
+        return generic_repr, imports
 
 
 try:
     GenericAlias = type(list[int])
-    SpecialGenericAlias = type(t.List)
-    TypingGenericAlias = type(t.List[int])
+    GenericTypes = GenericAlias, type(t.List[int]), type(t.List)
 except TypeError:
     # builtins.list is not subscriptable, meaning python < 3.9,
     # which has a different inheritance models for typed generics
     GenericAlias = type(t.List[int])
-    writer.MigrationWriter.register_serializer(GenericAlias, GenericAliasSerializer)
-else:
+    GenericTypes = GenericAlias, type(t.List)
 
-    class SpecialGenericAliasSerializer(serializer.BaseSerializer):
-        def serialize(self):
-            return repr(self.value), {"import %s" % self.value.__module__}
-
-    writer.MigrationWriter.register_serializer(GenericAlias, GenericAliasSerializer)
-    writer.MigrationWriter.register_serializer(TypingGenericAlias, GenericAliasSerializer)
-    writer.MigrationWriter.register_serializer(SpecialGenericAlias, SpecialGenericAliasSerializer)
+MigrationWriter.register_serializer(GenericContainer, _GenericSerializer)

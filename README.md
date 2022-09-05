@@ -85,18 +85,6 @@ class FooClassBasedView(views.APIView):
         return Response([request.data])
 ```
 
-## Caveats
-* *[Built-in generic annotations](https://peps.python.org/pep-0585/)* introduced in Python 3.9 are expecting to fail 
-  during `manage.py makemigrations` step: due to how Django treats field serialization/reconstruction 
-  while writing migrations, it is not possible to create [a custom serializer](https://docs.djangoproject.com/en/4.1/topics/migrations/#custom-serializers) 
-  to distinguish between
-  [types.GenericAlias and a type instance](https://github.com/django/django/blob/cd1afd553f9c175ebccfc0f50e72b43b9604bd97/django/db/migrations/serializer.py#L383) 
-  (any class) without pushing a patch directly in Django.
-
-  A workaround is to use generic collections from `typing` module, even though they're marked as deprecated and will be eventually removed in the future versions of Python.
-
-  Note, that this restriction applies only for `PydanticSchemaField`. DRF integrations sould work fine though.
-
 ## Acknowledgement
 
 * [Churkin Oleg](https://gist.github.com/Bahus/98a9848b1f8e2dcd986bf9f05dbf9c65) for his Gist as a source of inspiration;
