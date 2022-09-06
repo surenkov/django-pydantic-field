@@ -3,11 +3,9 @@ import typing as t
 
 from django.core.serializers.json import DjangoJSONEncoder
 
-from pydantic import BaseModel, BaseConfig, ValidationError
+import pydantic
 from pydantic.main import create_model
 from pydantic.typing import display_as_type
-
-from pydantic.dataclasses import dataclass
 
 __all__ = (
     "SchemaEncoder",
@@ -22,11 +20,17 @@ if t.TYPE_CHECKING:
     class Dataclass(t.Protocol):
         __dataclass_fields__: t.Any
 
-    SchemaLike = t.Union[BaseModel, Dataclass]
-    SchemaT = t.Union[SchemaLike, t.Sequence[SchemaLike], t.Mapping[str, SchemaLike]]
+    SchemaLike = t.Union[pydantic.BaseModel, Dataclass, t.Any]
+    SchemaT = t.Union[
+        SchemaLike,
+        t.Sequence[SchemaLike],
+        t.Mapping[str, SchemaLike],
+        t.Set[SchemaLike],
+        t.FrozenSet[SchemaLike],
+    ]
 
-    ModelType = t.Type[BaseModel]
-    ConfigType = t.Type[BaseConfig]
+    ModelType = t.Type[pydantic.BaseModel]
+    ConfigType = t.Type[pydantic.BaseConfig]
     JsonClsT = t.TypeVar("JsonClsT", bound=type)
 
 ST = t.TypeVar("ST", bound="SchemaT")
@@ -46,7 +50,7 @@ class SchemaEncoder(DjangoJSONEncoder):
     def encode(self, obj):
         try:
             data = self.schema(__root__=obj).json(**self.export_cfg)
-        except ValidationError:
+        except pydantic.ValidationError:
             # This branch used for expressions like .filter(data__contains={}).
             # We don't want that {} to be parsed as a schema.
             data = super().encode(obj)
@@ -66,7 +70,7 @@ class SchemaDecoder(t.Generic[ST]):
             else:
                 value = self.schema.parse_obj(obj).__root__  # type: ignore
             return value
-        except ValidationError as e:
+        except pydantic.ValidationError as e:
             err = e
 
         return self.error_handler(obj, (self.schema, err))
@@ -108,12 +112,3 @@ class SchemaWrapper(t.Generic[ST]):
             export_ctx["exclude"] = {"__root__": exclude_fields}
 
         return {k: v for k, v in export_ctx.items() if v is not None}
-
-
-def bind_cls(cls: "JsonClsT", **initkw) -> "JsonClsT":
-    def __init__(self, *args, **kwargs):
-        merged_kw = dict(initkw, **kwargs)
-        super(bound_cls, self).__init__(*args, **merged_kw)
-
-    bound_cls = type(cls.__name__, (cls,), {"__init__": __init__})
-    return t.cast("JsonClsT", bound_cls)

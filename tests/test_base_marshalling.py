@@ -1,11 +1,12 @@
 import typing as t
 from datetime import date
+from uuid import UUID
 
 import pytest
 import pydantic
 
 from django_pydantic_field import base
-from .conftest import InnerSchema
+from .conftest import InnerSchema, SampleDataclass
 
 
 class SampleSchema(pydantic.BaseModel):
@@ -68,3 +69,27 @@ def test_schema_wrapper_transformers():
     existing_encoded = '[{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}]'
     parsed_wrapper = wrapper._wrap_schema(t.List[InnerSchema]).parse_raw(existing_encoded)
     assert parsed_wrapper.__root__ == [expected_decoded]
+
+
+@pytest.mark.parametrize("type_, encoded, decoded", [
+    (InnerSchema, '{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}', InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])),
+    (SampleDataclass, '{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}', SampleDataclass(stub_str="abc", stub_list=[date(2022, 7, 1)])),
+    (list[InnerSchema], '[{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}]', [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])]),
+    (list[SampleDataclass], '[{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}]', [SampleDataclass(stub_str="abc", stub_list=[date(2022, 7, 1)])]),
+    (list[int], '[1, 2, 3]', [1, 2, 3]),
+    (t.List[int], '[1, 2, 3]', [1, 2, 3]),
+    (dict[int, date], '{"1": "1970-01-01"}', {1: date(1970, 1, 1)}),
+    (t.Mapping[int, date], '{"1": "1970-01-01"}', {1: date(1970, 1, 1)}),
+    (set[UUID], '["ba6eb330-4f7f-11eb-a2fb-67c34e9ac07c"]', {UUID("ba6eb330-4f7f-11eb-a2fb-67c34e9ac07c")}),
+    (t.Set[UUID], '["ba6eb330-4f7f-11eb-a2fb-67c34e9ac07c"]', {UUID("ba6eb330-4f7f-11eb-a2fb-67c34e9ac07c")}),
+])
+def test_concrete_types(type_, encoded, decoded):
+    schema = base.SchemaWrapper()._wrap_schema(type_)
+    encoder = base.SchemaEncoder(schema=schema)
+    decoder = base.SchemaDecoder(schema=schema)
+
+    existing_decoded = decoder.decode(encoded)
+    assert existing_decoded == decoded
+
+    existing_encoded = encoder.encode(decoded)
+    assert decoder.decode(existing_encoded) == decoded

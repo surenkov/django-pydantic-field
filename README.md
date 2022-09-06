@@ -27,16 +27,27 @@ class Bar(pydantic.BaseModel):
 class MyModel(models.Model):
     foo_field = PydanticSchemaField(schema=Foo)
     bar_list = PydanticSchemaField(schema=list[Bar])
+    raw_date_map = PydanticSchemaField(schema=dict[datetime.date, int])
+    raw_uids = PydanticSchemaField(schema=set[UUID])
 
 ...
     
-model = MyModel(foo_field={"count": "5"}, bar_list=[{}])
+model = MyModel(
+    foo_field={"count": "5"},
+    bar_list=[{}],
+    raw_date_map={1: "1970-01-01"},
+    raw_uid_set={"17a25db0-27a4-11ed-904a-5ffb17f92734"}
+)
 model.save()
 
 assert model.foo_field == Foo(count=5, size=1.0)
 assert model.bar_list == [Bar(slug="foo_bar")]
+assert model.raw_date_map = {1: datetime.date(1970, 1, 1)}
+assert model.raw_uid_set = {UUID("17a25db0-27a4-11ed-904a-5ffb17f92734")}
 ```
 
+Practically, schema could be of any type supported by Pydantic.
+In addition, an external `config` class can be passed for such schemes.
 
 ### Django REST Framework support
 

@@ -1,5 +1,6 @@
 import json
 import typing as t
+from functools import partial
 
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.query_utils import DeferredAttribute
@@ -32,6 +33,9 @@ class SchemaDeferredAttribute(DeferredAttribute):
 
 
 class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
+    decoder: t.Callable[[], base.SchemaDecoder]
+    encoder: t.Callable[[], base.SchemaEncoder]
+
     def __init__(
         self,
         schema: t.Union[t.Type["base.ST"], "GenericContainer"],
@@ -41,15 +45,15 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         **kwargs
     ):
         if isinstance(schema, GenericContainer):
-            schema = t.cast(t.Type[base.ST], schema.reconstruct_schema())
+            schema = t.cast(t.Type["base.ST"], schema.reconstruct_type())
 
         self.schema = schema
         self.config = config
         self.export_cfg = self._extract_export_kwargs(kwargs, dict.pop)
 
         field_schema = self._wrap_schema(schema, config)
-        decoder = base.bind_cls(base.SchemaDecoder, schema=field_schema, error_handler=error_handler)
-        encoder = base.bind_cls(base.SchemaEncoder, schema=field_schema, export_cfg=self.export_cfg)
+        decoder = partial(base.SchemaDecoder, schema=field_schema, error_handler=error_handler)
+        encoder = partial(base.SchemaEncoder, schema=field_schema, export_cfg=self.export_cfg)
 
         kwargs.update(decoder=decoder, encoder=encoder)
         super().__init__(*args, **kwargs)
@@ -121,16 +125,16 @@ class GenericContainer:
         self.args = args
 
     @classmethod
-    def from_generic(cls, type_):
+    def from_generic(cls, type_: "GenericAlias") -> "GenericContainer":
         return cls(t.get_origin(type_), t.get_args(type_))
 
-    def reconstruct_schema(self):
+    def reconstruct_type(self) -> "GenericAlias":
         if not self.args:
             return self.origin
         return GenericAlias(self.origin, self.args)
 
     def __repr__(self):
-        return repr(self.reconstruct_schema())
+        return repr(self.reconstruct_type())
 
     __str__ = __repr__
 
