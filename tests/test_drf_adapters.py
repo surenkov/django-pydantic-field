@@ -3,17 +3,19 @@ import typing as t
 from datetime import date
 
 import pytest
+import yaml
 
-from rest_framework import serializers, views, exceptions
-from rest_framework.decorators import api_view, renderer_classes, parser_classes
+from rest_framework import serializers, views, exceptions, schemas, generics
+from rest_framework.decorators import api_view, renderer_classes, parser_classes, schema
 from rest_framework.response import Response
 
+from django.urls import path
 from django_pydantic_field import rest_framework
 
 from .conftest import InnerSchema
 
 
-class Serializer(serializers.Serializer):
+class SampleSerializer(serializers.Serializer):
     field = rest_framework.PydanticSchemaField(schema=t.List[InnerSchema])
 
 
@@ -39,17 +41,17 @@ def test_serializer_marshalling_with_schema_field():
     existing_instance = {"field": [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])]}
     expected_data = {"field": [{"stub_str": "abc", "stub_int": 1, "stub_list": [date(2022, 7, 1)]}]}
 
-    serializer = Serializer(instance=existing_instance)
+    serializer = SampleSerializer(instance=existing_instance)
     assert serializer.data == expected_data
 
-    serializer = Serializer(data=expected_data)
+    serializer = SampleSerializer(data=expected_data)
     serializer.is_valid(raise_exception=True)
     assert serializer.validated_data == existing_instance
 
 
 def test_invalid_data_serialization():
     invalid_data = {"field": [{"stub_int": "abc", "stub_list": ["abc"]}]}
-    serializer = Serializer(data=invalid_data)
+    serializer = SampleSerializer(data=invalid_data)
 
     with pytest.raises(exceptions.ValidationError) as e:
         serializer.is_valid(raise_exception=True)
@@ -82,11 +84,17 @@ def test_schema_parser():
 
 
 @api_view(["POST"])
+@schema(rest_framework.PydanticAutoSchema())
 @parser_classes([rest_framework.PydanticSchemaParser[InnerSchema]])
 @renderer_classes([rest_framework.PydanticSchemaRenderer[t.List[InnerSchema]]])
 def sample_view(request):
     assert isinstance(request.data, InnerSchema)
     return Response([request.data])
+
+
+class ClassBasedViewWithSerializer(generics.RetrieveAPIView):
+    serializer_class = SampleSerializer
+    schema = rest_framework.PydanticAutoSchema()
 
 
 class ClassBasedView(views.APIView):
@@ -127,3 +135,122 @@ def test_end_to_end_api_view(view, request_factory):
     assert response.data[0] is not expected_instance
 
     assert response.rendered_content == b'[%s]' % existing_encoded
+
+
+def test_openapi_serializer_schema_generation(request_factory):
+    schema_url_patterns = [
+        path('api/', ClassBasedViewWithSerializer.as_view()),
+    ]
+
+    schema_view = schemas.get_schema_view(patterns=schema_url_patterns)
+    request = request_factory.get("api/", format="json")
+    response = schema_view(request)
+
+    results = yaml.load(response.rendered_content, yaml.CLoader)
+    assert results["components"]["schemas"]["Sample"]["properties"]["field"] == {
+        "title": "FieldSchema[List[tests.conftest.InnerSchema]]",
+        "type": "array",
+        "items": {"$ref": "#/definitions/InnerSchema"},
+        "definitions": {
+            "InnerSchema": {
+                "title": "InnerSchema",
+                "type": "object",
+                "properties": {
+                    "stub_str": {"title": "Stub Str", "type": "string"},
+                    "stub_int": {
+                        "title": "Stub Int",
+                        "default": 1,
+                        "type": "integer",
+                    },
+                    "stub_list": {
+                        "title": "Stub List",
+                        "type": "array",
+                        "items": {"type": "string", "format": "date"},
+                    },
+                },
+                "required": ["stub_str", "stub_list"],
+            }
+        },
+    }
+
+
+def test_openapi_parser_renderer_schema_generation(request_factory):
+    schema_url_patterns = [
+        path('api/', sample_view),
+    ]
+
+    schema_view = schemas.get_schema_view(patterns=schema_url_patterns)
+    request = request_factory.get("api/", format="json")
+    response = schema_view(request)
+
+    results = yaml.load(response.rendered_content, yaml.CLoader)
+    assert results["paths"]["/api/"]["post"]["requestBody"]["content"]["application/json"] == {
+        "schema": {
+            "title": "FieldSchema[InnerSchema]",
+            "$ref": "#/definitions/InnerSchema",
+            "definitions": {
+                "InnerSchema": {
+                    "title": "InnerSchema",
+                    "type": "object",
+                    "properties": {
+                        "stub_str": {
+                            "title": "Stub Str",
+                            "type": "string",
+                        },
+                        "stub_int": {
+                            "title": "Stub Int",
+                            "default": 1,
+                            "type": "integer",
+                        },
+                        "stub_list": {
+                            "title": "Stub List",
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "format": "date",
+                            },
+                        },
+                    },
+                    "required": ["stub_str", "stub_list"],
+                }
+            },
+        }
+    }
+    assert results["paths"]["/api/"]["post"]["responses"]["201"] == {
+        "content": {
+            "application/json": {
+                "schema": {
+                    "title": "FieldSchema[List[tests.conftest.InnerSchema]]",
+                    "type": "array",
+                    "items": {"$ref": "#/definitions/InnerSchema"},
+                    "definitions": {
+                        "InnerSchema": {
+                            "title": "InnerSchema",
+                            "type": "object",
+                            "properties": {
+                                "stub_str": {
+                                    "title": "Stub Str",
+                                    "type": "string",
+                                },
+                                "stub_int": {
+                                    "title": "Stub Int",
+                                    "default": 1,
+                                    "type": "integer",
+                                },
+                                "stub_list": {
+                                    "title": "Stub List",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                        "format": "date",
+                                    },
+                                },
+                            },
+                            "required": ["stub_str", "stub_list"],
+                        }
+                    },
+                }
+            }
+        },
+        "description": "",
+    }

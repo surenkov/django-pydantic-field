@@ -36,7 +36,7 @@ model = MyModel(
     foo_field={"count": "5"},
     bar_list=[{}],
     raw_date_map={1: "1970-01-01"},
-    raw_uid_set={"17a25db0-27a4-11ed-904a-5ffb17f92734"}
+    raw_uids={"17a25db0-27a4-11ed-904a-5ffb17f92734"}
 )
 model.save()
 
@@ -52,8 +52,11 @@ In addition, an external `config` class can be passed for such schemes.
 ### Django REST Framework support
 
 ``` python
-from rest_framework import serializers
-from django_pydantic_field.rest_framework import PydanticSchemaField
+from rest_framework import generics, serializers
+from django_pydantic_field.rest_framework import (
+    PydanticSchemaField,
+    PydanticAutoSchema,
+)
 
 
 class MyModelSerializer(serializers.ModelSerializer):
@@ -62,13 +65,24 @@ class MyModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyModel
         fields = '__all__'
+
+
+class SampleView(generics.RetrieveAPIView):
+    serializer_class = MyModelSerializer
+
+    # optional support of OpenAPI schema generation for Pydantic fields
+    schema = PydanticAutoSchema()
 ```
 
 Global approach with typed `parser` and `renderer` classes
 ``` python
 from rest_framework import views
 from rest_framework.decorators import api_view, parser_classes, renderer_classes
-from django_pydantic_field.rest_framework import PydanticSchemaRenderer, PydanticSchemaParser
+from django_pydantic_field.rest_framework import (
+    PydanticSchemaRenderer,
+    PydanticSchemaParser,
+    PydanticAutoSchema,
+)
 
 
 @api_view(["POST"])
@@ -84,6 +98,9 @@ def foo_view(request):
 class FooClassBasedView(views.APIView):
     parser_classes = [PydanticSchemaParser[Foo]]
     renderer_classes = [PydanticSchemaRenderer[list[Foo]]]
+
+    # optional support of OpenAPI schema generation for Pydantic parsers/renderers
+    schema = PydanticAutoSchema()
 
     def get(self, request, *args, **kwargs):
         assert isinstance(request.data, Foo)
