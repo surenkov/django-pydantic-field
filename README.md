@@ -1,4 +1,4 @@
-![PyPI Version](https://img.shields.io/pypi/v/django-pydantic-field)
+[![PyPI Version](https://img.shields.io/pypi/v/django-pydantic-field)](https://pypi.org/project/django-pydantic-field/)
 
 # Django + Pydantic = 🖤
 
