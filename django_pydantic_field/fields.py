@@ -1,5 +1,6 @@
 import json
 import typing as t
+
 from functools import partial
 
 from django.db.models.fields import NOT_PROVIDED
@@ -11,7 +12,7 @@ from django.db.migrations.serializer import serializer_factory, BaseSerializer
 
 from . import base
 
-__all__ = "PydanticSchemaField", "SchemaDeferredAttribute"
+__all__ = "SchemaField",
 
 
 class SchemaDeferredAttribute(DeferredAttribute):
@@ -33,8 +34,7 @@ class SchemaDeferredAttribute(DeferredAttribute):
 
 
 class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
-    decoder: t.Callable[[], base.SchemaDecoder]
-    encoder: t.Callable[[], base.SchemaEncoder]
+    descriptor_class = SchemaDeferredAttribute
 
     def __init__(
         self,
@@ -81,10 +81,6 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         assert self.decoder is not None
         return self.decoder().decode(value)
 
-    def contribute_to_class(self, cls, name, *args, **kwargs):
-        super().contribute_to_class(cls, name, *args, **kwargs)
-        setattr(cls, name, SchemaDeferredAttribute(self))
-
     def _deconstruct_default(self, kwargs):
         default = kwargs.get("default", NOT_PROVIDED)
 
@@ -106,6 +102,16 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         kwargs.update(self.export_cfg, config=self.config)
 
 
+def SchemaField(
+    schema: t.Union[t.Type["base.ST"], "GenericContainer"],
+    config: "base.ConfigType" = None,
+    *args,
+    error_handler=base.default_error_handler,
+    **kwargs
+) -> t.Any:
+    return PydanticSchemaField(schema, config, *args, error_handler=error_handler, **kwargs)
+
+
 # Django Migration serializer helpers
 #
 # [Built-in generic annotations](https://peps.python.org/pep-0585/)
@@ -125,10 +131,10 @@ class GenericContainer:
         self.args = args
 
     @classmethod
-    def from_generic(cls, type_: "GenericAlias") -> "GenericContainer":
-        return cls(t.get_origin(type_), t.get_args(type_))
+    def from_generic(cls, type_alias):
+        return cls(t.get_origin(type_alias), t.get_args(type_alias))
 
-    def reconstruct_type(self) -> "GenericAlias":
+    def reconstruct_type(self):
         if not self.args:
             return self.origin
         return GenericAlias(self.origin, self.args)
@@ -173,7 +179,7 @@ class _GenericSerializer(BaseSerializer):
 
 try:
     GenericAlias = type(list[int])
-    GenericTypes = GenericAlias, type(t.List[int]), type(t.List)
+    GenericTypes: t.Tuple[t.Any, ...] = GenericAlias, type(t.List[int]), type(t.List)
 except TypeError:
     # builtins.list is not subscriptable, meaning python < 3.9,
     # which has a different inheritance models for typed generics

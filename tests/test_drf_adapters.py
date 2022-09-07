@@ -16,11 +16,11 @@ from .conftest import InnerSchema
 
 
 class SampleSerializer(serializers.Serializer):
-    field = rest_framework.PydanticSchemaField(schema=t.List[InnerSchema])
+    field = rest_framework.SchemaField(schema=t.List[InnerSchema])
 
 
 def test_schema_field():
-    field = rest_framework.PydanticSchemaField(InnerSchema)
+    field = rest_framework.SchemaField(InnerSchema)
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
     expected_encoded = {"stub_str": "abc", "stub_int": 1, "stub_list": [date(2022, 7, 1)]}
 
@@ -29,7 +29,7 @@ def test_schema_field():
 
 
 def test_field_schema_with_custom_config():
-    field = rest_framework.PydanticSchemaField(InnerSchema, exclude={"stub_int"})
+    field = rest_framework.SchemaField(InnerSchema, exclude={"stub_int"})
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
     expected_encoded = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
 
@@ -60,7 +60,7 @@ def test_invalid_data_serialization():
 
 
 def test_schema_renderer():
-    renderer = rest_framework.PydanticSchemaRenderer()
+    renderer = rest_framework.SchemaRenderer()
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
     expected_encoded = b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
 
@@ -68,7 +68,7 @@ def test_schema_renderer():
 
 
 def test_typed_schema_renderer():
-    renderer = rest_framework.PydanticSchemaRenderer[InnerSchema]()
+    renderer = rest_framework.SchemaRenderer[InnerSchema]()
     existing_data = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
     expected_encoded = b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
 
@@ -76,7 +76,7 @@ def test_typed_schema_renderer():
 
 
 def test_schema_parser():
-    parser = rest_framework.PydanticSchemaParser[InnerSchema]()
+    parser = rest_framework.SchemaParser[InnerSchema]()
     existing_encoded = '{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
     expected_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
 
@@ -84,9 +84,9 @@ def test_schema_parser():
 
 
 @api_view(["POST"])
-@schema(rest_framework.PydanticAutoSchema())
-@parser_classes([rest_framework.PydanticSchemaParser[InnerSchema]])
-@renderer_classes([rest_framework.PydanticSchemaRenderer[t.List[InnerSchema]]])
+@schema(rest_framework.AutoSchema())
+@parser_classes([rest_framework.SchemaParser[InnerSchema]])
+@renderer_classes([rest_framework.SchemaRenderer[t.List[InnerSchema]]])
 def sample_view(request):
     assert isinstance(request.data, InnerSchema)
     return Response([request.data])
@@ -94,12 +94,12 @@ def sample_view(request):
 
 class ClassBasedViewWithSerializer(generics.RetrieveAPIView):
     serializer_class = SampleSerializer
-    schema = rest_framework.PydanticAutoSchema()
+    schema = rest_framework.AutoSchema()
 
 
 class ClassBasedView(views.APIView):
-    parser_classes = [rest_framework.PydanticSchemaParser[InnerSchema]]
-    renderer_classes = [rest_framework.PydanticSchemaRenderer[t.List[InnerSchema]]]
+    parser_classes = [rest_framework.SchemaParser[InnerSchema]]
+    renderer_classes = [rest_framework.SchemaRenderer[t.List[InnerSchema]]]
 
     def post(self, request, *args, **kwargs):
         assert isinstance(request.data, InnerSchema)
@@ -107,8 +107,8 @@ class ClassBasedView(views.APIView):
 
 
 class ClassBasedViewWithSchemaContext(ClassBasedView):
-    parser_classes = [rest_framework.PydanticSchemaParser]
-    renderer_classes = [rest_framework.PydanticSchemaRenderer]
+    parser_classes = [rest_framework.SchemaParser]
+    renderer_classes = [rest_framework.SchemaRenderer]
 
     def get_renderer_context(self):
         ctx = super().get_renderer_context()

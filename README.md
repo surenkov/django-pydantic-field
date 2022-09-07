@@ -10,9 +10,11 @@ Install the package with `pip install django-pydantic-field`.
 
 ``` python
 import pydantic
+from datetime import date
+from uuid import UUID
 
 from django.db import models
-from django_pydantic_field import PydanticSchemaField
+from django_pydantic_field import SchemaField
 
 
 class Foo(pydantic.BaseModel):
@@ -25,10 +27,10 @@ class Bar(pydantic.BaseModel):
 
 
 class MyModel(models.Model):
-    foo_field = PydanticSchemaField(schema=Foo)
-    bar_list = PydanticSchemaField(schema=list[Bar])
-    raw_date_map = PydanticSchemaField(schema=dict[datetime.date, int])
-    raw_uids = PydanticSchemaField(schema=set[UUID])
+    foo_field: Foo = SchemaField(schema=Foo)
+    bar_list: list[Bar] = SchemaField(schema=list[Bar])
+    raw_date_map: dict[date, int] = SchemaField(schema=dict[date, int])
+    raw_uids: set[UUID] = SchemaField(schema=set[UUID])
 
 ...
     
@@ -42,7 +44,7 @@ model.save()
 
 assert model.foo_field == Foo(count=5, size=1.0)
 assert model.bar_list == [Bar(slug="foo_bar")]
-assert model.raw_date_map = {1: datetime.date(1970, 1, 1)}
+assert model.raw_date_map = {1: date(1970, 1, 1)}
 assert model.raw_uid_set = {UUID("17a25db0-27a4-11ed-904a-5ffb17f92734")}
 ```
 
@@ -53,14 +55,11 @@ In addition, an external `config` class can be passed for such schemes.
 
 ``` python
 from rest_framework import generics, serializers
-from django_pydantic_field.rest_framework import (
-    PydanticSchemaField,
-    PydanticAutoSchema,
-)
+from django_pydantic_field.rest_framework import SchemaField, AutoSchema
 
 
 class MyModelSerializer(serializers.ModelSerializer):
-    foo_field = PydanticSchemaField(schema=Foo)
+    foo_field = SchemaField(schema=Foo)
 
     class Meta:
         model = MyModel
@@ -71,23 +70,19 @@ class SampleView(generics.RetrieveAPIView):
     serializer_class = MyModelSerializer
 
     # optional support of OpenAPI schema generation for Pydantic fields
-    schema = PydanticAutoSchema()
+    schema = AutoSchema()
 ```
 
 Global approach with typed `parser` and `renderer` classes
 ``` python
 from rest_framework import views
 from rest_framework.decorators import api_view, parser_classes, renderer_classes
-from django_pydantic_field.rest_framework import (
-    PydanticSchemaRenderer,
-    PydanticSchemaParser,
-    PydanticAutoSchema,
-)
+from django_pydantic_field.rest_framework import SchemaRenderer, SchemaParser, AutoSchema
 
 
 @api_view(["POST"])
-@parser_classes([PydanticSchemaParser[Foo]]):
-@renderer_classes([PydanticSchemaRenderer[list[Foo]]])
+@parser_classes([SchemaParser[Foo]]):
+@renderer_classes([SchemaRenderer[list[Foo]]])
 def foo_view(request):
     assert isinstance(request.data, Foo)
 
@@ -96,11 +91,11 @@ def foo_view(request):
 
 
 class FooClassBasedView(views.APIView):
-    parser_classes = [PydanticSchemaParser[Foo]]
-    renderer_classes = [PydanticSchemaRenderer[list[Foo]]]
+    parser_classes = [SchemaParser[Foo]]
+    renderer_classes = [SchemaRenderer[list[Foo]]]
 
     # optional support of OpenAPI schema generation for Pydantic parsers/renderers
-    schema = PydanticAutoSchema()
+    schema = AutoSchema()
 
     def get(self, request, *args, **kwargs):
         assert isinstance(request.data, Foo)

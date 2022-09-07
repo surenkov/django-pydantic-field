@@ -11,10 +11,10 @@ from rest_framework.schemas.utils import is_list_view
 from . import base
 
 __all__ = (
-    "PydanticSchemaField",
-    "PydanticSchemaRenderer",
-    "PydanticSchemaParser",
-    "PydanticAutoSchema",
+    "SchemaField",
+    "SchemaRenderer",
+    "SchemaParser",
+    "AutoSchema",
 )
 
 if t.TYPE_CHECKING:
@@ -60,7 +60,7 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
         return schema
 
 
-class PydanticSchemaField(base.SchemaWrapper[base.ST], serializers.Field):
+class SchemaField(base.SchemaWrapper[base.ST], serializers.Field):
     def __init__(
         self,
         schema: t.Type["base.ST"],
@@ -81,7 +81,7 @@ class PydanticSchemaField(base.SchemaWrapper[base.ST], serializers.Field):
         return raw_obj["__root__"]
 
 
-class PydanticSchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
+class SchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
     schema_ctx_attr = "render_schema"
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
@@ -109,9 +109,9 @@ class PydanticSchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
         return json_str.encode()
 
 
-class PydanticSchemaParser(AnnotatedSchemaT[base.ST], parsers.JSONParser):
+class SchemaParser(AnnotatedSchemaT[base.ST], parsers.JSONParser):
     schema_ctx_attr = "parser_schema"
-    renderer_class = PydanticSchemaRenderer
+    renderer_class = SchemaRenderer
     require_explicit_schema = True
 
     def parse(self, stream, media_type=None, parser_context=None):
@@ -125,20 +125,23 @@ class PydanticSchemaParser(AnnotatedSchemaT[base.ST], parsers.JSONParser):
             raise exceptions.ParseError(e.errors())
 
 
-class PydanticAutoSchema(openapi.AutoSchema):
+class AutoSchema(openapi.AutoSchema):
+    get_request_serializer: t.Callable
+    _get_reference: t.Callable
+
     def map_field(self, field: serializers.Field):
-        if isinstance(field, PydanticSchemaField):
+        if isinstance(field, SchemaField):
             return field.schema.schema()
         return super().map_field(field)
 
     def map_parsers(self, path: str, method: str):
-        request_types = []
+        request_types: t.List[t.Any] = []
         parser_ctx = self.view.get_parser_context(None)
 
         for parser_type in self.view.parser_classes:
             parser = parser_type()
 
-            if isinstance(parser, PydanticSchemaParser):
+            if isinstance(parser, SchemaParser):
                 schema = self._extract_openapi_schema(parser, parser_ctx)
                 if schema is not None:
                     request_types.append((parser.media_type, schema))
@@ -150,13 +153,13 @@ class PydanticAutoSchema(openapi.AutoSchema):
         return request_types
 
     def map_renderers(self, path: str, method: str):
-        response_types = []
+        response_types: t.List[t.Any] = []
         renderer_ctx = self.view.get_renderer_context()
 
         for renderer_type in self.view.renderer_classes:
             renderer = renderer_type()
 
-            if isinstance(renderer, PydanticSchemaRenderer):
+            if isinstance(renderer, SchemaRenderer):
                 schema = self._extract_openapi_schema(renderer, renderer_ctx)
                 if schema is not None:
                     response_types.append((renderer.media_type, schema))
