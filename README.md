@@ -30,7 +30,7 @@ class MyModel(models.Model):
     # Infer schema from field annotation
     foo_field: Foo = SchemaField()
 
-    # or pecify schema explicitly
+    # or explicitly pass schema to the field
     bar_list: typing.Sequence[Bar] = SchemaField(schema=list[Bar])
 
     # Pydantic exportable types are supported
