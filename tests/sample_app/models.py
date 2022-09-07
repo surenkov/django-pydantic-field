@@ -19,7 +19,7 @@ class BuildingMeta(pydantic.BaseModel):
 default_meta = BuildingMeta(type=BuildingTypes.FRAME)
 
 class Building(models.Model):
-    meta: BuildingMeta = SchemaField(schema=BuildingMeta, default=default_meta)
+    meta: BuildingMeta = SchemaField(default=default_meta)
     meta_builtin_list: list[BuildingMeta] = SchemaField(schema=list[BuildingMeta], default=list)
     meta_typing_list: t.List[BuildingMeta] = SchemaField(schema=t.List[BuildingMeta], default=list)
     meta_untyped_list: list = SchemaField(schema=t.List, default=list)

@@ -3,6 +3,7 @@ import typing as t
 
 from functools import partial
 
+from django.core.exceptions import FieldError
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.query_utils import DeferredAttribute
 from django.db.models import JSONField
@@ -12,7 +13,7 @@ from django.db.migrations.serializer import serializer_factory, BaseSerializer
 
 from . import base
 
-__all__ = "SchemaField",
+__all__ = ("SchemaField",)
 
 
 class SchemaDeferredAttribute(DeferredAttribute):
@@ -38,29 +39,34 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
 
     def __init__(
         self,
-        schema: t.Union[t.Type["base.ST"], "GenericContainer"],
-        config: "base.ConfigType" = None,
         *args,
+        schema: t.Union[t.Type["base.ST"], "GenericContainer"] = None,
+        config: "base.ConfigType" = None,
         error_handler=base.default_error_handler,
         **kwargs
     ):
-        if isinstance(schema, GenericContainer):
-            schema = t.cast(t.Type["base.ST"], schema.reconstruct_type())
-
-        self.schema = schema
-        self.config = config
-        self.export_cfg = self._extract_export_kwargs(kwargs, dict.pop)
-
-        field_schema = self._wrap_schema(schema, config)
-        decoder = partial(base.SchemaDecoder, schema=field_schema, error_handler=error_handler)
-        encoder = partial(base.SchemaEncoder, schema=field_schema, export_cfg=self.export_cfg)
-
-        kwargs.update(decoder=decoder, encoder=encoder)
         super().__init__(*args, **kwargs)
+
+        self.config = config
+        self.export_params = self._extract_export_kwargs(kwargs, dict.pop)
+        self.error_handler = error_handler
+        self._init_schema(schema)
 
     def __copy__(self):
         _, _, args, kwargs = self.deconstruct()
         return type(self)(*args, **kwargs)
+
+    def contribute_to_class(self, cls, name, private_only=False):
+        if self.schema is None:
+            annotated_schema = t.get_type_hints(cls).get(name, None)
+            if annotated_schema is None:
+                raise FieldError(
+                    f"{cls._meta.label}.{name} needs to be either annotated "
+                    "or `schema=` field attribute should be explicitly passed"
+                )
+            self._init_schema(annotated_schema)
+
+        super().contribute_to_class(cls, name, private_only)
 
     def get_default(self):
         value = super().get_default()
@@ -81,6 +87,19 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         assert self.decoder is not None
         return self.decoder().decode(value)
 
+    def _init_schema(
+        self,
+        schema: t.Union[t.Type["base.ST"], "GenericContainer", None],
+    ):
+        if isinstance(schema, GenericContainer):
+            schema = t.cast(t.Type["base.ST"], schema.reconstruct_type())
+
+        self.schema = schema
+        if schema is not None:
+            serializer = self._wrap_schema(schema, self.config)
+            self.decoder = partial(base.SchemaDecoder, serializer, self.error_handler)  # type: ignore
+            self.encoder = partial(base.SchemaEncoder, schema=serializer, export=self.export_params)  # type: ignore
+
     def _deconstruct_default(self, kwargs):
         default = kwargs.get("default", NOT_PROVIDED)
 
@@ -99,17 +118,20 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         kwargs.update(schema=schema)
 
     def _deconstruct_config(self, kwargs):
-        kwargs.update(self.export_cfg, config=self.config)
+        kwargs.update(self.export_params, config=self.config)
+
+        if self.error_handler is not base.default_error_handler:
+            kwargs.update(error_handler=self.error_handler)
 
 
 def SchemaField(
-    schema: t.Union[t.Type["base.ST"], "GenericContainer"],
-    config: "base.ConfigType" = None,
     *args,
+    schema: t.Type["base.ST"] = None,
+    config: "base.ConfigType" = None,
     error_handler=base.default_error_handler,
     **kwargs
 ) -> t.Any:
-    return PydanticSchemaField(schema, config, *args, error_handler=error_handler, **kwargs)
+    return PydanticSchemaField(*args, schema=schema, config=config, error_handler=error_handler, **kwargs)
 
 
 # Django Migration serializer helpers

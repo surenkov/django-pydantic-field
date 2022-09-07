@@ -10,9 +10,9 @@ from django_pydantic_field import fields
 
 from django.db import models
 from django.db.migrations.writer import MigrationWriter
+from django.core.exceptions import FieldError
 
 from .conftest import InnerSchema, SampleDataclass
-
 
 
 def test_sample_field():
@@ -35,12 +35,21 @@ def test_sample_field_with_raw_data():
 
 def test_simple_model_field():
     class SampleModel(models.Model):
-        sample_field = fields.PydanticSchemaField(schema=InnerSchema)
-        sample_list = fields.PydanticSchemaField(schema=t.List[InnerSchema])
+        sample_field: InnerSchema = fields.SchemaField()
+        sample_list: t.List[InnerSchema] = fields.SchemaField()
+        sample_seq: t.Sequence[InnerSchema] = fields.SchemaField(schema=t.List[InnerSchema])
 
         class Meta:
             app_label = "sample_app"
 
+    sample_field = SampleModel._meta.get_field("sample_field")
+    assert sample_field.schema == InnerSchema
+
+    sample_list_field = SampleModel._meta.get_field("sample_list")
+    assert sample_list_field.schema == t.List[InnerSchema]
+
+    sample_seq_field = SampleModel._meta.get_field("sample_seq")
+    assert sample_seq_field.schema == t.List[InnerSchema]
 
     existing_raw_field = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
     existing_raw_list = [{"stub_str": "abc", "stub_list": []}]
@@ -52,6 +61,15 @@ def test_simple_model_field():
 
     assert instance.sample_field == expected_instance
     assert instance.sample_list == expected_list
+
+
+def test_untyped_model_field_raises():
+    with pytest.raises(FieldError):
+        class SampleModel(models.Model):
+            sample_field = fields.SchemaField()
+
+            class Meta:
+                app_label = "sample_app"
 
 
 @pytest.mark.parametrize("field", [

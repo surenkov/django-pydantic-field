@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 ('meta_builtin_list', django_pydantic_field.fields.PydanticSchemaField(config=None, default=list, schema=django_pydantic_field.fields.GenericContainer(list, (tests.sample_app.models.BuildingMeta,)))),
                 ('meta_typing_list', django_pydantic_field.fields.PydanticSchemaField(config=None, default=list, schema=django_pydantic_field.fields.GenericContainer(list, (tests.sample_app.models.BuildingMeta,)))),
                 ('meta_untyped_list', django_pydantic_field.fields.PydanticSchemaField(config=None, default=list, schema=list)),
-                ('meta_untyped_builtim_list', django_pydantic_field.fields.PydanticSchemaField(config=None, default=list, schema=list)),
+                ('meta_untyped_builtin_list', django_pydantic_field.fields.PydanticSchemaField(config=None, default=list, schema=list)),
             ],
         ),
     ]

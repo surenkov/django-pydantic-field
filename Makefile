@@ -9,7 +9,7 @@ install:
 
 .PHONY: activate
 activate:
-	. .env/bin/activate
+	@ . .env/bin/activate
 
 
 .PHONY: build
@@ -23,6 +23,12 @@ test: A=
 test: activate
 test:
 	pytest $(A)
+
+.PHONY: lint
+lint: A=.
+lint: activate
+lint:
+	mypy $(A)
 
 
 .PHONY: upload

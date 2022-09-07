@@ -28,7 +28,7 @@ def test_schema_encoder_with_raw_dict():
 
 
 def test_schema_encoder_with_custom_config():
-    encoder = base.SchemaEncoder(schema=SampleSchema, export_cfg={"exclude": {"__root__": {"stub_list"}}})
+    encoder = base.SchemaEncoder(schema=SampleSchema, export={"exclude": {"__root__": {"stub_list"}}})
     existing_raw = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
     expected_encoded = '{"stub_str": "abc", "stub_int": 1}'
     assert encoder.encode(existing_raw) == expected_encoded

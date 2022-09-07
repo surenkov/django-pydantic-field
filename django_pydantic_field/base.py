@@ -42,14 +42,14 @@ def default_error_handler(obj, err):
 
 
 class SchemaEncoder(DjangoJSONEncoder):
-    def __init__(self, *args, schema: "ModelType", export_cfg=None, **kwargs):
+    def __init__(self, *args, schema: "ModelType", export=None, **kwargs):
         self.schema = schema
-        self.export_cfg = export_cfg or {}
+        self.export_params = export or {}
         super().__init__(*args, **kwargs)
 
     def encode(self, obj):
         try:
-            data = self.schema(__root__=obj).json(**self.export_cfg)
+            data = self.schema(__root__=obj).json(**self.export_params)
         except pydantic.ValidationError:
             # This branch used for expressions like .filter(data__contains={}).
             # We don't want that {} to be parsed as a schema.

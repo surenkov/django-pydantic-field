@@ -27,10 +27,15 @@ class Bar(pydantic.BaseModel):
 
 
 class MyModel(models.Model):
-    foo_field: Foo = SchemaField(schema=Foo)
-    bar_list: list[Bar] = SchemaField(schema=list[Bar])
-    raw_date_map: dict[date, int] = SchemaField(schema=dict[date, int])
-    raw_uids: set[UUID] = SchemaField(schema=set[UUID])
+    # Infer schema from field annotation
+    foo_field: Foo = SchemaField()
+
+    # or pecify schema explicitly
+    bar_list: typing.Sequence[Bar] = SchemaField(schema=list[Bar])
+
+    # Pydantic exportable types are supported
+    raw_date_map: dict[int, date] = SchemaField()
+    raw_uids: set[UUID] = SchemaField()
 
 ...
     

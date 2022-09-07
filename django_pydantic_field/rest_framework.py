@@ -69,7 +69,7 @@ class SchemaField(base.SchemaWrapper[base.ST], serializers.Field):
     ):
         self.schema = field_schema = self._wrap_schema(schema, config)
         self.decoder = base.SchemaDecoder[base.ST](field_schema, serializer_error_handler)
-        self.export_cfg = self._extract_export_kwargs(kwargs, dict.pop)
+        self.export_params = self._extract_export_kwargs(kwargs, dict.pop)
         super().__init__(**kwargs)
 
     def to_internal_value(self, data) -> t.Optional["base.ST"]:
@@ -77,7 +77,7 @@ class SchemaField(base.SchemaWrapper[base.ST], serializers.Field):
 
     def to_representation(self, value):
         obj = self.schema.parse_obj(value)
-        raw_obj = obj.dict(**self.export_cfg)
+        raw_obj = obj.dict(**self.export_params)
         return raw_obj["__root__"]
 
 
