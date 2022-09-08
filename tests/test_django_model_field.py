@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pydantic
 import pytest
 
 import sys
@@ -13,6 +14,27 @@ from django.db.migrations.writer import MigrationWriter
 from django.core.exceptions import FieldError
 
 from .conftest import InnerSchema, SampleDataclass
+
+
+class SampleModel(models.Model):
+    sample_field: InnerSchema = fields.SchemaField()
+    sample_list: t.List[InnerSchema] = fields.SchemaField()
+    sample_seq: t.Sequence[InnerSchema] = fields.SchemaField(schema=t.List[InnerSchema])
+
+    class Meta:
+        app_label = "sample_app"
+
+
+class SampleModelWithForwardRef(models.Model):
+    sample_annotated: "SimpleSchema" = fields.SchemaField()
+    sample_inner_annotated: list["SimpleSchema"] = fields.SchemaField()
+
+    class Meta:
+        app_label = "sample_app"
+
+
+class SimpleSchema(pydantic.BaseModel):
+    field: int = 1
 
 
 def test_sample_field():
@@ -34,14 +56,6 @@ def test_sample_field_with_raw_data():
 
 
 def test_simple_model_field():
-    class SampleModel(models.Model):
-        sample_field: InnerSchema = fields.SchemaField()
-        sample_list: t.List[InnerSchema] = fields.SchemaField()
-        sample_seq: t.Sequence[InnerSchema] = fields.SchemaField(schema=t.List[InnerSchema])
-
-        class Meta:
-            app_label = "sample_app"
-
     sample_field = SampleModel._meta.get_field("sample_field")
     assert sample_field.schema == InnerSchema
 
@@ -65,11 +79,20 @@ def test_simple_model_field():
 
 def test_untyped_model_field_raises():
     with pytest.raises(FieldError):
-        class SampleModel(models.Model):
+        class UntypedModel(models.Model):
             sample_field = fields.SchemaField()
 
             class Meta:
                 app_label = "sample_app"
+
+
+def test_model_with_forwardref_annotations():
+    obj = SampleModelWithForwardRef(
+        sample_annotated={},
+        sample_inner_annotated=[{}],
+    )
+    assert isinstance(obj.sample_annotated, SimpleSchema)
+    assert isinstance(obj.sample_inner_annotated[0], SimpleSchema)
 
 
 @pytest.mark.parametrize("field", [

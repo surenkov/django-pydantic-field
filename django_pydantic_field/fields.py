@@ -11,12 +11,12 @@ from django.db.models import JSONField
 from django.db.migrations.writer import MigrationWriter
 from django.db.migrations.serializer import serializer_factory, BaseSerializer
 
-from . import base
+from . import base, utils
 
 __all__ = ("SchemaField",)
 
 
-class SchemaDeferredAttribute(DeferredAttribute):
+class SchemaAttribute(DeferredAttribute):
     """
     Forces Django to call to_python on fields when setting them.
     This is useful when you want to add some custom field data postprocessing.
@@ -34,9 +34,51 @@ class SchemaDeferredAttribute(DeferredAttribute):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
 
 
-class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
-    descriptor_class = SchemaDeferredAttribute
+class DeferredSchemaAttribute(SchemaAttribute):
+    """
+    A `SchemaAttribute` derivative which postpones schema evaluation
+    until first field access.
 
+    This is a workaround to bypass limitations of forward referencing fields
+    declared as string literals, without introducing custom model classes.
+
+    Without this kind of lazy resolution, postponed annotation fields may fail
+    on schema inference, as the module scope would be partially initialized.
+    Here's the example when this descriptor may be useful:
+
+    ```
+    class FooModel(models.Model):
+        field: "FooSchema" = SchemaField()
+
+    class FooSchema(pydantic.BaseModel):
+        ...
+    ```
+
+    Main caveat here is that initial schema resolution would be performed
+    on model instantiation, thus may fail in runtime.
+    In contrast, regular type annotations would throw any problems
+    with unsupported types on model class initialization before app would be ready.
+    """
+    field: "PydanticSchemaField"
+    _is_resolved_schema: bool = False
+
+    def __get__(self, instance, cls=None):
+        if not self._is_resolved_schema:
+            self.resolve_schema_from_type_hints(cls or type(instance))
+        return super().__get__(instance, cls)
+
+    def __set__(self, obj, value):
+        if not self._is_resolved_schema:
+            self.resolve_schema_from_type_hints(type(obj))
+        return super().__set__(obj, value)
+
+    def resolve_schema_from_type_hints(self, cls):
+        self.field._resolve_schema_from_type_hints(cls, self.field.attname)
+        self.field._finalize_schema(cls)
+        self._is_resolved_schema = True
+
+
+class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     def __init__(
         self,
         *args,
@@ -50,23 +92,11 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         self.config = config
         self.export_params = self._extract_export_kwargs(kwargs, dict.pop)
         self.error_handler = error_handler
-        self._init_schema(schema)
+        self._resolve_schema(schema)
 
     def __copy__(self):
         _, _, args, kwargs = self.deconstruct()
         return type(self)(*args, **kwargs)
-
-    def contribute_to_class(self, cls, name, private_only=False):
-        if self.schema is None:
-            annotated_schema = t.get_type_hints(cls).get(name, None)
-            if annotated_schema is None:
-                raise FieldError(
-                    f"{cls._meta.label}.{name} needs to be either annotated "
-                    "or `schema=` field attribute should be explicitly passed"
-                )
-            self._init_schema(annotated_schema)
-
-        super().contribute_to_class(cls, name, private_only)
 
     def get_default(self):
         value = super().get_default()
@@ -87,18 +117,40 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         assert self.decoder is not None
         return self.decoder().decode(value)
 
-    def _init_schema(
-        self,
-        schema: t.Union[t.Type["base.ST"], "GenericContainer", None],
-    ):
+    def contribute_to_class(self, cls, name, private_only=False):
+        try:
+            if self.schema is None:
+                self._resolve_schema_from_type_hints(cls, name)
+            self._finalize_schema(cls)
+        except NameError:
+            self.descriptor_class = DeferredSchemaAttribute
+        else:
+            self.descriptor_class = SchemaAttribute
+
+        super().contribute_to_class(cls, name, private_only)
+
+    def _resolve_schema(self, schema):
         if isinstance(schema, GenericContainer):
             schema = t.cast(t.Type["base.ST"], schema.reconstruct_type())
 
         self.schema = schema
         if schema is not None:
-            serializer = self._wrap_schema(schema, self.config)
+            self.serializer_schema = serializer = self._wrap_schema(schema, self.config)
             self.decoder = partial(base.SchemaDecoder, serializer, self.error_handler)  # type: ignore
             self.encoder = partial(base.SchemaEncoder, schema=serializer, export=self.export_params)  # type: ignore
+
+    def _resolve_schema_from_type_hints(self, cls, name):
+        annotated_schema = utils.get_annotated_type(cls, name)
+        if annotated_schema is None:
+            raise FieldError(
+                f"{cls._meta.label}.{name} needs to be either annotated "
+                "or `schema=` field attribute should be explicitly passed"
+            )
+        self._resolve_schema(annotated_schema)
+
+    def _finalize_schema(self, cls):
+        model_ns = utils.get_model_namespace(cls)
+        self.serializer_schema.update_forward_refs(**model_ns)
 
     def _deconstruct_default(self, kwargs):
         default = kwargs.get("default", NOT_PROVIDED)
