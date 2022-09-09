@@ -34,58 +34,16 @@ class SchemaAttribute(DeferredAttribute):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
 
 
-class DeferredSchemaAttribute(SchemaAttribute):
-    """
-    A `SchemaAttribute` derivative which postpones schema evaluation
-    until first field access.
-
-    This is a workaround to bypass limitations of forward referencing fields
-    declared as string literals, without introducing custom model classes.
-
-    Without this kind of lazy resolution, postponed annotation fields may fail
-    on schema inference, as the module scope would be partially initialized.
-    Here's the example when this descriptor may be useful:
-
-    ```
-    class FooModel(models.Model):
-        field: "FooSchema" = SchemaField()
-
-    class FooSchema(pydantic.BaseModel):
-        ...
-    ```
-
-    Main caveat here is that initial schema resolution would be performed
-    on model instantiation, thus may fail in runtime.
-    In contrast, regular type annotations would throw any problems
-    with unsupported types on model class initialization before app would be ready.
-    """
-    field: "PydanticSchemaField"
-    _is_resolved_schema: bool = False
-
-    def __get__(self, instance, cls=None):
-        if not self._is_resolved_schema:
-            self.resolve_schema_from_type_hints(cls or type(instance))
-        return super().__get__(instance, cls)
-
-    def __set__(self, obj, value):
-        if not self._is_resolved_schema:
-            self.resolve_schema_from_type_hints(type(obj))
-        return super().__set__(obj, value)
-
-    def resolve_schema_from_type_hints(self, cls):
-        self.field._resolve_schema_from_type_hints(cls, self.field.attname)
-        self.field._finalize_schema(cls)
-        self._is_resolved_schema = True
-
-
 class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
+    descriptor_class = SchemaAttribute
+
     def __init__(
         self,
         *args,
         schema: t.Union[t.Type["base.ST"], "GenericContainer"] = None,
         config: "base.ConfigType" = None,
         error_handler=base.default_error_handler,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
@@ -102,6 +60,10 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         value = super().get_default()
         return self.to_python(value)
 
+    def to_python(self, value) -> "base.SchemaT":
+        assert self.decoder is not None
+        return self.decoder().decode(value)
+
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         self._deconstruct_schema(kwargs)
@@ -113,20 +75,10 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
 
         return name, path, args, kwargs
 
-    def to_python(self, value) -> "base.SchemaT":
-        assert self.decoder is not None
-        return self.decoder().decode(value)
-
     def contribute_to_class(self, cls, name, private_only=False):
-        try:
-            if self.schema is None:
-                self._resolve_schema_from_type_hints(cls, name)
-            self._finalize_schema(cls)
-        except NameError:
-            self.descriptor_class = DeferredSchemaAttribute
-        else:
-            self.descriptor_class = SchemaAttribute
-
+        if self.schema is None:
+            self._resolve_schema_from_type_hints(cls, name)
+        self._finalize_schema(cls)
         super().contribute_to_class(cls, name, private_only)
 
     def _resolve_schema(self, schema):
@@ -181,9 +133,10 @@ def SchemaField(
     schema: t.Type["base.ST"] = None,
     config: "base.ConfigType" = None,
     error_handler=base.default_error_handler,
-    **kwargs
+    **kwargs,
 ) -> t.Any:
-    return PydanticSchemaField(*args, schema=schema, config=config, error_handler=error_handler, **kwargs)
+    kwargs.update(schema=schema, config=config, error_handler=error_handler)
+    return PydanticSchemaField(*args, **kwargs)
 
 
 # Django Migration serializer helpers

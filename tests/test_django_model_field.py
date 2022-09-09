@@ -25,18 +25,6 @@ class SampleModel(models.Model):
         app_label = "sample_app"
 
 
-class SampleModelWithForwardRef(models.Model):
-    sample_annotated: "SimpleSchema" = fields.SchemaField()
-    sample_inner_annotated: list["SimpleSchema"] = fields.SchemaField()
-
-    class Meta:
-        app_label = "sample_app"
-
-
-class SimpleSchema(pydantic.BaseModel):
-    field: int = 1
-
-
 def test_sample_field():
     sample_field = fields.PydanticSchemaField(schema=InnerSchema)
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
@@ -84,15 +72,6 @@ def test_untyped_model_field_raises():
 
             class Meta:
                 app_label = "sample_app"
-
-
-def test_model_with_forwardref_annotations():
-    obj = SampleModelWithForwardRef(
-        sample_annotated={},
-        sample_inner_annotated=[{}],
-    )
-    assert isinstance(obj.sample_annotated, SimpleSchema)
-    assert isinstance(obj.sample_inner_annotated[0], SimpleSchema)
 
 
 @pytest.mark.parametrize("field", [

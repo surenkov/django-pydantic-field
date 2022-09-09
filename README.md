@@ -57,22 +57,8 @@ Practically, schema could be of any type supported by Pydantic.
 In addition, an external `config` class can be passed for such schemes.
 
 
-It is possible to define deferred type annotations with string literals.
-In this case, field schema resolution will be postponed until first model intance:
-``` python
-#  models.py
-
-class FooModel(models.Model):
-    field: "FooSchema" = SchemaField()
-
-class FooSchema(pydantic.BaseModel):
-    ...
-
-...
-
-#  logic.py
-model = FooModel(field={})  # <<- "FooSchema" reference now resolved to actual schema class
-```
+Note, at the moment it is not possible to use string annotations and forward references.
+I tried to defer schema initialzation at a field descriptor level, but this approach did not succeeded with current migrations flow.
 
 ### Django REST Framework support
 
