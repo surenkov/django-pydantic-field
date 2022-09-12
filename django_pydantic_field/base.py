@@ -30,7 +30,7 @@ if t.TYPE_CHECKING:
     ]
 
     ModelType = t.Type[pydantic.BaseModel]
-    ConfigType = t.Type[pydantic.BaseConfig]
+    ConfigType = t.Union[pydantic.ConfigDict, t.Type[pydantic.BaseConfig], t.Type[object]]
     JsonClsT = t.TypeVar("JsonClsT", bound=type)
 
 ST = t.TypeVar("ST", bound="SchemaT")

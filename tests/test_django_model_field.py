@@ -1,4 +1,3 @@
-from __future__ import annotations
 import pydantic
 import pytest
 
@@ -65,6 +64,7 @@ def test_simple_model_field():
     assert instance.sample_list == expected_list
 
 
+@pytest.mark.xfail
 def test_untyped_model_field_raises():
     with pytest.raises(FieldError):
         class UntypedModel(models.Model):
@@ -72,6 +72,32 @@ def test_untyped_model_field_raises():
 
             class Meta:
                 app_label = "sample_app"
+
+
+@pytest.mark.parametrize("forward_ref", ["SampleSchema", t.ForwardRef("SampleSchema")])
+def test_forwardrefs_failing(forward_ref):
+    with pytest.raises(NameError):
+        class ModelWithForwardRefs(models.Model):
+            field: forward_ref = fields.SchemaField()
+
+            class Meta:
+                app_label = "sample_app"
+
+        class SampleSchema(pydantic.BaseModel):
+            field: int = 1
+
+
+@pytest.mark.parametrize("forward_ref", [
+    "InnerSchema",
+    t.ForwardRef("SampleDataclass"),
+    list["int"],
+])
+def test_resolved_forwardrefs(forward_ref):
+    class ModelWithForwardRefs(models.Model):
+        field: forward_ref = fields.SchemaField()
+
+        class Meta:
+            app_label = "sample_app"
 
 
 @pytest.mark.parametrize("field", [
