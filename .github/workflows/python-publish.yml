@@ -30,7 +30,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: lint_test
-    if: github.event.release.action == 'published'
+    if: ${{ github.event_name == 'release' && github.event.action == 'published' }}
 
     steps:
     - uses: actions/checkout@v3
