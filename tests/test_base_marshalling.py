@@ -71,6 +71,17 @@ def test_schema_wrapper_transformers():
     assert parsed_wrapper.__root__ == [expected_decoded]
 
 
+class test_schema_wrapper_config_inheritance():
+    wrapper = base.SchemaWrapper()
+    parsed_wrapper = wrapper._wrap_schema(InnerSchema, config={"allow_mutation": False})
+    assert not parsed_wrapper.Config.allow_mutation
+    assert not parsed_wrapper.Config.frozen
+
+    parsed_wrapper = wrapper._wrap_schema(t.List[InnerSchema], config={"frozen": True})
+    assert parsed_wrapper.Config.allow_mutation
+    assert parsed_wrapper.Config.frozen
+
+
 @pytest.mark.parametrize("type_, encoded, decoded", [
     (InnerSchema, '{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}', InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])),
     (SampleDataclass, '{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}', SampleDataclass(stub_str="abc", stub_list=[date(2022, 7, 1)])),

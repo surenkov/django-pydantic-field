@@ -12,6 +12,10 @@ class InnerSchema(pydantic.BaseModel):
     stub_int: int = 1
     stub_list: t.List[date]
 
+    class Config:
+        allow_mutation = True
+        frozen = False
+
 
 @dataclass
 class SampleDataclass:

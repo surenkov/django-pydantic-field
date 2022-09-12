@@ -16,7 +16,7 @@ from .conftest import InnerSchema, SampleDataclass
 
 
 class SampleModel(models.Model):
-    sample_field: InnerSchema = fields.SchemaField()
+    sample_field: InnerSchema = fields.SchemaField(config={"frozen": True, "allow_mutation": False})
     sample_list: t.List[InnerSchema] = fields.SchemaField()
     sample_seq: t.Sequence[InnerSchema] = fields.SchemaField(schema=t.List[InnerSchema])
 

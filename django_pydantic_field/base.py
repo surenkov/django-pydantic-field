@@ -4,6 +4,7 @@ import typing as t
 from django.core.serializers.json import DjangoJSONEncoder
 
 import pydantic
+from pydantic.config import get_config, inherit_config
 from pydantic.main import create_model
 from pydantic.typing import display_as_type
 
@@ -87,13 +88,16 @@ class SchemaWrapper(t.Generic[ST]):
 
     def _get_field_schema_params(self, schema: t.Type["ST"], config: t.Optional["ConfigType"] = None, **kwargs) -> dict:
         params: t.Dict[str, t.Any] = dict(kwargs, __root__=(t.Optional[schema], ...))
-
-        if config is None:
-            config = getattr(schema, "Config", None)
+        parent_config = getattr(schema, "Config", None)
 
         if config is not None:
-            params.update(__config__=config)
+            config = get_config(config)
+            if parent_config is not None:
+                config = inherit_config(config, parent_config)
+        else:
+            config = parent_config
 
+        params.update(__config__=config)
         return params
 
     def _extract_export_kwargs(self, ctx: dict, extractor=dict.get):
