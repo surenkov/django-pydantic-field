@@ -69,9 +69,12 @@ class SchemaField(base.SchemaWrapper[base.ST], serializers.Field):
         config: t.Optional["base.ConfigType"] = None,
         **kwargs,
     ):
-        self.schema = field_schema = self._wrap_schema(schema, config)
+        nullable = kwargs.get("allow_null", False)
+
+        self.schema = field_schema = self._wrap_schema(schema, config, nullable)
         self.decoder = base.SchemaDecoder(field_schema)
         self.export_params = self._extract_export_kwargs(kwargs, dict.pop)
+
         super().__init__(**kwargs)
 
     def to_internal_value(self, data) -> t.Optional["base.ST"]:
