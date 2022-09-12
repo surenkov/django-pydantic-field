@@ -1,4 +1,3 @@
-import logging
 import typing as t
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -14,10 +13,9 @@ __all__ = (
     "SchemaWrapper",
 )
 
-logger = logging.getLogger(__name__)
-
 
 if t.TYPE_CHECKING:
+
     class Dataclass(t.Protocol):
         __dataclass_fields__: t.Any
 
@@ -31,15 +29,10 @@ if t.TYPE_CHECKING:
     ]
 
     ModelType = t.Type[pydantic.BaseModel]
-    ConfigType = t.Union[pydantic.ConfigDict, t.Type[pydantic.BaseConfig], t.Type[object]]
+    ConfigType = t.Union[pydantic.ConfigDict, t.Type[pydantic.BaseConfig], t.Type]
     JsonClsT = t.TypeVar("JsonClsT", bound=type)
 
 ST = t.TypeVar("ST", bound="SchemaT")
-
-
-def default_error_handler(obj, err):
-    logger.error("Can't parse object with the schema: obj=%s, errors=%s", obj, err)
-    return obj
 
 
 class SchemaEncoder(DjangoJSONEncoder):
@@ -60,34 +53,41 @@ class SchemaEncoder(DjangoJSONEncoder):
 
 
 class SchemaDecoder(t.Generic[ST]):
-    def __init__(self, schema: "ModelType", error_handler=default_error_handler):
+    def __init__(self, schema: "ModelType"):
         self.schema = schema
-        self.error_handler = error_handler
 
     def decode(self, obj: t.Any) -> "ST":
-        try:
-            if isinstance(obj, (str, bytes)):
-                value = self.schema.parse_raw(obj).__root__  # type: ignore
-            else:
-                value = self.schema.parse_obj(obj).__root__  # type: ignore
-            return value
-        except pydantic.ValidationError as e:
-            err = e
-
-        return self.error_handler(obj, (self.schema, err))
+        if isinstance(obj, (str, bytes)):
+            value = self.schema.parse_raw(obj).__root__  # type: ignore
+        else:
+            value = self.schema.parse_obj(obj).__root__  # type: ignore
+        return value
 
 
 class SchemaWrapper(t.Generic[ST]):
-    def _wrap_schema(self, schema: t.Type["ST"], config: t.Optional["ConfigType"] = None, **kwargs) -> "ModelType":
+    def _wrap_schema(
+        self,
+        schema: t.Type["ST"],
+        config: t.Optional["ConfigType"] = None,
+        allow_null: bool = False,
+        **kwargs,
+    ) -> "ModelType":
         type_name = self._get_field_schema_name(schema)
-        params = self._get_field_schema_params(schema, config, **kwargs)
+        params = self._get_field_schema_params(schema, config, allow_null, **kwargs)
         return create_model(type_name, **params)
 
     def _get_field_schema_name(self, schema: t.Type[t.Any]) -> str:
         return f"FieldSchema[{display_as_type(schema)}]"
 
-    def _get_field_schema_params(self, schema: t.Type["ST"], config: t.Optional["ConfigType"] = None, **kwargs) -> dict:
-        params: t.Dict[str, t.Any] = dict(kwargs, __root__=(t.Optional[schema], ...))
+    def _get_field_schema_params(
+        self,
+        schema: t.Type["ST"],
+        config: t.Optional["ConfigType"] = None,
+        allow_null: bool = False,
+        **kwargs,
+    ) -> dict:
+        root_model = t.Optional[schema] if allow_null else schema
+        params: t.Dict[str, t.Any] = dict(kwargs, __root__=(root_model, ...))
         parent_config = getattr(schema, "Config", None)
 
         if config is not None:
@@ -97,7 +97,7 @@ class SchemaWrapper(t.Generic[ST]):
         else:
             config = parent_config
 
-        params.update(__config__=config)
+        params["__config__"] = config
         return params
 
     def _extract_export_kwargs(self, ctx: dict, extractor=dict.get):

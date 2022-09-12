@@ -42,14 +42,12 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         *args,
         schema: t.Union[t.Type["base.ST"], "GenericContainer"] = None,
         config: "base.ConfigType" = None,
-        error_handler=base.default_error_handler,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
         self.config = config
         self.export_params = self._extract_export_kwargs(kwargs, dict.pop)
-        self.error_handler = error_handler
         self._resolve_schema(schema)
 
     def __copy__(self):
@@ -87,8 +85,8 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
 
         self.schema = schema
         if schema is not None:
-            self.serializer_schema = serializer = self._wrap_schema(schema, self.config)
-            self.decoder = partial(base.SchemaDecoder, serializer, self.error_handler)  # type: ignore
+            self.serializer_schema = serializer = self._wrap_schema(schema, self.config, self.null)
+            self.decoder = partial(base.SchemaDecoder, serializer)  # type: ignore
             self.encoder = partial(base.SchemaEncoder, schema=serializer, export=self.export_params)  # type: ignore
 
     def _resolve_schema_from_type_hints(self, cls, name):
@@ -124,18 +122,14 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     def _deconstruct_config(self, kwargs):
         kwargs.update(self.export_params, config=self.config)
 
-        if self.error_handler is not base.default_error_handler:
-            kwargs.update(error_handler=self.error_handler)
-
 
 def SchemaField(
-    *args,
     schema: t.Type["base.ST"] = None,
     config: "base.ConfigType" = None,
-    error_handler=base.default_error_handler,
+    *args,
     **kwargs,
 ) -> t.Any:
-    kwargs.update(schema=schema, config=config, error_handler=error_handler)
+    kwargs.update(schema=schema, config=config)
     return PydanticSchemaField(*args, **kwargs)
 
 

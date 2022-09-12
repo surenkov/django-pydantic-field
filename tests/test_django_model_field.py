@@ -18,7 +18,7 @@ from .conftest import InnerSchema, SampleDataclass
 class SampleModel(models.Model):
     sample_field: InnerSchema = fields.SchemaField(config={"frozen": True, "allow_mutation": False})
     sample_list: t.List[InnerSchema] = fields.SchemaField()
-    sample_seq: t.Sequence[InnerSchema] = fields.SchemaField(schema=t.List[InnerSchema])
+    sample_seq: t.Sequence[InnerSchema] = fields.SchemaField(schema=t.List[InnerSchema], default=list)
 
     class Meta:
         app_label = "sample_app"
@@ -64,7 +64,15 @@ def test_simple_model_field():
     assert instance.sample_list == expected_list
 
 
-@pytest.mark.xfail
+def test_null_field():
+    field = fields.SchemaField(InnerSchema, null=True, default=None)
+    assert field.to_python(None) is None
+    assert field.get_prep_value(None) is None
+
+    field = fields.SchemaField(t.Optional[InnerSchema], default=None)
+    assert field.get_prep_value(None) is None
+
+
 def test_untyped_model_field_raises():
     with pytest.raises(FieldError):
         class UntypedModel(models.Model):
@@ -104,7 +112,7 @@ def test_resolved_forwardrefs(forward_ref):
     fields.PydanticSchemaField(schema=InnerSchema, default=InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])),
     fields.PydanticSchemaField(schema=InnerSchema, default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)]))),
     fields.PydanticSchemaField(schema=InnerSchema, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}),
-    fields.PydanticSchemaField(schema=InnerSchema, default=None),
+    fields.PydanticSchemaField(schema=InnerSchema, null=True, default=None),
     fields.PydanticSchemaField(schema=SampleDataclass, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]})
 ])
 def test_field_serialization(field):
@@ -155,6 +163,7 @@ def test_field_typing_annotations_serialization(field):
     deserialized_field = reconstruct_field(serialize_field(field))
     assert deserialized_field.get_default() == field.get_default()
     assert field.schema == deserialized_field.schema
+
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason="Typing-to-builtin migrations is reasonable only on py >= 3.9")

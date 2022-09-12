@@ -42,15 +42,10 @@ def test_schema_decoder():
     assert decoder.decode(existing_encoded) == expected_decoded
 
 
-def test_schema_decoder_with_custom_error_handler():
+def test_schema_decoder_error():
     existing_flawed_encoded = '{"stub_str": "abc", "stub_list": 1}'
 
-    def custom_handler(obj, payload):
-        schema, exc = payload
-        assert schema is SampleSchema
-        raise exc
-
-    decoder = base.SchemaDecoder(schema=SampleSchema, error_handler=custom_handler)
+    decoder = base.SchemaDecoder(schema=SampleSchema)
 
     with pytest.raises(pydantic.ValidationError) as e:
         decoder.decode(existing_flawed_encoded)

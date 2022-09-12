@@ -61,6 +61,8 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
 
 
 class SchemaField(base.SchemaWrapper[base.ST], serializers.Field):
+    decoder: "base.SchemaDecoder[base.ST]"
+
     def __init__(
         self,
         schema: t.Type["base.ST"],
@@ -68,12 +70,15 @@ class SchemaField(base.SchemaWrapper[base.ST], serializers.Field):
         **kwargs,
     ):
         self.schema = field_schema = self._wrap_schema(schema, config)
-        self.decoder = base.SchemaDecoder[base.ST](field_schema, serializer_error_handler)
+        self.decoder = base.SchemaDecoder(field_schema)
         self.export_params = self._extract_export_kwargs(kwargs, dict.pop)
         super().__init__(**kwargs)
 
     def to_internal_value(self, data) -> t.Optional["base.ST"]:
-        return self.decoder.decode(data)
+        try:
+            return self.decoder.decode(data)
+        except ValidationError as e:
+            raise serializers.ValidationError(e.errors(), self.field_name)
 
     def to_representation(self, value):
         obj = self.schema.parse_obj(value)
@@ -237,7 +242,3 @@ class AutoSchema(openapi.AutoSchema):
         else:
             response_schema = item_schema
         return response_schema
-
-
-def serializer_error_handler(obj, err):
-    raise exceptions.ValidationError(err[1])
