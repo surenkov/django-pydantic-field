@@ -26,8 +26,10 @@ def test_schema_field():
 
     assert field.to_representation(existing_instance) == expected_encoded
     assert field.to_internal_value(expected_encoded) == existing_instance
+
     with pytest.raises(serializers.ValidationError):
         field.to_internal_value(None)
+
     with pytest.raises(serializers.ValidationError):
         field.to_internal_value("null")
 
