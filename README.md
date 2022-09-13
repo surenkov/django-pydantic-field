@@ -56,10 +56,28 @@ assert model.raw_uids = {UUID("17a25db0-27a4-11ed-904a-5ffb17f92734")}
 Practically, schema could be of any type supported by Pydantic.
 In addition, an external `config` class can be passed for such schemes.
 
-### Limitation: Forward referencing annotations
+### Forward referencing annotations
 
-Note, at the moment it is not possible to use string annotations and forward references.
-I tried to defer schema initialzation at a field descriptor level, but this approach did not succeeded with current migrations flow.
+It is also possible to use `SchemaField` with forward references and string literals, e.g the code below is also valid:
+
+``` python
+
+class MyModel(models.Model):
+    foo_field: "Foo" = SchemaField()
+    bar_list: typing.Sequence["Bar"] = SchemaField(schema=typing.ForwardRef("list[Bar]"))
+
+
+class Foo(pydantic.BaseModel):
+    count: int
+    size: float = 1.0
+
+
+class Bar(pydantic.BaseModel):
+    slug: str = "foo_bar"
+```
+
+In this case, exact type resolution will be postponed until initial access to the field.
+Usually this happens on the first instantiation of the model.
 
 ## Django REST Framework support
 

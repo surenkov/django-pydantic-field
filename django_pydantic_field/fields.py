@@ -38,7 +38,7 @@ class SchemaAttribute(DeferredAttribute):
 
 class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     descriptor_class = SchemaAttribute
-    is_prepared_model_field: bool = False
+    is_prepared_schema: bool = False
 
     def __init__(
         self,
@@ -62,7 +62,7 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         return self.to_python(value)
 
     def to_python(self, value) -> "base.SchemaT":
-        if not self.is_prepared_model_field:
+        if not self.is_prepared_schema:
             self._prepare_model_schema()
         try:
             assert self.decoder is not None
@@ -88,7 +88,7 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         try:
             self._prepare_model_schema(cls)
         except NameError:
-            self.is_prepared_model_field = False
+            self.is_prepared_schema = False
 
         super().contribute_to_class(cls, name, private_only)
 
@@ -116,13 +116,13 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         if cls is not None:
             model_ns = utils.get_model_namespace(cls)
             self.serializer_schema.update_forward_refs(**model_ns)
-            self.is_prepared_model_field = True
+            self.is_prepared_schema = True
 
     def _deconstruct_default(self, kwargs):
         default = kwargs.get("default", NOT_PROVIDED)
 
         if not (default is NOT_PROVIDED or callable(default)):
-            if self.is_prepared_model_field:
+            if self.is_prepared_schema:
                 plain_default = self.get_prep_value(default)
                 if plain_default is not None:
                     plain_default = json.loads(plain_default)
