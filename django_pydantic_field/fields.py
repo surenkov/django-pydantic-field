@@ -62,6 +62,8 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         return self.to_python(value)
 
     def to_python(self, value) -> "base.SchemaT":
+        # Attempt to resolve forward referencing schema if it was not succesful
+        # during `.contribute_to_class` call
         if not self.is_prepared_schema:
             self._prepare_model_schema()
         try:
@@ -88,6 +90,8 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         try:
             self._prepare_model_schema(cls)
         except NameError:
+            # Pydantic was not able to resolve forward references,
+            # which means that it should be postponed to field access
             self.is_prepared_schema = False
 
         super().contribute_to_class(cls, name, private_only)
@@ -122,6 +126,8 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         default = kwargs.get("default", NOT_PROVIDED)
 
         if not (default is NOT_PROVIDED or callable(default)):
+            # default value deconstruction with SchemaEncoder is meaningful
+            # only if schema resolution is not deferred
             if self.is_prepared_schema:
                 plain_default = self.get_prep_value(default)
                 if plain_default is not None:
@@ -219,6 +225,8 @@ class _GenericSerializer(BaseSerializer):
 
 
 class _ForwardRefSerializer(BaseSerializer):
+    value: t.ForwardRef
+
     def serialize(self):
         return f"typing.{repr(self.value)}", {"import typing"}
 
