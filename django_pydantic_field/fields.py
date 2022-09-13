@@ -148,10 +148,34 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         kwargs.update(self.export_params, config=self.config)
 
 
+@t.overload
+def SchemaField(
+    schema: t.Union[t.Type["base.ST"], "t.ForwardRef", str] = ...,
+    config: "base.ConfigType" = ...,
+    default: t.Union["base.ST", t.Type[NOT_PROVIDED], None] = ...,
+    null: t.Literal[True] = ...,
+    *args,
+    **kwargs,
+) -> t.Any:
+    ...
+
+
+@t.overload
+def SchemaField(
+    schema: t.Union[t.Type["base.ST"], "t.ForwardRef", str] = ...,
+    config: "base.ConfigType" = ...,
+    default: t.Union["base.ST", t.Type[NOT_PROVIDED]] = ...,
+    null: t.Literal[False] = ...,
+    *args,
+    **kwargs,
+) -> t.Any:
+    ...
+
+
 def SchemaField(
     schema: t.Union[t.Type["base.ST"], "t.ForwardRef", str] = None,
     config: "base.ConfigType" = None,
-    default: t.Union["base.ST", t.Type[NOT_PROVIDED]] = NOT_PROVIDED,
+    default: t.Union["base.ST", t.Type[NOT_PROVIDED], None] = NOT_PROVIDED,
     *args,
     **kwargs,
 ) -> t.Any:
