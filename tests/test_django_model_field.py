@@ -10,7 +10,7 @@ from django_pydantic_field import fields
 
 from django.db import models
 from django.db.migrations.writer import MigrationWriter
-from django.core.exceptions import FieldError
+from django.core.exceptions import FieldError, ValidationError
 
 from .conftest import InnerSchema, SampleDataclass
 
@@ -195,6 +195,30 @@ def test_field_typing_to_builtin_serialization(old_field, new_field):
     deserialized_field = reconstruct_field(serialize_field(old_field))
     assert old_field.get_default() == deserialized_field.get_default() == new_field.get_default()
     assert new_field.schema == deserialized_field.schema
+
+
+@pytest.mark.parametrize("field, flawed_data", [
+    (fields.PydanticSchemaField(schema=InnerSchema), {}),
+    (fields.PydanticSchemaField(schema=t.List[InnerSchema]), [{}]),
+    (fields.PydanticSchemaField(schema=t.Dict[int, float]), {"1": "abc"}),
+])
+def test_field_validation_exceptions(field, flawed_data):
+    with pytest.raises(ValidationError):
+        field.to_python(flawed_data)
+
+def test_model_validation_exceptions():
+    with pytest.raises(ValidationError):
+        SampleModel(sample_field=1)
+    with pytest.raises(ValidationError):
+        SampleModel(sample_field={"stub_list": {}, "stub_str": ""})
+
+    valid_initial = SampleModel(
+        sample_field={"stub_list": [], "stub_str": ""},
+        sample_list=[],
+        sample_seq=[],
+    )
+    with pytest.raises(ValidationError):
+        valid_initial.sample_field = 1
 
 
 def serialize_field(field: fields.PydanticSchemaField) -> str:
