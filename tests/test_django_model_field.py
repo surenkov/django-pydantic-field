@@ -21,7 +21,7 @@ class SampleModel(models.Model):
     sample_seq: t.Sequence[InnerSchema] = fields.SchemaField(schema=t.List[InnerSchema], default=list)
 
     class Meta:
-        app_label = "sample_app"
+        app_label = "test_app"
 
 
 class SampleForwardRefModel(models.Model):
@@ -30,7 +30,7 @@ class SampleForwardRefModel(models.Model):
     fref_field: t.ForwardRef("SampleSchema") = fields.SchemaField(default=dict)
 
     class Meta:
-        app_label = "sample_app"
+        app_label = "test_app"
 
 
 class SampleSchema(pydantic.BaseModel):
@@ -92,7 +92,7 @@ def test_untyped_model_field_raises():
             sample_field = fields.SchemaField()
 
             class Meta:
-                app_label = "sample_app"
+                app_label = "test_app"
 
 
 def test_forwardrefs_deferred_resolution():
@@ -112,7 +112,7 @@ def test_resolved_forwardrefs(forward_ref):
         field: forward_ref = fields.SchemaField()
 
         class Meta:
-            app_label = "sample_app"
+            app_label = "test_app"
 
 
 @pytest.mark.parametrize("field", [
