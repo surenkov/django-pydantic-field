@@ -43,7 +43,7 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     def __init__(
         self,
         *args,
-        schema: t.Union[t.Type["base.ST"], "GenericContainer", t.ForwardRef, str] = None,
+        schema: t.Union[t.Type["base.ST"], "GenericContainer", "t.ForwardRef", str] = None,
         config: "base.ConfigType" = None,
         **kwargs,
     ):
@@ -143,7 +143,7 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
 
 
 def SchemaField(
-    schema: t.Union[t.Type["base.ST"], t.ForwardRef, str] = None,
+    schema: t.Union[t.Type["base.ST"], "t.ForwardRef", str] = None,
     config: "base.ConfigType" = None,
     default: t.Union["base.ST", t.Type[NOT_PROVIDED]] = NOT_PROVIDED,
     *args,
@@ -218,6 +218,11 @@ class _GenericSerializer(BaseSerializer):
         return generic_repr, imports
 
 
+class _ForwardRefSerializer(BaseSerializer):
+    def serialize(self):
+        return f"typing.{repr(self.value)}", {"import typing"}
+
+
 try:
     GenericAlias = type(list[int])
     GenericTypes: t.Tuple[t.Any, ...] = GenericAlias, type(t.List[int]), type(t.List)
@@ -228,3 +233,4 @@ except TypeError:
     GenericTypes = GenericAlias, type(t.List)
 
 MigrationWriter.register_serializer(GenericContainer, _GenericSerializer)
+MigrationWriter.register_serializer(t.ForwardRef, _ForwardRefSerializer)
