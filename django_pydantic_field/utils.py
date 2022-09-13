@@ -3,8 +3,11 @@ import typing as t
 
 
 def get_annotated_type(cls, field, default=None) -> t.Any:
-    annotations = t.get_type_hints(cls)
-    return annotations.get(field, default)
+    try:
+        annotations = cls.__annotations__
+        return annotations[field]
+    except (AttributeError, KeyError):
+        return default
 
 
 def get_model_namespace(cls) -> t.Dict[str, t.Any]:

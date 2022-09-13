@@ -24,6 +24,19 @@ class SampleModel(models.Model):
         app_label = "sample_app"
 
 
+class SampleForwardRefModel(models.Model):
+    field = fields.SchemaField(schema=t.ForwardRef("SampleSchema"))
+    annotated_field: "SampleSchema" = fields.SchemaField()
+    fref_field: t.ForwardRef("SampleSchema") = fields.SchemaField(default=dict)
+
+    class Meta:
+        app_label = "sample_app"
+
+
+class SampleSchema(pydantic.BaseModel):
+    field: int = 1
+
+
 def test_sample_field():
     sample_field = fields.PydanticSchemaField(schema=InnerSchema)
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
@@ -82,17 +95,11 @@ def test_untyped_model_field_raises():
                 app_label = "sample_app"
 
 
-@pytest.mark.parametrize("forward_ref", ["SampleSchema", t.ForwardRef("SampleSchema")])
-def test_forwardrefs_failing(forward_ref):
-    with pytest.raises(NameError):
-        class ModelWithForwardRefs(models.Model):
-            field: forward_ref = fields.SchemaField()
-
-            class Meta:
-                app_label = "sample_app"
-
-        class SampleSchema(pydantic.BaseModel):
-            field: int = 1
+def test_forwardrefs_deferred_resolution():
+    obj = SampleForwardRefModel(field={}, annotated_field={})
+    assert isinstance(obj.field, SampleSchema)
+    assert isinstance(obj.annotated_field, SampleSchema)
+    assert isinstance(obj.fref_field, SampleSchema)
 
 
 @pytest.mark.parametrize("forward_ref", [

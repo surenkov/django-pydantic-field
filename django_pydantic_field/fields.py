@@ -30,6 +30,7 @@ class SchemaAttribute(DeferredAttribute):
         setattr(cls, name, SchemaDeferredAttribute(self))
     ```
     """
+    field: "PydanticSchemaField"
 
     def __set__(self, obj, value):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
@@ -37,11 +38,12 @@ class SchemaAttribute(DeferredAttribute):
 
 class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     descriptor_class = SchemaAttribute
+    is_prepared_model_field: bool = False
 
     def __init__(
         self,
         *args,
-        schema: t.Union[t.Type["base.ST"], "GenericContainer"] = None,
+        schema: t.Union[t.Type["base.ST"], "GenericContainer", t.ForwardRef, str] = None,
         config: "base.ConfigType" = None,
         **kwargs,
     ):
@@ -60,9 +62,10 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         return self.to_python(value)
 
     def to_python(self, value) -> "base.SchemaT":
-        if self.decoder is None:
-            raise self._fail_initialize(self.model, self.attname)
+        if not self.is_prepared_model_field:
+            self._prepare_model_schema()
         try:
+            assert self.decoder is not None
             return self.decoder().decode(value)
         except pydantic.ValidationError as e:
             raise django_exceptions.ValidationError(e.errors())
@@ -81,7 +84,12 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     def contribute_to_class(self, cls, name, private_only=False):
         if self.schema is None:
             self._resolve_schema_from_type_hints(cls, name)
-        self._finalize_schema(cls)
+
+        try:
+            self._prepare_model_schema(cls)
+        except NameError:
+            self.is_prepared_model_field = False
+
         super().contribute_to_class(cls, name, private_only)
 
     def _resolve_schema(self, schema):
@@ -97,26 +105,29 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     def _resolve_schema_from_type_hints(self, cls, name):
         annotated_schema = utils.get_annotated_type(cls, name)
         if annotated_schema is None:
-            raise self._fail_initialize(cls, name)
+            raise django_exceptions.FieldError(
+                f"{cls._meta.label}.{name} needs to be either annotated "
+                "or `schema=` field attribute should be explicitly passed"
+            )
         self._resolve_schema(annotated_schema)
 
-    def _fail_initialize(self, cls, name):
-        return django_exceptions.FieldError(
-            f"{cls._meta.label}.{name} needs to be either annotated "
-            "or `schema=` field attribute should be explicitly passed"
-        )
-
-    def _finalize_schema(self, cls):
-        model_ns = utils.get_model_namespace(cls)
-        self.serializer_schema.update_forward_refs(**model_ns)
+    def _prepare_model_schema(self, cls=None):
+        cls = cls or getattr(self, "model", None)
+        if cls is not None:
+            model_ns = utils.get_model_namespace(cls)
+            self.serializer_schema.update_forward_refs(**model_ns)
+            self.is_prepared_model_field = True
 
     def _deconstruct_default(self, kwargs):
         default = kwargs.get("default", NOT_PROVIDED)
 
         if not (default is NOT_PROVIDED or callable(default)):
-            plain_default = self.get_prep_value(default)
-            if plain_default is not None:
-                plain_default = json.loads(plain_default)
+            if self.is_prepared_model_field:
+                plain_default = self.get_prep_value(default)
+                if plain_default is not None:
+                    plain_default = json.loads(plain_default)
+            else:
+                plain_default = default
 
             kwargs.update(default=plain_default)
 
@@ -132,12 +143,13 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
 
 
 def SchemaField(
-    schema: t.Type["base.ST"] = None,
+    schema: t.Union[t.Type["base.ST"], t.ForwardRef, str] = None,
     config: "base.ConfigType" = None,
+    default: t.Union["base.ST", t.Type[NOT_PROVIDED]] = NOT_PROVIDED,
     *args,
     **kwargs,
 ) -> t.Any:
-    kwargs.update(schema=schema, config=config)
+    kwargs.update(schema=schema, config=config, default=default)
     return PydanticSchemaField(*args, **kwargs)
 
 
