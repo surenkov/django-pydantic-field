@@ -36,7 +36,7 @@ class SchemaAttribute(DeferredAttribute):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
 
 
-class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
+class PydanticSchemaField(JSONField, t.Generic[base.ST]):
     descriptor_class = SchemaAttribute
     is_prepared_schema: bool = False
 
@@ -50,7 +50,7 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         super().__init__(*args, **kwargs)
 
         self.config = config
-        self.export_params = self._extract_export_kwargs(kwargs, dict.pop)
+        self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
         self._resolve_schema(schema)
 
     def __copy__(self):
@@ -102,7 +102,7 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
 
         self.schema = schema
         if schema is not None:
-            self.serializer_schema = serializer = self._wrap_schema(schema, self.config, self.null)
+            self.serializer_schema = serializer = base.wrap_schema(schema, self.config, self.null)
             self.decoder = partial(base.SchemaDecoder, serializer)  # type: ignore
             self.encoder = partial(base.SchemaEncoder, schema=serializer, export=self.export_params)  # type: ignore
 

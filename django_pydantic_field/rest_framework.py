@@ -21,7 +21,7 @@ if t.TYPE_CHECKING:
     RequestResponseContext = t.Dict[str, t.Any]
 
 
-class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
+class AnnotatedSchemaT(t.Generic[base.ST]):
     schema_ctx_attr: t.ClassVar[str] = "schema"
     require_explicit_schema: t.ClassVar[bool] = False
     _cached_annotation_schema: t.Type[BaseModel]
@@ -42,7 +42,7 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
     def get_context_schema(self, ctx: "RequestResponseContext") -> t.Optional[t.Type[BaseModel]]:
         schema = ctx.get(self.schema_ctx_attr)
         if schema is not None:
-            schema = self._wrap_schema(schema)
+            schema = base.wrap_schema(schema)
 
         return schema
 
@@ -55,12 +55,12 @@ class AnnotatedSchemaT(base.SchemaWrapper[base.ST]):
         except (AttributeError, IndexError):
             return None
 
-        schema = self._wrap_schema(schema)
+        schema = base.wrap_schema(schema)
         self._cached_annotation_schema = schema
         return schema
 
 
-class SchemaField(base.SchemaWrapper[base.ST], serializers.Field):
+class SchemaField(serializers.Field, t.Generic[base.ST]):
     decoder: "base.SchemaDecoder[base.ST]"
 
     def __init__(
@@ -71,9 +71,9 @@ class SchemaField(base.SchemaWrapper[base.ST], serializers.Field):
     ):
         nullable = kwargs.get("allow_null", False)
 
-        self.schema = field_schema = self._wrap_schema(schema, config, nullable)
+        self.schema = field_schema = base.wrap_schema(schema, config, nullable)
+        self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
         self.decoder = base.SchemaDecoder(field_schema)
-        self.export_params = self._extract_export_kwargs(kwargs, dict.pop)
 
         super().__init__(**kwargs)
 
@@ -112,7 +112,7 @@ class SchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
         if schema is not None:
             data = schema(__root__=data)
 
-        export_kw = self._extract_export_kwargs(renderer_ctx)
+        export_kw = base.extract_export_kwargs(renderer_ctx)
         json_str = data.json(**export_kw, ensure_ascii=self.ensure_ascii)
         return json_str.encode()
 

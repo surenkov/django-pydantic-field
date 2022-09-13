@@ -54,25 +54,23 @@ def test_schema_decoder_error():
 
 
 def test_schema_wrapper_transformers():
-    wrapper = base.SchemaWrapper()
     existing_encoded = '{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
     expected_decoded = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
 
-    parsed_wrapper = wrapper._wrap_schema(InnerSchema).parse_raw(existing_encoded)
+    parsed_wrapper = base.wrap_schema(InnerSchema).parse_raw(existing_encoded)
     assert parsed_wrapper.__root__ == expected_decoded
 
     existing_encoded = '[{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}]'
-    parsed_wrapper = wrapper._wrap_schema(t.List[InnerSchema]).parse_raw(existing_encoded)
+    parsed_wrapper = base.wrap_schema(t.List[InnerSchema]).parse_raw(existing_encoded)
     assert parsed_wrapper.__root__ == [expected_decoded]
 
 
 class test_schema_wrapper_config_inheritance():
-    wrapper = base.SchemaWrapper()
-    parsed_wrapper = wrapper._wrap_schema(InnerSchema, config={"allow_mutation": False})
+    parsed_wrapper = base.wrap_schema(InnerSchema, config={"allow_mutation": False})
     assert not parsed_wrapper.Config.allow_mutation
     assert not parsed_wrapper.Config.frozen
 
-    parsed_wrapper = wrapper._wrap_schema(t.List[InnerSchema], config={"frozen": True})
+    parsed_wrapper = base.wrap_schema(t.List[InnerSchema], config={"frozen": True})
     assert parsed_wrapper.Config.allow_mutation
     assert parsed_wrapper.Config.frozen
 
@@ -90,7 +88,7 @@ class test_schema_wrapper_config_inheritance():
     (t.Set[UUID], '["ba6eb330-4f7f-11eb-a2fb-67c34e9ac07c"]', {UUID("ba6eb330-4f7f-11eb-a2fb-67c34e9ac07c")}),
 ])
 def test_concrete_types(type_, encoded, decoded):
-    schema = base.SchemaWrapper()._wrap_schema(type_)
+    schema = base.wrap_schema(type_)
     encoder = base.SchemaEncoder(schema=schema)
     decoder = base.SchemaDecoder(schema=schema)
 
