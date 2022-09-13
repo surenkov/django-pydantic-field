@@ -1,12 +1,13 @@
 import json
 import typing as t
+import pydantic
 
 from functools import partial
 
-from django.core.exceptions import FieldError
+from django.core import exceptions as django_exceptions
 from django.db.models.fields import NOT_PROVIDED
+from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
-from django.db.models import JSONField
 
 from django.db.migrations.writer import MigrationWriter
 from django.db.migrations.serializer import serializer_factory, BaseSerializer
@@ -59,8 +60,12 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
         return self.to_python(value)
 
     def to_python(self, value) -> "base.SchemaT":
-        assert self.decoder is not None
-        return self.decoder().decode(value)
+        if self.decoder is None:
+            raise self._fail_initialize(self.model, self.attname)
+        try:
+            return self.decoder().decode(value)
+        except pydantic.ValidationError as e:
+            raise django_exceptions.ValidationError(e.errors())
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
@@ -92,11 +97,14 @@ class PydanticSchemaField(base.SchemaWrapper["base.ST"], JSONField):
     def _resolve_schema_from_type_hints(self, cls, name):
         annotated_schema = utils.get_annotated_type(cls, name)
         if annotated_schema is None:
-            raise FieldError(
-                f"{cls._meta.label}.{name} needs to be either annotated "
-                "or `schema=` field attribute should be explicitly passed"
-            )
+            raise self._fail_initialize(cls, name)
         self._resolve_schema(annotated_schema)
+
+    def _fail_initialize(self, cls, name):
+        return django_exceptions.FieldError(
+            f"{cls._meta.label}.{name} needs to be either annotated "
+            "or `schema=` field attribute should be explicitly passed"
+        )
 
     def _finalize_schema(self, cls):
         model_ns = utils.get_model_namespace(cls)
