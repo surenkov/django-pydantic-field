@@ -148,37 +148,33 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         kwargs.update(self.export_params, config=self.config)
 
 
-@t.overload
-def SchemaField(
-    schema: t.Union[t.Type["base.ST"], "t.ForwardRef", str] = ...,
-    config: "base.ConfigType" = ...,
-    default: t.Union["base.ST", t.Type[NOT_PROVIDED], None] = ...,
-    null: t.Literal[True] = ...,
-    *args,
-    **kwargs,
-) -> t.Any:
-    ...
-
+if t.TYPE_CHECKING:
+    OptSchemaT = t.Optional[base.SchemaT]
 
 @t.overload
 def SchemaField(
-    schema: t.Union[t.Type["base.ST"], "t.ForwardRef", str] = ...,
+    schema: "t.Union[t.Type[base.ST], t.ForwardRef, str]" = ...,
     config: "base.ConfigType" = ...,
-    default: t.Union["base.ST", t.Type[NOT_PROVIDED]] = ...,
-    null: t.Literal[False] = ...,
+    default: "t.Union[OptSchemaT, t.Callable[[], OptSchemaT]]" = ...,
     *args,
+    null: "t.Literal[True]",
     **kwargs,
-) -> t.Any:
+) -> "t.Optional[base.ST]":
+    ...
+
+@t.overload
+def SchemaField(
+    schema: "t.Union[t.Type[base.ST], t.ForwardRef, str]" = ...,
+    config: "base.ConfigType" = ...,
+    default: "t.Union[base.SchemaT, t.Callable[[], base.SchemaT]]" = ...,
+    *args,
+    null: "t.Literal[False]" = ...,
+    **kwargs,
+) -> "base.ST":
     ...
 
 
-def SchemaField(
-    schema: t.Union[t.Type["base.ST"], "t.ForwardRef", str] = None,
-    config: "base.ConfigType" = None,
-    default: t.Union["base.ST", t.Type[NOT_PROVIDED], None] = NOT_PROVIDED,
-    *args,
-    **kwargs,
-) -> t.Any:
+def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs) -> t.Any:
     kwargs.update(schema=schema, config=config, default=default)
     return PydanticSchemaField(*args, **kwargs)
 
