@@ -2,12 +2,17 @@
 Django Migration serializer helpers
 
 [Built-in generic annotations](https://peps.python.org/pep-0585/)
-  introduced in Python 3.9 are having a different semantics from `typing` collections.
-  Due to how Django treats field serialization/reconstruction while writing migrations,
-  it is not possible to distnguish between `types.GenericAlias` and any other regular types,
-  thus annotations are being erased by `MigrationWriter` serializers.
+    introduced in Python 3.9 are having a different semantics from `typing` collections.
+    Due to how Django treats field serialization/reconstruction while writing migrations,
+    it is not possible to distnguish between `types.GenericAlias` and any other regular types,
+    thus annotations are being erased by `MigrationWriter` serializers.
 
-  To mitigate this, I had to introduce custom container for schema deconstruction.
+    To mitigate this, I had to introduce custom container for schema deconstruction.
+
+[Union types syntax](https://peps.python.org/pep-0604/)
+    `typing.Union` and its special forms, like `typing.Optional`, have its own inheritance chain.
+    Moreover, `types.UnionType`, introduced in 3.10, do not allow explicit type construction,
+    only with `X | Y` syntax. Both cases require a dedicated serializer for migration writes.
 """
 import sys
 import types
