@@ -25,9 +25,8 @@ class SampleModel(models.Model):
 
 
 class SampleForwardRefModel(models.Model):
-    field = fields.SchemaField(schema=t.ForwardRef("SampleSchema"))
     annotated_field: "SampleSchema" = fields.SchemaField()
-    fref_field: t.ForwardRef("SampleSchema") = fields.SchemaField(default=dict)
+    field = fields.SchemaField(schema=t.ForwardRef("SampleSchema"))
 
     class Meta:
         app_label = "test_app"
@@ -99,13 +98,12 @@ def test_forwardrefs_deferred_resolution():
     obj = SampleForwardRefModel(field={}, annotated_field={})
     assert isinstance(obj.field, SampleSchema)
     assert isinstance(obj.annotated_field, SampleSchema)
-    assert isinstance(obj.fref_field, SampleSchema)
 
 
 @pytest.mark.parametrize("forward_ref", [
     "InnerSchema",
     t.ForwardRef("SampleDataclass"),
-    list["int"],
+    t.List["int"]
 ])
 def test_resolved_forwardrefs(forward_ref):
     class ModelWithForwardRefs(models.Model):
@@ -115,12 +113,14 @@ def test_resolved_forwardrefs(forward_ref):
             app_label = "test_app"
 
 
+
 @pytest.mark.parametrize("field", [
     fields.PydanticSchemaField(schema=InnerSchema, default=InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])),
     fields.PydanticSchemaField(schema=InnerSchema, default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)]))),
     fields.PydanticSchemaField(schema=InnerSchema, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}),
     fields.PydanticSchemaField(schema=InnerSchema, null=True, default=None),
-    fields.PydanticSchemaField(schema=SampleDataclass, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]})
+    fields.PydanticSchemaField(schema=SampleDataclass, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}),
+    fields.PydanticSchemaField(schema=t.Optional[InnerSchema], null=True, default=None),
 ])
 def test_field_serialization(field):
     _, _, args, kwargs = field.deconstruct()
@@ -135,13 +135,15 @@ def test_field_serialization(field):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason="Should test against builtin generic types")
-@pytest.mark.parametrize("field", [
-    fields.PydanticSchemaField(schema=list[InnerSchema], default=list),
-    fields.PydanticSchemaField(schema=dict[str, InnerSchema], default=list),
-    fields.PydanticSchemaField(schema=abc.Sequence[InnerSchema], default=list),
-    fields.PydanticSchemaField(schema=abc.Mapping[str, InnerSchema], default=dict),
+@pytest.mark.parametrize("field_factory", [
+    lambda: fields.PydanticSchemaField(schema=list[InnerSchema], default=list),
+    lambda: fields.PydanticSchemaField(schema=dict[str, InnerSchema], default=list),
+    lambda: fields.PydanticSchemaField(schema=abc.Sequence[InnerSchema], default=list),
+    lambda: fields.PydanticSchemaField(schema=abc.Mapping[str, InnerSchema], default=dict),
+    lambda: fields.PydanticSchemaField(schema=InnerSchema | None, null=True, default=None),
 ])
-def test_field_builtin_annotations_serialization(field):
+def test_field_builtin_annotations_serialization(field_factory):
+    field = field_factory()
     _, _, args, kwargs = field.deconstruct()
 
     reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
@@ -172,27 +174,28 @@ def test_field_typing_annotations_serialization(field):
     assert field.schema == deserialized_field.schema
 
 
-
 @pytest.mark.skipif(sys.version_info < (3, 9), reason="Typing-to-builtin migrations is reasonable only on py >= 3.9")
 @pytest.mark.parametrize("old_field, new_field", [
     (
-        fields.PydanticSchemaField(schema=t.List[InnerSchema], default=list),
-        fields.PydanticSchemaField(schema=list[InnerSchema], default=list),
+        lambda: fields.PydanticSchemaField(schema=t.List[InnerSchema], default=list),
+        lambda: fields.PydanticSchemaField(schema=list[InnerSchema], default=list),
     ), (
-        fields.PydanticSchemaField(schema=t.Dict[str, InnerSchema], default=list),
-        fields.PydanticSchemaField(schema=dict[str, InnerSchema], default=list),
+        lambda: fields.PydanticSchemaField(schema=t.Dict[str, InnerSchema], default=list),
+        lambda: fields.PydanticSchemaField(schema=dict[str, InnerSchema], default=list),
     ), (
-        fields.PydanticSchemaField(schema=t.Sequence[InnerSchema], default=list),
-        fields.PydanticSchemaField(schema=abc.Sequence[InnerSchema], default=list),
+        lambda: fields.PydanticSchemaField(schema=t.Sequence[InnerSchema], default=list),
+        lambda: fields.PydanticSchemaField(schema=abc.Sequence[InnerSchema], default=list),
     ), (
-        fields.PydanticSchemaField(schema=t.Mapping[str, InnerSchema], default=dict),
-        fields.PydanticSchemaField(schema=abc.Mapping[str, InnerSchema], default=dict),
+        lambda: fields.PydanticSchemaField(schema=t.Mapping[str, InnerSchema], default=dict),
+        lambda: fields.PydanticSchemaField(schema=abc.Mapping[str, InnerSchema], default=dict),
     ), (
-        fields.PydanticSchemaField(schema=t.Mapping[str, InnerSchema], default=dict),
-        fields.PydanticSchemaField(schema=abc.Mapping[str, InnerSchema], default=dict),
+        lambda: fields.PydanticSchemaField(schema=t.Mapping[str, InnerSchema], default=dict),
+        lambda: fields.PydanticSchemaField(schema=abc.Mapping[str, InnerSchema], default=dict),
     )
 ])
 def test_field_typing_to_builtin_serialization(old_field, new_field):
+    old_field, new_field = old_field(), new_field()
+
     _, _, args, kwargs = old_field.deconstruct()
 
     reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
