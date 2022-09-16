@@ -1,5 +1,6 @@
 import pydantic
 import pytest
+import inspect
 
 import sys
 import typing as t
@@ -113,7 +114,6 @@ def test_resolved_forwardrefs(forward_ref):
             app_label = "test_app"
 
 
-
 @pytest.mark.parametrize("field", [
     fields.PydanticSchemaField(schema=InnerSchema, default=InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])),
     fields.PydanticSchemaField(schema=InnerSchema, default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)]))),
@@ -123,36 +123,24 @@ def test_resolved_forwardrefs(forward_ref):
     fields.PydanticSchemaField(schema=t.Optional[InnerSchema], null=True, default=None),
 ])
 def test_field_serialization(field):
-    _, _, args, kwargs = field.deconstruct()
-
-    reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
-    assert field.get_default() == reconstructed_field.get_default()
-    assert field.schema == reconstructed_field.schema
-
-    deserialized_field = reconstruct_field(serialize_field(field))
-    assert deserialized_field.get_default() == field.get_default()
-    assert field.schema == deserialized_field.schema
+    _test_field_serialization(field)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 9), reason="Should test against builtin generic types")
+@pytest.mark.skipif(sys.version_info < (3, 9), reason="Built-in type subscription supports only in 3.9+")
 @pytest.mark.parametrize("field_factory", [
     lambda: fields.PydanticSchemaField(schema=list[InnerSchema], default=list),
     lambda: fields.PydanticSchemaField(schema=dict[str, InnerSchema], default=list),
     lambda: fields.PydanticSchemaField(schema=abc.Sequence[InnerSchema], default=list),
     lambda: fields.PydanticSchemaField(schema=abc.Mapping[str, InnerSchema], default=dict),
-    lambda: fields.PydanticSchemaField(schema=InnerSchema | None, null=True, default=None),
 ])
 def test_field_builtin_annotations_serialization(field_factory):
-    field = field_factory()
-    _, _, args, kwargs = field.deconstruct()
+    _test_field_serialization(field_factory())
 
-    reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
-    assert field.get_default() == reconstructed_field.get_default()
-    assert field.schema == reconstructed_field.schema
 
-    deserialized_field = reconstruct_field(serialize_field(field))
-    assert deserialized_field.get_default() == field.get_default()
-    assert field.schema == deserialized_field.schema
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="Union type syntax supported only in 3.10+")
+def test_field_union_type_serialization():
+    field = fields.PydanticSchemaField(schema=(InnerSchema | None), null=True, default=None)
+    _test_field_serialization(field)
 
 
 @pytest.mark.skipif(sys.version_info >= (3, 9), reason="Should test against builtin generic types")
@@ -163,15 +151,7 @@ def test_field_builtin_annotations_serialization(field_factory):
     fields.PydanticSchemaField(schema=t.Mapping[str, InnerSchema], default=dict),
 ])
 def test_field_typing_annotations_serialization(field):
-    _, _, args, kwargs = field.deconstruct()
-
-    reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
-    assert field.get_default() == reconstructed_field.get_default()
-    assert field.schema == reconstructed_field.schema
-
-    deserialized_field = reconstruct_field(serialize_field(field))
-    assert deserialized_field.get_default() == field.get_default()
-    assert field.schema == deserialized_field.schema
+    _test_field_serialization(field)
 
 
 @pytest.mark.skipif(sys.version_info < (3, 9), reason="Typing-to-builtin migrations is reasonable only on py >= 3.9")
@@ -229,6 +209,18 @@ def test_model_validation_exceptions():
     )
     with pytest.raises(ValidationError):
         valid_initial.sample_field = 1
+
+
+def _test_field_serialization(field):
+    _, _, args, kwargs = field.deconstruct()
+
+    reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
+    assert field.get_default() == reconstructed_field.get_default()
+    assert field.schema == reconstructed_field.schema
+
+    deserialized_field = reconstruct_field(serialize_field(field))
+    assert deserialized_field.get_default() == field.get_default()
+    assert field.schema == deserialized_field.schema
 
 
 def serialize_field(field: fields.PydanticSchemaField) -> str:
