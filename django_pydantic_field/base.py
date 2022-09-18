@@ -33,15 +33,26 @@ if t.TYPE_CHECKING:
 
 
 class SchemaEncoder(DjangoJSONEncoder):
-    def __init__(self, *args, schema: "ModelType", export=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        schema: "ModelType",
+        export=None,
+        raise_errors: bool = False,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.export_params = export or {}
+        self.raise_errors = raise_errors
 
     def encode(self, obj):
         try:
             data = self.schema(__root__=obj).json(**self.export_params)
         except pydantic.ValidationError:
+            if self.raise_errors:
+                raise
+
             # This branch used for expressions like .filter(data__contains={}).
             # We don't want that {} to be parsed as a schema.
             data = super().encode(obj)
