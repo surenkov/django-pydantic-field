@@ -131,7 +131,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
     def _prepare_model_schema(self, cls=None):
         cls = cls or getattr(self, "model", None)
         if cls is not None:
-            model_ns = utils.get_model_namespace(cls)
+            model_ns = utils.get_local_namespace(cls)
             self.serializer_schema.update_forward_refs(**model_ns)
             self.is_prepared_schema = True
 

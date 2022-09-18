@@ -4,7 +4,7 @@ import typing as t
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.forms import modelform_factory
+from django.forms import Form, modelform_factory
 from django_pydantic_field import forms, fields
 
 from .conftest import InnerSchema
@@ -15,6 +15,10 @@ class SampleForwardRefFieldModel(models.Model):
 
     class Meta:
         app_label = "test_app"
+
+
+class SampleForm(Form):
+    field = forms.SchemaField(t.ForwardRef("SampleSchema"))
 
 
 class SampleSchema(pydantic.BaseModel):
@@ -45,6 +49,11 @@ def test_invalid_raises():
 
     assert e.match("stub_str")
     assert e.match("stub_list")
+
+
+def test_forwardref_field():
+    form = SampleForm(data={"field": '{"field": "2"}'})
+    assert form.is_valid()
 
 
 def test_model_formfield():

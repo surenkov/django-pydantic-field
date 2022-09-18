@@ -94,7 +94,7 @@ class Foo(pydantic.BaseModel):
 
 
 class FooForm(forms.Form):
-    field = SchemaField(Foo)  # `typing.ForwardRef("Foo")` is also fine
+    field = SchemaField(Foo)  # `typing.ForwardRef("Foo")` is fine too
 
 
 form = FooMForm(data={"field": '{"slug": "asdf"}'})
@@ -123,6 +123,8 @@ form = AnotherFooModelForm(data={"field": '{"slug": "bar_baz"}'})
 assert form.is_valid()
 assert form.cleaned_data["field"] == Foo(slug="bar_baz")
 ```
+
+Note, that forward references would be resolved until field is being bound to the form instance.
 
 ## Django REST Framework support
 

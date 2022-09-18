@@ -73,7 +73,7 @@ class SchemaDecoder(t.Generic[ST]):
 
 
 def wrap_schema(
-    schema: t.Type["ST"],
+    schema: t.Union[t.Type["ST"], t.ForwardRef],
     config: t.Optional["ConfigType"] = None,
     allow_null: bool = False,
     **kwargs,
@@ -101,16 +101,11 @@ def extract_export_kwargs(ctx: dict, extractor=dict.get):
     return {k: v for k, v in export_ctx.items() if v is not None}
 
 
-def _get_field_schema_name(schema: t.Type[t.Any]) -> str:
+def _get_field_schema_name(schema) -> str:
     return f"FieldSchema[{display_as_type(schema)}]"
 
 
-def _get_field_schema_params(
-    schema: t.Type["ST"],
-    config: t.Optional["ConfigType"] = None,
-    allow_null: bool = False,
-    **kwargs,
-) -> dict:
+def _get_field_schema_params(schema, config=None, allow_null=False, **kwargs) -> dict:
     root_model = t.Optional[schema] if allow_null else schema
     params: t.Dict[str, t.Any] = dict(kwargs, __root__=(root_model, ...))
     parent_config = getattr(schema, "Config", None)
