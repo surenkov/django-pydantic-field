@@ -166,7 +166,7 @@ if t.TYPE_CHECKING:
 
 @t.overload
 def SchemaField(
-    schema: "t.Union[t.Type[base.ST], t.ForwardRef, str]" = ...,
+    schema: "t.Union[t.Type[base.ST], t.ForwardRef]" = ...,
     config: "base.ConfigType" = ...,
     default: "t.Union[OptSchemaT, t.Callable[[], OptSchemaT]]" = ...,
     *args,
@@ -177,7 +177,7 @@ def SchemaField(
 
 @t.overload
 def SchemaField(
-    schema: "t.Union[t.Type[base.ST], t.ForwardRef, str]" = ...,
+    schema: "t.Union[t.Type[base.ST], t.ForwardRef]" = ...,
     config: "base.ConfigType" = ...,
     default: "t.Union[base.SchemaT, t.Callable[[], base.SchemaT]]" = ...,
     *args,
