@@ -53,7 +53,7 @@ def test_invalid_raises():
 
 
 @pytest.mark.xfail(
-    django.VERSION[:2] <= (4, 0),
+    django.VERSION[:2] < (4, 0),
     reason="Django < 4 has it's own feeling on bound fields resolution",
 )
 def test_forwardref_field():
