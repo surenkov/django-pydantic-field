@@ -1,25 +1,40 @@
 import pytest
+import pydantic
+import typing as t
 
 from django.core.exceptions import ValidationError
-from django_pydantic_field.form import SchemaField
+from django.db import models
+from django.forms import modelform_factory
+from django_pydantic_field import forms, fields
 
 from .conftest import InnerSchema
 
 
+class SampleForwardRefFieldModel(models.Model):
+    annotated_field: t.Optional["SampleSchema"] = fields.SchemaField(null=True)
+
+    class Meta:
+        app_label = "test_app"
+
+
+class SampleSchema(pydantic.BaseModel):
+    field: int = 1
+
+
 def test_form_schema_field():
-    field = SchemaField(InnerSchema)
+    field = forms.SchemaField(InnerSchema)
 
     cleaned_data =  field.clean('{"stub_str": "abc", "stub_list": ["1970-01-01"]}')
     assert cleaned_data == InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})
 
 def test_empty_form_values():
-    field = SchemaField(InnerSchema, required=False)
+    field = forms.SchemaField(InnerSchema, required=False)
     assert field.clean("") is None
     assert field.clean(None) is None
 
 
 def test_invalid_raises():
-    field = SchemaField(InnerSchema)
+    field = forms.SchemaField(InnerSchema)
     with pytest.raises(ValidationError) as e:
         field.clean("")
 
@@ -30,3 +45,19 @@ def test_invalid_raises():
 
     assert e.match("stub_str")
     assert e.match("stub_list")
+
+
+def test_model_formfield():
+    field = fields.PydanticSchemaField(schema=InnerSchema)
+    assert isinstance(field.formfield(), forms.SchemaField)
+
+
+def test_forwardref_model_formfield():
+    form_cls = modelform_factory(SampleForwardRefFieldModel, exclude=())
+    form = form_cls(data={"annotated_field": '{"field": "2"}'})
+
+    assert form.is_valid()
+    cleaned_data = form.cleaned_data
+
+    assert cleaned_data is not None
+    assert cleaned_data["annotated_field"] == SampleSchema(field=2)

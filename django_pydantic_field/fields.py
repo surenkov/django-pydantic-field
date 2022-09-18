@@ -9,7 +9,7 @@ from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
 
-from . import base, utils
+from . import base, utils, forms
 from ._migration_serializers import GenericContainer, GenericTypes
 
 __all__ = ("SchemaField",)
@@ -93,6 +93,21 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
             self.is_prepared_schema = False
 
         super().contribute_to_class(cls, name, private_only)
+
+    def formfield(self, **kwargs):
+        if self.schema is None:
+            self._resolve_schema_from_type_hints(self.model, self.attname)
+
+        bound_model = getattr(self, "model", None)
+        field_kwargs = dict(
+            form_class=forms.SchemaField,
+            schema=self.schema,
+            config=self.config,
+            __module__=getattr(bound_model, "__module__", None),
+            **self.export_params,
+        )
+        field_kwargs.update(kwargs)
+        return super().formfield(**field_kwargs)
 
     def _resolve_schema(self, schema):
         if isinstance(schema, GenericContainer):

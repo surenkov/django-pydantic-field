@@ -11,19 +11,18 @@ __all__ = ("SchemaField",)
 
 
 class SchemaField(JSONField, t.Generic[base.ST]):
-    decoder: base.SchemaDecoder[base.ST]
-    encoder: base.SchemaEncoder
-
     def __init__(
         self,
         schema: t.Type["base.ST"],
         config: t.Optional["base.ConfigType"] = None,
+        __module__: str = None,
         **kwargs
     ):
         allow_null = not kwargs.get("required", True)
-        bound_schema = base.wrap_schema(schema, config, allow_null)
-        export_params = base.extract_export_kwargs(kwargs)
+        bound_schema = base.wrap_schema(schema, config, allow_null, __module__=__module__)
+        bound_schema.update_forward_refs()
 
+        export_params = base.extract_export_kwargs(kwargs)
         decoder = partial(base.SchemaDecoder, bound_schema)
         encoder = partial(
             base.SchemaEncoder,
