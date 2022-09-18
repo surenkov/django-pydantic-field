@@ -5,14 +5,12 @@ from functools import partial
 from django.core.exceptions import ValidationError
 from django.forms.fields import JSONField, InvalidJSONInput
 
-from . import base, utils
+from . import base
 
 __all__ = ("SchemaField",)
 
 
 class SchemaField(JSONField, t.Generic[base.ST]):
-    _is_prepared_field: bool = False
-
     def __init__(
         self,
         schema: t.Union[t.Type["base.ST"], t.ForwardRef],
@@ -46,15 +44,9 @@ class SchemaField(JSONField, t.Generic[base.ST]):
     def bound_data(self, data, initial):
         try:
             return super().bound_data(data, initial)
-        except pydantic.ValidationError as e:
+        except pydantic.ValidationError:
             return InvalidJSONInput(data)
 
     def get_bound_field(self, form, field_name):
-        if not self._is_prepared_field:
-            self._prepare_field(form)
+        base.prepare_schema(self.schema, form)
         return super().get_bound_field(form, field_name)
-
-    def _prepare_field(self, form):
-        form_ns = utils.get_local_namespace(form)
-        self.schema.update_forward_refs(**form_ns)
-        self._is_prepared_field = True

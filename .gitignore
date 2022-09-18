@@ -4,7 +4,7 @@
 tmp/
 
 dist/
-.env/
+.env*/
 .mypy_cache/
 *.py[cod]
 *.egg

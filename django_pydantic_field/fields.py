@@ -98,12 +98,12 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         if self.schema is None:
             self._resolve_schema_from_type_hints(self.model, self.attname)
 
-        bound_model = getattr(self, "model", None)
+        owner_model = getattr(self, "model", None)
         field_kwargs = dict(
             form_class=forms.SchemaField,
             schema=self.schema,
             config=self.config,
-            __module__=getattr(bound_model, "__module__", None),
+            __module__=getattr(owner_model, "__module__", None),
             **self.export_params,
         )
         field_kwargs.update(kwargs)
@@ -131,8 +131,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
     def _prepare_model_schema(self, cls=None):
         cls = cls or getattr(self, "model", None)
         if cls is not None:
-            model_ns = utils.get_local_namespace(cls)
-            self.serializer_schema.update_forward_refs(**model_ns)
+            base.prepare_schema(self.serializer_schema, cls)
             self.is_prepared_schema = True
 
     def _deconstruct_default(self, kwargs):

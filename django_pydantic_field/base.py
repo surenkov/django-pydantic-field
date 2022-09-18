@@ -6,14 +6,18 @@ import pydantic
 from pydantic.config import get_config, inherit_config
 from pydantic.typing import display_as_type
 
+from .utils import get_local_namespace
+
 __all__ = (
     "SchemaEncoder",
     "SchemaDecoder",
     "wrap_schema",
+    "prepare_schema",
     "extract_export_kwargs",
 )
 
 ST = t.TypeVar("ST", bound="SchemaT")
+_RESOLVED_FORWARD_REF_FLAG = "__resolved_forwardrefs__"
 
 if t.TYPE_CHECKING:
     from pydantic.dataclasses import DataclassClassOrWrapper
@@ -83,7 +87,14 @@ def wrap_schema(
     return pydantic.create_model(type_name, **params)
 
 
-def extract_export_kwargs(ctx: dict, extractor=dict.get):
+def prepare_schema(schema: "ModelType", owner: t.Any = None) -> None:
+    if not getattr(schema, _RESOLVED_FORWARD_REF_FLAG, False):
+        namespace = get_local_namespace(owner)
+        schema.update_forward_refs(**namespace)
+        setattr(schema, _RESOLVED_FORWARD_REF_FLAG, True)
+
+
+def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
     export_ctx = dict(
         exclude_defaults=extractor(ctx, "exclude_defaults", None),
         exclude_none=extractor(ctx, "exclude_none", None),

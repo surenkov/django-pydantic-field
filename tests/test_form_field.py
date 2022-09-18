@@ -1,6 +1,7 @@
 import pytest
 import pydantic
 import typing as t
+import django
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -51,6 +52,10 @@ def test_invalid_raises():
     assert e.match("stub_list")
 
 
+@pytest.mark.xfail(
+    django.VERSION[:2] <= (4, 0),
+    reason="Django < 4 has it's own feeling on bound fields resolution",
+)
 def test_forwardref_field():
     form = SampleForm(data={"field": '{"field": "2"}'})
     assert form.is_valid()

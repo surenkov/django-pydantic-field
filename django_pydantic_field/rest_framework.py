@@ -1,6 +1,11 @@
 import typing as t
 from contextlib import suppress
 
+try:
+    from typing import get_args
+except ImportError:
+    from typing_extensions import get_args
+
 from pydantic import BaseModel, ValidationError
 from django.conf import settings
 
@@ -37,6 +42,9 @@ class AnnotatedSchemaT(t.Generic[base.ST]):
                 "or passed in the context"
             )
 
+        if schema is not None:
+            base.prepare_schema(schema, ctx.get("view"))
+
         return schema
 
     def get_context_schema(self, ctx: "RequestResponseContext") -> t.Optional[t.Type[BaseModel]]:
@@ -51,7 +59,7 @@ class AnnotatedSchemaT(t.Generic[base.ST]):
             return self._cached_annotation_schema
 
         try:
-            schema = t.get_args(self.__orig_class__)[0]  # type: ignore
+            schema = get_args(self.__orig_class__)[0]  # type: ignore
         except (AttributeError, IndexError):
             return None
 
@@ -62,6 +70,7 @@ class AnnotatedSchemaT(t.Generic[base.ST]):
 
 class SchemaField(serializers.Field, t.Generic[base.ST]):
     decoder: "base.SchemaDecoder[base.ST]"
+    _is_prepared_schema: bool = False
 
     def __init__(
         self,
@@ -74,8 +83,14 @@ class SchemaField(serializers.Field, t.Generic[base.ST]):
         self.schema = field_schema = base.wrap_schema(schema, config, nullable)
         self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
         self.decoder = base.SchemaDecoder(field_schema)
-
         super().__init__(**kwargs)
+
+    def bind(self, field_name, parent):
+        if not self._is_prepared_schema:
+            base.prepare_schema(self.schema, parent)
+            self._is_prepared_schema = True
+
+        super().bind(field_name, parent)
 
     def to_internal_value(self, data) -> t.Optional["base.ST"]:
         try:
