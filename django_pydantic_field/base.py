@@ -33,15 +33,26 @@ if t.TYPE_CHECKING:
 
 
 class SchemaEncoder(DjangoJSONEncoder):
-    def __init__(self, *args, schema: "ModelType", export=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        schema: "ModelType",
+        export=None,
+        raise_errors: bool = False,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.export_params = export or {}
+        self.raise_errors = raise_errors
 
     def encode(self, obj):
         try:
             data = self.schema(__root__=obj).json(**self.export_params)
         except pydantic.ValidationError:
+            if self.raise_errors:
+                raise
+
             # This branch used for expressions like .filter(data__contains={}).
             # We don't want that {} to be parsed as a schema.
             data = super().encode(obj)
@@ -62,7 +73,7 @@ class SchemaDecoder(t.Generic[ST]):
 
 
 def wrap_schema(
-    schema: t.Type["ST"],
+    schema: t.Union[t.Type["ST"], t.ForwardRef],
     config: t.Optional["ConfigType"] = None,
     allow_null: bool = False,
     **kwargs,
@@ -90,16 +101,11 @@ def extract_export_kwargs(ctx: dict, extractor=dict.get):
     return {k: v for k, v in export_ctx.items() if v is not None}
 
 
-def _get_field_schema_name(schema: t.Type[t.Any]) -> str:
+def _get_field_schema_name(schema) -> str:
     return f"FieldSchema[{display_as_type(schema)}]"
 
 
-def _get_field_schema_params(
-    schema: t.Type["ST"],
-    config: t.Optional["ConfigType"] = None,
-    allow_null: bool = False,
-    **kwargs,
-) -> dict:
+def _get_field_schema_params(schema, config=None, allow_null=False, **kwargs) -> dict:
     root_model = t.Optional[schema] if allow_null else schema
     params: t.Dict[str, t.Any] = dict(kwargs, __root__=(root_model, ...))
     parent_config = getattr(schema, "Config", None)

@@ -9,7 +9,7 @@ from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
 
-from . import base, utils
+from . import base, utils, forms
 from ._migration_serializers import GenericContainer, GenericTypes
 
 __all__ = ("SchemaField",)
@@ -94,6 +94,21 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
 
         super().contribute_to_class(cls, name, private_only)
 
+    def formfield(self, **kwargs):
+        if self.schema is None:
+            self._resolve_schema_from_type_hints(self.model, self.attname)
+
+        bound_model = getattr(self, "model", None)
+        field_kwargs = dict(
+            form_class=forms.SchemaField,
+            schema=self.schema,
+            config=self.config,
+            __module__=getattr(bound_model, "__module__", None),
+            **self.export_params,
+        )
+        field_kwargs.update(kwargs)
+        return super().formfield(**field_kwargs)
+
     def _resolve_schema(self, schema):
         if isinstance(schema, GenericContainer):
             schema = t.cast(t.Type["base.ST"], schema.reconstruct_type())
@@ -116,7 +131,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
     def _prepare_model_schema(self, cls=None):
         cls = cls or getattr(self, "model", None)
         if cls is not None:
-            model_ns = utils.get_model_namespace(cls)
+            model_ns = utils.get_local_namespace(cls)
             self.serializer_schema.update_forward_refs(**model_ns)
             self.is_prepared_schema = True
 
@@ -151,7 +166,7 @@ if t.TYPE_CHECKING:
 
 @t.overload
 def SchemaField(
-    schema: "t.Union[t.Type[base.ST], t.ForwardRef, str]" = ...,
+    schema: "t.Union[t.Type[base.ST], t.ForwardRef]" = ...,
     config: "base.ConfigType" = ...,
     default: "t.Union[OptSchemaT, t.Callable[[], OptSchemaT]]" = ...,
     *args,
@@ -162,7 +177,7 @@ def SchemaField(
 
 @t.overload
 def SchemaField(
-    schema: "t.Union[t.Type[base.ST], t.ForwardRef, str]" = ...,
+    schema: "t.Union[t.Type[base.ST], t.ForwardRef]" = ...,
     config: "base.ConfigType" = ...,
     default: "t.Union[base.SchemaT, t.Callable[[], base.SchemaT]]" = ...,
     *args,

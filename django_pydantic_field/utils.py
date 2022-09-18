@@ -10,7 +10,7 @@ def get_annotated_type(cls, field, default=None) -> t.Any:
         return default
 
 
-def get_model_namespace(cls) -> t.Dict[str, t.Any]:
+def get_local_namespace(cls) -> t.Dict[str, t.Any]:
     module = cls.__module__
     try:
         return vars(sys.modules[module])

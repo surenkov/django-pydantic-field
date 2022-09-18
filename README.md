@@ -80,6 +80,52 @@ class Bar(pydantic.BaseModel):
 In this case, exact type resolution will be postponed until initial access to the field.
 Usually this happens on the first instantiation of the model.
 
+## Django Forms support
+
+It is possible to create Django forms, which would validate against the given schema:
+
+``` python
+from django import forms
+from django_pydantic_field.forms import SchemaField
+
+
+class Foo(pydantic.BaseModel):
+    slug: str = "foo_bar"
+
+
+class FooForm(forms.Form):
+    field = SchemaField(Foo)  # `typing.ForwardRef("Foo")` is fine too
+
+
+form = FooMForm(data={"field": '{"slug": "asdf"}'})
+assert form.is_valid()
+assert form.cleaned_data["field"] == Foo(slug="asdf")
+```
+
+`django_pydantic_field` also supports auto-generated fields for `ModelForm` and `modelform_factory`:
+
+``` python
+class FooModelForm(forms.ModelForm):
+    class Meta:
+        model = Foo
+        fields = ["field"]
+
+form = FooModelForm(data={"field": '{"slug": "asdf"}'})
+assert form.is_valid()
+assert form.cleaned_data["field"] == Foo(slug="asdf")
+
+...
+
+# ModelForm factory support
+AnotherFooModelForm = modelform_factory(Foo, fields=["field"])
+form = AnotherFooModelForm(data={"field": '{"slug": "bar_baz"}'})
+
+assert form.is_valid()
+assert form.cleaned_data["field"] == Foo(slug="bar_baz")
+```
+
+Note, that forward references would be resolved until field is being bound to the form instance.
+
 ## Django REST Framework support
 
 ``` python
