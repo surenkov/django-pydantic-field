@@ -10,7 +10,6 @@ import pydantic
 from django_pydantic_field import base
 from .conftest import InnerSchema, SampleDataclass
 
-dummy = object()
 
 class SampleSchema(pydantic.BaseModel):
     __root__: InnerSchema
