@@ -1,15 +1,17 @@
 import typing as t
 
-from django.core.serializers.json import DjangoJSONEncoder
-
 import pydantic
+from django.core.serializers.json import DjangoJSONEncoder
 from pydantic.config import get_config, inherit_config
 from pydantic.typing import display_as_type
+
+from .utils import get_local_namespace
 
 __all__ = (
     "SchemaEncoder",
     "SchemaDecoder",
     "wrap_schema",
+    "prepare_schema",
     "extract_export_kwargs",
 )
 
@@ -83,7 +85,12 @@ def wrap_schema(
     return pydantic.create_model(type_name, **params)
 
 
-def extract_export_kwargs(ctx: dict, extractor=dict.get):
+def prepare_schema(schema: "ModelType", owner: t.Any = None) -> None:
+    namespace = get_local_namespace(owner)
+    schema.update_forward_refs(**namespace)
+
+
+def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
     export_ctx = dict(
         exclude_defaults=extractor(ctx, "exclude_defaults", None),
         exclude_none=extractor(ctx, "exclude_none", None),

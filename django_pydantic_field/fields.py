@@ -1,15 +1,14 @@
 import json
 import typing as t
-import pydantic
-
 from functools import partial
 
+import pydantic
 from django.core import exceptions as django_exceptions
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
 
-from . import base, utils, forms
+from . import base, forms, utils
 from ._migration_serializers import GenericContainer, GenericTypes
 
 __all__ = ("SchemaField",)
@@ -98,12 +97,12 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         if self.schema is None:
             self._resolve_schema_from_type_hints(self.model, self.attname)
 
-        bound_model = getattr(self, "model", None)
+        owner_model = getattr(self, "model", None)
         field_kwargs = dict(
             form_class=forms.SchemaField,
             schema=self.schema,
             config=self.config,
-            __module__=getattr(bound_model, "__module__", None),
+            __module__=getattr(owner_model, "__module__", None),
             **self.export_params,
         )
         field_kwargs.update(kwargs)
@@ -131,8 +130,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
     def _prepare_model_schema(self, cls=None):
         cls = cls or getattr(self, "model", None)
         if cls is not None:
-            model_ns = utils.get_local_namespace(cls)
-            self.serializer_schema.update_forward_refs(**model_ns)
+            base.prepare_schema(self.serializer_schema, cls)
             self.is_prepared_schema = True
 
     def _deconstruct_default(self, kwargs):

@@ -18,8 +18,13 @@ import sys
 import types
 import typing as t
 
+try:
+    from typing import get_args, get_origin
+except ImportError:
+    from typing_extensions import get_args, get_origin
+
+from django.db.migrations.serializer import BaseSerializer, serializer_factory
 from django.db.migrations.writer import MigrationWriter
-from django.db.migrations.serializer import serializer_factory, BaseSerializer
 
 
 class GenericContainer:
@@ -31,7 +36,7 @@ class GenericContainer:
 
     @classmethod
     def from_generic(cls, type_alias):
-        return cls(t.get_origin(type_alias), t.get_args(type_alias))
+        return cls(get_origin(type_alias), get_args(type_alias))
 
     def reconstruct_type(self):
         if not self.args:
@@ -120,7 +125,7 @@ if sys.version_info >= (3, 10):
             if isinstance(self.value, type(t.Union)):  # type: ignore
                 imports.add("import typing")
 
-            for arg in t.get_args(self.value):
+            for arg in get_args(self.value):
                 _, arg_imports = serializer_factory(arg).serialize()
                 imports.update(arg_imports)
 

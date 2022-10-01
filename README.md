@@ -94,7 +94,7 @@ class Foo(pydantic.BaseModel):
 
 
 class FooForm(forms.Form):
-    field = SchemaField(Foo)  # `typing.ForwardRef("Foo")` is fine too
+    field = SchemaField(Foo)  # `typing.ForwardRef("Foo")` is fine too, but only in Django 4+
 
 
 form = FooMForm(data={"field": '{"slug": "asdf"}'})

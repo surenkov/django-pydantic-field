@@ -1,5 +1,4 @@
 import typing as t
-import inspect
 import sys
 
 from datetime import date
@@ -117,3 +116,18 @@ def test_concrete_raw_types(type_factory, encoded, decoded):
 
     existing_encoded = encoder.encode(decoded)
     assert decoder.decode(existing_encoded) == decoded
+
+
+@pytest.mark.parametrize("forward_ref, sample_data", [
+    (t.ForwardRef("t.List[int]"), '[1, 2]'),
+    (t.ForwardRef("InnerSchema"), '{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'),
+    (t.ForwardRef("PostponedSchema"), '{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'),
+])
+def test_forward_refs_preparation(forward_ref, sample_data):
+    schema = base.wrap_schema(forward_ref)
+    base.prepare_schema(schema, test_forward_refs_preparation)
+    assert schema.parse_raw(sample_data).json() == sample_data
+
+
+class PostponedSchema(pydantic.BaseModel):
+    __root__: InnerSchema

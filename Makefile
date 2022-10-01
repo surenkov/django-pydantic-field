@@ -1,8 +1,6 @@
 
 .PHONY: install
 install:
-	python3 -m venv .env
-	. .env/bin/activate
 	python3 -m pip install build twine
 	python3 -m pip install -e .[dev,rest]
 
