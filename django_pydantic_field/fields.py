@@ -1,15 +1,14 @@
 import json
 import typing as t
-import pydantic
-
 from functools import partial
 
+import pydantic
 from django.core import exceptions as django_exceptions
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
 
-from . import base, utils, forms
+from . import base, forms, utils
 from ._migration_serializers import GenericContainer, GenericTypes
 
 __all__ = ("SchemaField",)

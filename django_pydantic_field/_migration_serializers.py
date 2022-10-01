@@ -23,8 +23,8 @@ try:
 except ImportError:
     from typing_extensions import get_args, get_origin
 
+from django.db.migrations.serializer import BaseSerializer, serializer_factory
 from django.db.migrations.writer import MigrationWriter
-from django.db.migrations.serializer import serializer_factory, BaseSerializer
 
 
 class GenericContainer:

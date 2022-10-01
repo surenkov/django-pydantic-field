@@ -1,9 +1,9 @@
-import pydantic
 import typing as t
 from functools import partial
 
+import pydantic
 from django.core.exceptions import ValidationError
-from django.forms.fields import JSONField, InvalidJSONInput
+from django.forms.fields import InvalidJSONInput, JSONField
 
 from . import base
 
@@ -15,7 +15,7 @@ class SchemaField(JSONField, t.Generic[base.ST]):
         self,
         schema: t.Union[t.Type["base.ST"], t.ForwardRef],
         config: t.Optional["base.ConfigType"] = None,
-        __module__: str = None,
+        __module__: t.Optional[str] = None,
         **kwargs
     ):
         self.schema = base.wrap_schema(

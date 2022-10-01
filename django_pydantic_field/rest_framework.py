@@ -1,15 +1,14 @@
 import typing as t
-from contextlib import suppress
 
 try:
     from typing import get_args
 except ImportError:
     from typing_extensions import get_args
 
-from pydantic import BaseModel, ValidationError
 from django.conf import settings
+from pydantic import BaseModel, ValidationError
 
-from rest_framework import serializers, parsers, renderers, exceptions
+from rest_framework import exceptions, parsers, renderers, serializers
 from rest_framework.schemas import openapi
 from rest_framework.schemas.utils import is_list_view
 
@@ -23,7 +22,7 @@ __all__ = (
 )
 
 if t.TYPE_CHECKING:
-    RequestResponseContext = t.Dict[str, t.Any]
+    RequestResponseContext = t.Mapping[str, t.Any]
 
 
 class AnnotatedSchemaT(t.Generic[base.ST]):
@@ -31,10 +30,10 @@ class AnnotatedSchemaT(t.Generic[base.ST]):
     require_explicit_schema: t.ClassVar[bool] = False
     _cached_annotation_schema: t.Type[BaseModel]
 
-    def get_schema(self, ctx: "RequestResponseContext"):
+    def get_schema(self, ctx: "RequestResponseContext") -> t.Optional[t.Type[BaseModel]]:
         schema = self.get_context_schema(ctx)
         if schema is None:
-            schema = self.get_annotation_schema()
+            schema = self.get_annotation_schema(ctx)
 
         if self.require_explicit_schema and schema is None:
             raise ValueError(
@@ -42,29 +41,28 @@ class AnnotatedSchemaT(t.Generic[base.ST]):
                 "or passed in the context"
             )
 
+        return schema
+
+    def get_context_schema(self, ctx: "RequestResponseContext"):
+        schema = ctx.get(self.schema_ctx_attr)
         if schema is not None:
+            schema = base.wrap_schema(schema)
             base.prepare_schema(schema, ctx.get("view"))
 
         return schema
 
-    def get_context_schema(self, ctx: "RequestResponseContext") -> t.Optional[t.Type[BaseModel]]:
-        schema = ctx.get(self.schema_ctx_attr)
-        if schema is not None:
-            schema = base.wrap_schema(schema)
-
-        return schema
-
-    def get_annotation_schema(self) -> t.Optional[t.Type[BaseModel]]:
-        with suppress(AttributeError):
-            return self._cached_annotation_schema
-
+    def get_annotation_schema(self, ctx: "RequestResponseContext"):
         try:
-            schema = get_args(self.__orig_class__)[0]  # type: ignore
-        except (AttributeError, IndexError):
-            return None
+            schema = self._cached_annotation_schema
+        except AttributeError:
+            try:
+                schema = get_args(self.__orig_class__)[0]  # type: ignore
+            except (AttributeError, IndexError):
+                return None
 
-        schema = base.wrap_schema(schema)
-        self._cached_annotation_schema = schema
+            self._cached_annotation_schema = schema = base.wrap_schema(schema)
+            base.prepare_schema(schema, ctx.get("view"))
+
         return schema
 
 
