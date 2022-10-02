@@ -1,13 +1,12 @@
-import typing as t
 import sys
-
+import typing as t
 from datetime import date
 from uuid import UUID
 
-import pytest
 import pydantic
-
+import pytest
 from django_pydantic_field import base
+
 from .conftest import InnerSchema, SampleDataclass
 
 

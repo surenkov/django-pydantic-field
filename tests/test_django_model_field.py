@@ -1,17 +1,14 @@
-import pydantic
-import pytest
-import inspect
-
 import sys
 import typing as t
-from datetime import date
 from collections import abc
+from datetime import date
 
-from django_pydantic_field import fields
-
+import pydantic
+import pytest
+from django.core.exceptions import FieldError, ValidationError
 from django.db import models
 from django.db.migrations.writer import MigrationWriter
-from django.core.exceptions import FieldError, ValidationError
+from django_pydantic_field import fields
 
 from .conftest import InnerSchema, SampleDataclass
 
@@ -82,7 +79,7 @@ def test_null_field():
     assert field.to_python(None) is None
     assert field.get_prep_value(None) is None
 
-    field = fields.SchemaField(t.Optional[InnerSchema], default=None)
+    field = fields.SchemaField(t.Optional[InnerSchema], null=True, default=None)
     assert field.get_prep_value(None) is None
 
 

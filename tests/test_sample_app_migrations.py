@@ -1,5 +1,5 @@
 import os
-from contextlib import ContextDecorator, contextmanager
+from contextlib import contextmanager
 
 from django.core.management import call_command
 

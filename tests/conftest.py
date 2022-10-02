@@ -1,8 +1,8 @@
 import typing as t
+from datetime import date
+
 import pydantic
 import pytest
-
-from datetime import date
 from pydantic.dataclasses import dataclass
 from rest_framework.test import APIRequestFactory
 

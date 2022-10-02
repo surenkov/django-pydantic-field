@@ -88,8 +88,8 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         try:
             self._prepare_model_schema(cls)
         except NameError:
-            # Pydantic was not able to resolve forward references,
-            # which means that it should be postponed to field access
+            # Pydantic was not able to resolve forward references, which means
+            # that it should be postponed until initial access to the field
             self.is_prepared_schema = False
 
         super().contribute_to_class(cls, name, private_only)
@@ -166,7 +166,7 @@ if t.TYPE_CHECKING:
 
 @t.overload
 def SchemaField(
-    schema: "t.Union[t.Type[base.ST], t.ForwardRef]" = ...,
+    schema: "t.Union[t.Type[t.Optional[base.ST]], t.ForwardRef]" = ...,
     config: "base.ConfigType" = ...,
     default: "t.Union[OptSchemaT, t.Callable[[], OptSchemaT]]" = ...,
     *args,

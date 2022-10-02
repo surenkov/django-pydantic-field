@@ -4,13 +4,11 @@ from datetime import date
 
 import pytest
 import yaml
-
-from rest_framework import serializers, views, exceptions, schemas, generics
-from rest_framework.decorators import api_view, renderer_classes, parser_classes, schema
-from rest_framework.response import Response
-
 from django.urls import path
 from django_pydantic_field import rest_framework
+from rest_framework import exceptions, generics, schemas, serializers, views
+from rest_framework.decorators import api_view, parser_classes, renderer_classes, schema
+from rest_framework.response import Response
 
 from .conftest import InnerSchema
 
@@ -22,7 +20,11 @@ class SampleSerializer(serializers.Serializer):
 def test_schema_field():
     field = rest_framework.SchemaField(InnerSchema)
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
-    expected_encoded = {"stub_str": "abc", "stub_int": 1, "stub_list": [date(2022, 7, 1)]}
+    expected_encoded = {
+        "stub_str": "abc",
+        "stub_int": 1,
+        "stub_list": [date(2022, 7, 1)],
+    }
 
     assert field.to_representation(existing_instance) == expected_encoded
     assert field.to_internal_value(expected_encoded) == existing_instance
@@ -35,7 +37,9 @@ def test_schema_field():
 
 
 def test_field_schema_with_custom_config():
-    field = rest_framework.SchemaField(InnerSchema, allow_null=True, exclude={"stub_int"})
+    field = rest_framework.SchemaField(
+        InnerSchema, allow_null=True, exclude={"stub_int"}
+    )
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
     expected_encoded = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
 
@@ -46,8 +50,12 @@ def test_field_schema_with_custom_config():
 
 
 def test_serializer_marshalling_with_schema_field():
-    existing_instance = {"field": [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])]}
-    expected_data = {"field": [{"stub_str": "abc", "stub_int": 1, "stub_list": [date(2022, 7, 1)]}]}
+    existing_instance = {
+        "field": [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])]
+    }
+    expected_data = {
+        "field": [{"stub_str": "abc", "stub_int": 1, "stub_list": [date(2022, 7, 1)]}]
+    }
 
     serializer = SampleSerializer(instance=existing_instance)
     assert serializer.data == expected_data
@@ -70,7 +78,9 @@ def test_invalid_data_serialization():
 def test_schema_renderer():
     renderer = rest_framework.SchemaRenderer()
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
-    expected_encoded = b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
+    expected_encoded = (
+        b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
+    )
 
     assert renderer.render(existing_instance) == expected_encoded
 
@@ -78,7 +88,9 @@ def test_schema_renderer():
 def test_typed_schema_renderer():
     renderer = rest_framework.SchemaRenderer[InnerSchema]()
     existing_data = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
-    expected_encoded = b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
+    expected_encoded = (
+        b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
+    )
 
     assert renderer.render(existing_data) == expected_encoded
 
@@ -127,27 +139,34 @@ class ClassBasedViewWithSchemaContext(ClassBasedView):
         return dict(ctx, parser_schema=InnerSchema)
 
 
-@pytest.mark.parametrize("view", [
-    sample_view,
-    ClassBasedView.as_view(),
-    ClassBasedViewWithSchemaContext.as_view(),
-])
+@pytest.mark.parametrize(
+    "view",
+    [
+        sample_view,
+        ClassBasedView.as_view(),
+        ClassBasedViewWithSchemaContext.as_view(),
+    ],
+)
 def test_end_to_end_api_view(view, request_factory):
     expected_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
-    existing_encoded = b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
+    existing_encoded = (
+        b'{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}'
+    )
 
-    request = request_factory.post("/", existing_encoded, content_type="application/json")
+    request = request_factory.post(
+        "/", existing_encoded, content_type="application/json"
+    )
     response = view(request)
 
     assert response.data == [expected_instance]
     assert response.data[0] is not expected_instance
 
-    assert response.rendered_content == b'[%s]' % existing_encoded
+    assert response.rendered_content == b"[%s]" % existing_encoded
 
 
 def test_openapi_serializer_schema_generation(request_factory):
     schema_url_patterns = [
-        path('api/', ClassBasedViewWithSerializer.as_view()),
+        path("api/", ClassBasedViewWithSerializer.as_view()),
     ]
 
     schema_view = schemas.get_schema_view(patterns=schema_url_patterns)
@@ -184,7 +203,7 @@ def test_openapi_serializer_schema_generation(request_factory):
 
 def test_openapi_parser_renderer_schema_generation(request_factory):
     schema_url_patterns = [
-        path('api/', sample_view),
+        path("api/", sample_view),
     ]
 
     schema_view = schemas.get_schema_view(patterns=schema_url_patterns)
@@ -192,7 +211,9 @@ def test_openapi_parser_renderer_schema_generation(request_factory):
     response = schema_view(request)
 
     results = yaml.load(response.rendered_content, yaml.CLoader)
-    assert results["paths"]["/api/"]["post"]["requestBody"]["content"]["application/json"] == {
+    assert results["paths"]["/api/"]["post"]["requestBody"]["content"][
+        "application/json"
+    ] == {
         "schema": {
             "title": "FieldSchema[InnerSchema]",
             "$ref": "#/definitions/InnerSchema",

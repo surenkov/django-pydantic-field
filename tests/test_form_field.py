@@ -1,12 +1,12 @@
-import pytest
-import pydantic
 import typing as t
-import django
 
+import django
+import pydantic
+import pytest
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.forms import Form, modelform_factory
-from django_pydantic_field import forms, fields
+from django_pydantic_field import fields, forms
 
 from .conftest import InnerSchema
 
