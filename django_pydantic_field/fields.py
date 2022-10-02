@@ -27,6 +27,7 @@ class SchemaAttribute(DeferredAttribute):
         setattr(cls, name, SchemaDeferredAttribute(self))
     ```
     """
+
     field: "PydanticSchemaField"
 
     def __set__(self, obj, value):
@@ -40,7 +41,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
     def __init__(
         self,
         *args,
-        schema: t.Union[t.Type["base.ST"], "GenericContainer", "t.ForwardRef", str] = None,
+        schema: t.Union[t.Type["base.ST"], "GenericContainer", "t.ForwardRef", str, None] = None,
         config: "base.ConfigType" = None,
         **kwargs,
     ):
@@ -162,6 +163,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
 if t.TYPE_CHECKING:
     OptSchemaT = t.Optional[base.SchemaT]
 
+
 @t.overload
 def SchemaField(
     schema: "t.Union[t.Type[base.ST], t.ForwardRef]" = ...,
@@ -172,6 +174,7 @@ def SchemaField(
     **kwargs,
 ) -> "t.Optional[base.ST]":
     ...
+
 
 @t.overload
 def SchemaField(
@@ -185,6 +188,6 @@ def SchemaField(
     ...
 
 
-def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs) -> t.Any:
-    kwargs.update(schema=schema, config=config, default=default)
+def SchemaField(schema=None, config=None, *args, **kwargs) -> t.Any:
+    kwargs.update(schema=schema, config=config)
     return PydanticSchemaField(*args, **kwargs)

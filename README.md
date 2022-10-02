@@ -1,5 +1,6 @@
 [![PyPI Version](https://img.shields.io/pypi/v/django-pydantic-field)](https://pypi.org/project/django-pydantic-field/)
-[![Supported Python Versions](https://img.shields.io/pypi/pyversions/django_pydantic_field)](https://github.com/surenkov/django-pydantic-field)
+[![Supported Python Versions](https://img.shields.io/pypi/pyversions/django-pydantic-field)](https://pypi.org/project/django-pydantic-field/)
+[![Supported Django Versions](https://img.shields.io/pypi/frameworkversions/django/django-pydantic-field)](https://pypi.org/project/django-pydantic-field/)
 
 # Django + Pydantic = 🖤
 
