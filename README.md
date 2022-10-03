@@ -51,8 +51,8 @@ model.save()
 
 assert model.foo_field == Foo(count=5, size=1.0)
 assert model.bar_list == [Bar(slug="foo_bar")]
-assert model.raw_date_map = {1: date(1970, 1, 1)}
-assert model.raw_uids = {UUID("17a25db0-27a4-11ed-904a-5ffb17f92734")}
+assert model.raw_date_map == {1: date(1970, 1, 1)}
+assert model.raw_uids == {UUID("17a25db0-27a4-11ed-904a-5ffb17f92734")}
 ```
 
 Practically, schema could be of any type supported by Pydantic.
