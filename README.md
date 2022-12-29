@@ -99,7 +99,7 @@ class FooForm(forms.Form):
     field = SchemaField(Foo)  # `typing.ForwardRef("Foo")` is fine too, but only in Django 4+
 
 
-form = FooMForm(data={"field": '{"slug": "asdf"}'})
+form = FooForm(data={"field": '{"slug": "asdf"}'})
 assert form.is_valid()
 assert form.cleaned_data["field"] == Foo(slug="asdf")
 ```
