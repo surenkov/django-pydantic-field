@@ -2,6 +2,68 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "django-pydantic-field"
+version = "0.2.2"
+description = "Django JSONField with Pydantic models as a Schema"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Savva Surenkov", email = "savva@surenkov.space" },
+]
+
+keywords = ["django", "pydantic", "json", "schema"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Framework :: Django",
+    "Framework :: Django :: 3",
+    "Framework :: Django :: 3.1",
+    "Framework :: Django :: 3.2",
+    "Framework :: Django :: 4",
+    "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.1",
+    "Framework :: Pydantic",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+requires-python = ">=3.7"
+dependencies = [
+    "pydantic>=1.9,<2",
+    "django>=3.1,<5",
+    "typing_extensions",
+]
+
+[project.optional-dependencies]
+rest = ["djangorestframework>=3,<4", "pyyaml"]
+dev = [
+    "black",
+    "isort",
+    "mypy",
+    "pytest==7.0.*",
+    "djangorestframework>=3.11,<4",
+    "django-stubs[compatible-mypy]~=1.12.0",
+    "djangorestframework-stubs[compatible-mypy]~=1.7.0",
+    "pytest-django>=4.5,<5",
+]
+
+[project.urls]
+Homepage = "https://github.com/surenkov/django-pydantic-field"
+Documentation = "https://github.com/surenkov/django-pydantic-field"
+Source = "https://github.com/surenkov/django-pydantic-field"
+Changelog = "https://github.com/surenkov/django-pydantic-field/releases"
+
+[tool.setuptools]
+packages = ["django_pydantic_field"]
+
 [tool.mypy]
 plugins = [
     "mypy_django_plugin.main",
@@ -19,3 +81,6 @@ pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_tests.py"]
 norecursedirs = [".*", "venv"]
+
+[tool.pyright]
+include = ["pydantic"]
