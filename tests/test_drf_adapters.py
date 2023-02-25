@@ -65,6 +65,19 @@ def test_serializer_marshalling_with_schema_field():
     assert serializer.validated_data == existing_instance
 
 
+@pytest.mark.parametrize("export_kwargs", [
+    {"include": {"stub_str", "stub_int"}},
+    {"exclude": {"stub_list"}},
+    {"exclude_unset": True},
+    {"exclude_defaults": True},
+    {"exclude_none": True},
+    {"by_alias": True},
+])
+def test_field_export_kwargs(export_kwargs):
+    field = rest_framework.SchemaField(InnerSchema, **export_kwargs)
+    assert field.to_representation(InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)]))
+
+
 def test_invalid_data_serialization():
     invalid_data = {"field": [{"stub_int": "abc", "stub_list": ["abc"]}]}
     serializer = SampleSerializer(data=invalid_data)

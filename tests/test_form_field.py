@@ -29,7 +29,7 @@ class SampleSchema(pydantic.BaseModel):
 def test_form_schema_field():
     field = forms.SchemaField(InnerSchema)
 
-    cleaned_data =  field.clean('{"stub_str": "abc", "stub_list": ["1970-01-01"]}')
+    cleaned_data = field.clean('{"stub_str": "abc", "stub_list": ["1970-01-01"]}')
     assert cleaned_data == InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})
 
 def test_empty_form_values():
@@ -75,3 +75,17 @@ def test_forwardref_model_formfield():
 
     assert cleaned_data is not None
     assert cleaned_data["annotated_field"] == SampleSchema(field=2)
+
+
+@pytest.mark.parametrize("export_kwargs", [
+    {"include": {"stub_str", "stub_int"}},
+    {"exclude": {"stub_list"}},
+    {"exclude_unset": True},
+    {"exclude_defaults": True},
+    {"exclude_none": True},
+    {"by_alias": True},
+])
+def test_form_field_export_kwargs(export_kwargs):
+    field = forms.SchemaField(InnerSchema, required=False, **export_kwargs)
+    value = InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+    assert field.prepare_value(value)

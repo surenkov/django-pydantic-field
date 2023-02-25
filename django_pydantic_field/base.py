@@ -31,7 +31,6 @@ if t.TYPE_CHECKING:
 
     ModelType = t.Type[pydantic.BaseModel]
     ConfigType = t.Union[pydantic.ConfigDict, t.Type[pydantic.BaseConfig], t.Type]
-    JsonClsT = t.TypeVar("JsonClsT", bound=type)
 
 
 class SchemaEncoder(DjangoJSONEncoder):
