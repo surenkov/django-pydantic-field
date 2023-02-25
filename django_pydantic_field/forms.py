@@ -24,7 +24,7 @@ class SchemaField(JSONField, t.Generic[base.ST]):
             allow_null=not kwargs.get("required", True),
             __module__=__module__,
         )
-        export_params = base.extract_export_kwargs(kwargs)
+        export_params = base.extract_export_kwargs(kwargs, dict.pop)
         decoder = partial(base.SchemaDecoder, self.schema)
         encoder = partial(
             base.SchemaEncoder,

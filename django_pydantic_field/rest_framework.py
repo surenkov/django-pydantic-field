@@ -90,13 +90,13 @@ class SchemaField(serializers.Field, t.Generic[base.ST]):
 
         super().bind(field_name, parent)
 
-    def to_internal_value(self, data) -> t.Optional["base.ST"]:
+    def to_internal_value(self, data: t.Any) -> t.Optional["base.ST"]:
         try:
             return self.decoder.decode(data)
         except ValidationError as e:
             raise serializers.ValidationError(e.errors(), self.field_name)
 
-    def to_representation(self, value):
+    def to_representation(self, value: t.Optional["base.ST"]) -> t.Any:
         obj = self.schema.parse_obj(value)
         raw_obj = obj.dict(**self.export_params)
         return raw_obj["__root__"]

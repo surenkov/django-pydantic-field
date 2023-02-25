@@ -208,6 +208,26 @@ def test_model_validation_exceptions():
         valid_initial.sample_field = 1
 
 
+@pytest.mark.parametrize("export_kwargs", [
+    {"include": {"stub_str", "stub_int"}},
+    {"exclude": {"stub_list"}},
+    {"by_alias": True},
+    {"exclude_unset": True},
+    {"exclude_defaults": True},
+    {"exclude_none": True}
+])
+def test_export_kwargs_support(export_kwargs):
+    field = fields.PydanticSchemaField(
+        schema=InnerSchema,
+        default=InnerSchema(stub_str="", stub_list=[]),
+        **export_kwargs,
+    )
+    _test_field_serialization(field)
+
+    existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
+    assert field.get_prep_value(existing_instance)
+
+
 def _test_field_serialization(field):
     _, _, args, kwargs = field.deconstruct()
 

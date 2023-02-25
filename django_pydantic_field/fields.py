@@ -45,10 +45,10 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         config: "base.ConfigType" = None,
         **kwargs,
     ):
+        self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
         super().__init__(*args, **kwargs)
 
         self.config = config
-        self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
         self._resolve_schema(schema)
 
     def __copy__(self):
