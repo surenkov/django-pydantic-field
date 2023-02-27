@@ -78,6 +78,7 @@ django_settings_module = "tests.settings.django_test_settings"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings.django_test_settings"
 
+addopts = "--capture=no"
 pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_tests.py"]

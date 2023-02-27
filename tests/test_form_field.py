@@ -1,29 +1,17 @@
 import typing as t
 
 import django
-import pydantic
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import models
 from django.forms import Form, modelform_factory
 from django_pydantic_field import fields, forms
 
 from .conftest import InnerSchema
-
-
-class SampleForwardRefFieldModel(models.Model):
-    annotated_field: t.Optional["SampleSchema"] = fields.SchemaField(null=True)
-
-    class Meta:
-        app_label = "test_app"
+from .test_app.models import SampleForwardRefModel, SampleSchema
 
 
 class SampleForm(Form):
     field = forms.SchemaField(t.ForwardRef("SampleSchema"))
-
-
-class SampleSchema(pydantic.BaseModel):
-    field: int = 1
 
 
 def test_form_schema_field():
@@ -67,10 +55,10 @@ def test_model_formfield():
 
 
 def test_forwardref_model_formfield():
-    form_cls = modelform_factory(SampleForwardRefFieldModel, exclude=())
+    form_cls = modelform_factory(SampleForwardRefModel, exclude=("field",))
     form = form_cls(data={"annotated_field": '{"field": "2"}'})
 
-    assert form.is_valid()
+    assert form.is_valid(), form.errors
     cleaned_data = form.cleaned_data
 
     assert cleaned_data is not None

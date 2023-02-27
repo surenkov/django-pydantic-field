@@ -1,9 +1,10 @@
 import enum
 import typing as t
-import pydantic
 
+import pydantic
 from django.db import models
 from django_pydantic_field import SchemaField
+
 
 
 class BuildingTypes(str, enum.Enum):

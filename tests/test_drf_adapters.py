@@ -11,10 +11,21 @@ from rest_framework.decorators import api_view, parser_classes, renderer_classes
 from rest_framework.response import Response
 
 from .conftest import InnerSchema
+from .test_app.models import SampleModel
 
 
 class SampleSerializer(serializers.Serializer):
     field = rest_framework.SchemaField(schema=t.List[InnerSchema])
+
+
+class SampleModelSerializer(serializers.ModelSerializer):
+    sample_field = rest_framework.SchemaField(schema=InnerSchema)
+    sample_list = rest_framework.SchemaField(schema=t.List[InnerSchema])
+    sample_seq = rest_framework.SchemaField(schema=t.List[InnerSchema], default=list)
+
+    class Meta:
+        model = SampleModel
+        fields = "sample_field", "sample_list", "sample_seq"
 
 
 def test_schema_field():
@@ -63,6 +74,22 @@ def test_serializer_marshalling_with_schema_field():
     serializer = SampleSerializer(data=expected_data)
     serializer.is_valid(raise_exception=True)
     assert serializer.validated_data == existing_instance
+
+
+def test_model_serializer_marshalling_with_schema_field():
+    instance = SampleModel(
+        sample_field=InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)]),
+        sample_list=[InnerSchema(stub_str="abc", stub_int=2, stub_list=[date(2022, 7, 1)])] * 2,
+        sample_seq=[InnerSchema(stub_str="abc", stub_int=3, stub_list=[date(2022, 7, 1)])]  * 3,
+    )
+    serializer = SampleModelSerializer(instance)
+
+    expected_data = {
+        "sample_field": {"stub_str": "abc", "stub_int": 1, "stub_list": [date(2022, 7, 1)]},
+        "sample_list": [{"stub_str": "abc", "stub_int": 2, "stub_list": [date(2022, 7, 1)]}] * 2,
+        "sample_seq": [{"stub_str": "abc", "stub_int": 3, "stub_list": [date(2022, 7, 1)]}] * 3,
+    }
+    assert serializer.data == expected_data
 
 
 @pytest.mark.parametrize("export_kwargs", [
