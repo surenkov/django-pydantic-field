@@ -1,4 +1,5 @@
 import io
+import json
 import typing as t
 from datetime import date
 
@@ -157,6 +158,11 @@ class ClassBasedViewWithSerializer(generics.RetrieveAPIView):
     schema = rest_framework.AutoSchema()
 
 
+class ClassBasedViewWithModel(generics.ListCreateAPIView):
+    queryset = SampleModel.objects.all()
+    serializer_class = SampleModelSerializer
+
+
 class ClassBasedView(views.APIView):
     parser_classes = [rest_framework.SchemaParser[InnerSchema]]
     renderer_classes = [rest_framework.SchemaRenderer[t.List[InnerSchema]]]
@@ -202,6 +208,26 @@ def test_end_to_end_api_view(view, request_factory):
     assert response.data[0] is not expected_instance
 
     assert response.rendered_content == b"[%s]" % existing_encoded
+
+
+@pytest.mark.django_db
+def test_end_to_end_list_create_api_view(request_factory):
+    field_data = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)]).json()
+    expected_result = {
+        "sample_field": {"stub_str": "abc", "stub_list": [date(2022, 7, 1)], "stub_int": 1},
+        "sample_list": [{"stub_str": "abc", "stub_list": [date(2022, 7, 1)], "stub_int": 1}],
+        "sample_seq": [],
+    }
+
+    payload = '{"sample_field": %s, "sample_list": [%s], "sample_seq": []}' % ((field_data,) * 2)
+    request = request_factory.post("/", payload.encode(), content_type="application/json")
+    response = ClassBasedViewWithModel.as_view()(request)
+
+    assert response.data == expected_result
+
+    request = request_factory.get("/", content_type="application/json")
+    response = ClassBasedViewWithModel.as_view()(request)
+    assert response.data == [expected_result]
 
 
 def test_openapi_serializer_schema_generation(request_factory):
