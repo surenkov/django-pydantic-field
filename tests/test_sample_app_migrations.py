@@ -1,7 +1,10 @@
 import os
 from contextlib import contextmanager
 
+import pytest
 from django.core.management import call_command
+
+pytestmark = pytest.mark.django_db
 
 MIGRATIONS_DIR = "tests/sample_app/migrations/"
 
@@ -34,5 +37,4 @@ def clean_dir(path):
 
 
 def dir_files(path):
-    files = {f.path for f in os.scandir(path) if f.is_file()}
-    return files - {os.path.join(path, ".gitignore")}
+    return {f.path for f in os.scandir(path) if f.is_file()}

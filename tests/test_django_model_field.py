@@ -3,7 +3,6 @@ import typing as t
 from collections import abc
 from datetime import date
 
-import pydantic
 import pytest
 from django.core.exceptions import FieldError, ValidationError
 from django.db import models
@@ -11,27 +10,7 @@ from django.db.migrations.writer import MigrationWriter
 from django_pydantic_field import fields
 
 from .conftest import InnerSchema, SampleDataclass
-
-
-class SampleModel(models.Model):
-    sample_field: InnerSchema = fields.SchemaField(config={"frozen": True, "allow_mutation": False})
-    sample_list: t.List[InnerSchema] = fields.SchemaField()
-    sample_seq: t.Sequence[InnerSchema] = fields.SchemaField(schema=t.List[InnerSchema], default=list)
-
-    class Meta:
-        app_label = "test_app"
-
-
-class SampleForwardRefModel(models.Model):
-    annotated_field: "SampleSchema" = fields.SchemaField()
-    field = fields.SchemaField(schema=t.ForwardRef("SampleSchema"))
-
-    class Meta:
-        app_label = "test_app"
-
-
-class SampleSchema(pydantic.BaseModel):
-    field: int = 1
+from .test_app.models import SampleModel, SampleForwardRefModel, SampleSchema
 
 
 def test_sample_field():
