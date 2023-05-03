@@ -70,6 +70,14 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         except pydantic.ValidationError as e:
             raise django_exceptions.ValidationError(e.errors())
 
+    def get_prep_value(self, value) -> t.Optional[str]:
+        if not self.is_prepared_schema:
+            self._prepare_model_schema()
+        prep_value = super().get_prep_value(value)
+        if prep_value is not None and not isinstance(prep_value, str):
+            prep_value = self.encoder().encode(prep_value)  # type: ignore
+        return prep_value
+
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         self._deconstruct_schema(kwargs)
@@ -142,8 +150,6 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
             # only if schema resolution is not deferred
             if self.is_prepared_schema:
                 plain_default = self.get_prep_value(default)
-                if plain_default is not None:
-                    plain_default = json.loads(plain_default)
             else:
                 plain_default = default
 
