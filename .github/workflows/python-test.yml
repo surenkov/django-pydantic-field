@@ -2,9 +2,18 @@ name: Lint and Test Package
 
 on:
   push:
-    branches: ["master", "dev"]
+    branches:
+      - dev
+      - master
   pull_request:
-    branches: ["master", "dev"]
+    branches:
+      - dev
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   workflow_dispatch:
 
 permissions:
