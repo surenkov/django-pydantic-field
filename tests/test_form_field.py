@@ -1,9 +1,10 @@
-import typing as t
+import typing as ty
 
 import django
 import pytest
 from django.core.exceptions import ValidationError
 from django.forms import Form, modelform_factory
+
 from django_pydantic_field import fields, forms
 
 from .conftest import InnerSchema
@@ -11,14 +12,15 @@ from .test_app.models import SampleForwardRefModel, SampleSchema
 
 
 class SampleForm(Form):
-    field = forms.SchemaField(t.ForwardRef("SampleSchema"))
+    field = forms.SchemaField(ty.ForwardRef("SampleSchema"))
 
 
 def test_form_schema_field():
     field = forms.SchemaField(InnerSchema)
 
     cleaned_data = field.clean('{"stub_str": "abc", "stub_list": ["1970-01-01"]}')
-    assert cleaned_data == InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+    assert cleaned_data == InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+
 
 def test_empty_form_values():
     field = forms.SchemaField(InnerSchema, required=False)
@@ -65,15 +67,18 @@ def test_forwardref_model_formfield():
     assert cleaned_data["annotated_field"] == SampleSchema(field=2)
 
 
-@pytest.mark.parametrize("export_kwargs", [
-    {"include": {"stub_str", "stub_int"}},
-    {"exclude": {"stub_list"}},
-    {"exclude_unset": True},
-    {"exclude_defaults": True},
-    {"exclude_none": True},
-    {"by_alias": True},
-])
+@pytest.mark.parametrize(
+    "export_kwargs",
+    [
+        {"include": {"stub_str", "stub_int"}},
+        {"exclude": {"stub_list"}},
+        {"exclude_unset": True},
+        {"exclude_defaults": True},
+        {"exclude_none": True},
+        {"by_alias": True},
+    ],
+)
 def test_form_field_export_kwargs(export_kwargs):
     field = forms.SchemaField(InnerSchema, required=False, **export_kwargs)
-    value = InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+    value = InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
     assert field.prepare_value(value)

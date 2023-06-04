@@ -16,7 +16,7 @@ Django Migration serializer helpers
 """
 import sys
 import types
-import typing as t
+import typing as ty
 
 try:
     from typing import get_args, get_origin
@@ -97,21 +97,21 @@ class TypingSerializer(BaseSerializer):
 
 if sys.version_info >= (3, 9):
     GenericAlias = types.GenericAlias
-    GenericTypes: t.Tuple[t.Any, ...] = (
+    GenericTypes: ty.Tuple[ty.Any, ...] = (
         GenericAlias,
-        type(t.List[int]),
-        type(t.List),
+        type(ty.List[int]),
+        type(ty.List),
     )
 else:
     # types.GenericAlias is missing, meaning python version < 3.9,
     # which has a different inheritance models for typed generics
-    GenericAlias = type(t.List[int])
-    GenericTypes = GenericAlias, type(t.List)
+    GenericAlias = type(ty.List[int])
+    GenericTypes = GenericAlias, type(ty.List)
 
 
 MigrationWriter.register_serializer(GenericContainer, GenericSerializer)
-MigrationWriter.register_serializer(t.ForwardRef, TypingSerializer)
-MigrationWriter.register_serializer(type(t.Union), TypingSerializer)  # type: ignore
+MigrationWriter.register_serializer(ty.ForwardRef, TypingSerializer)
+MigrationWriter.register_serializer(type(ty.Union), TypingSerializer)  # type: ignore
 
 
 if sys.version_info >= (3, 10):
@@ -122,7 +122,7 @@ if sys.version_info >= (3, 10):
 
         def serialize(self):
             imports = set()
-            if isinstance(self.value, type(t.Union)):  # type: ignore
+            if isinstance(self.value, type(ty.Union)):  # type: ignore
                 imports.add("import typing")
 
             for arg in get_args(self.value):

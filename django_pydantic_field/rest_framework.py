@@ -1,18 +1,15 @@
-import typing as t
+from __future__ import annotations
 
-try:
-    from typing import get_args
-except ImportError:
-    from typing_extensions import get_args
+import typing as ty
 
-from django.conf import settings
-from pydantic import BaseModel, ValidationError
-
+import pydantic
+from pydantic.json_schema import GenerateJsonSchema
 from rest_framework import exceptions, parsers, renderers, serializers
 from rest_framework.schemas import openapi
 from rest_framework.schemas.utils import is_list_view
 
-from . import base
+from .serialization import SchemaDecoder, prepare_export_params
+from .type_utils import SchemaT, cached_property, type_adapter
 
 __all__ = (
     "SchemaField",
@@ -21,88 +18,86 @@ __all__ = (
     "AutoSchema",
 )
 
-if t.TYPE_CHECKING:
-    RequestResponseContext = t.Mapping[str, t.Any]
+if ty.TYPE_CHECKING:
+    RequestResponseContext = ty.Mapping[str, ty.Any]
 
 
-class AnnotatedSchemaT(t.Generic[base.ST]):
-    schema_ctx_attr: t.ClassVar[str] = "schema"
-    require_explicit_schema: t.ClassVar[bool] = False
-    _cached_annotation_schema: t.Type[BaseModel]
+class AnnotatedSchemaT(ty.Generic[SchemaT]):
+    schema_ctx_attr: ty.ClassVar[str] = "schema"
+    schema_generator: ty.ClassVar[type[GenerateJsonSchema]] = GenerateJsonSchema
 
-    def get_schema(self, ctx: "RequestResponseContext") -> t.Optional[t.Type[BaseModel]]:
-        schema = self.get_context_schema(ctx)
+    require_explicit_schema: ty.ClassVar[bool] = False
+    by_alias_ctx_attr: ty.ClassVar[str] = "by_alias"
+    by_alias_default: ty.ClassVar[bool] = False
+
+    _cached_annotation_schema: type[SchemaT]
+
+    def get_type_adapter(self, ctx: RequestResponseContext) -> pydantic.TypeAdapter[SchemaT]:
+        schema = self.get_schema(ctx)
+        return type_adapter(schema)
+
+    def get_json_schema(self, ctx: RequestResponseContext):
+        adapter = self.get_type_adapter(ctx)
+        return adapter.json_schema(by_alias=ctx.get(self.by_alias_ctx_attr, self.by_alias_default))
+
+    def get_schema(self, ctx: RequestResponseContext) -> type[SchemaT] | None:
+        schema = ctx.get(self.schema_ctx_attr)
         if schema is None:
-            schema = self.get_annotation_schema(ctx)
+            schema = self.get_annotation_schema()
 
         if self.require_explicit_schema and schema is None:
-            raise ValueError(
-                "Schema should be either explicitly set with annotation "
-                "or passed in the context"
-            )
+            raise ValueError("Schema should be either explicitly set with annotation or passed in the context")
 
-        return schema
+        return schema  # type: ignore
 
-    def get_context_schema(self, ctx: "RequestResponseContext"):
-        schema = ctx.get(self.schema_ctx_attr)
-        if schema is not None:
-            schema = base.wrap_schema(schema)
-            base.prepare_schema(schema, ctx.get("view"))
-
-        return schema
-
-    def get_annotation_schema(self, ctx: "RequestResponseContext"):
+    def get_annotation_schema(self):
         try:
             schema = self._cached_annotation_schema
         except AttributeError:
             try:
-                schema = get_args(self.__orig_class__)[0]  # type: ignore
+                schema = ty.get_args(self.__orig_class__)[0]  # type: ignore [missing-attr]
             except (AttributeError, IndexError):
                 return None
 
-            self._cached_annotation_schema = schema = base.wrap_schema(schema)
-            base.prepare_schema(schema, ctx.get("view"))
+            self._cached_annotation_schema = schema
 
         return schema
 
 
-class SchemaField(serializers.Field, t.Generic[base.ST]):
-    decoder: "base.SchemaDecoder[base.ST]"
-    _is_prepared_schema: bool = False
-
+class SchemaField(serializers.Field, ty.Generic[SchemaT]):
     def __init__(
         self,
-        schema: t.Type["base.ST"],
-        config: t.Optional["base.ConfigType"] = None,
+        schema: type[SchemaT],
+        config: pydantic.ConfigDict | None = None,
         **kwargs,
     ):
-        nullable = kwargs.get("allow_null", False)
-
-        self.schema = field_schema = base.wrap_schema(schema, config, nullable)
-        self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
-        self.decoder = base.SchemaDecoder(field_schema)
+        self.schema: type[SchemaT] = schema
+        self.config = config
+        self.export_params = prepare_export_params(kwargs, dict.pop)
         super().__init__(**kwargs)
 
-    def bind(self, field_name, parent):
-        if not self._is_prepared_schema:
-            base.prepare_schema(self.schema, parent)
-            self._is_prepared_schema = True
-
-        super().bind(field_name, parent)
-
-    def to_internal_value(self, data: t.Any) -> t.Optional["base.ST"]:
+    def to_internal_value(self, data: ty.Any) -> SchemaT | None:
         try:
             return self.decoder.decode(data)
-        except ValidationError as e:
+        except pydantic.ValidationError as e:
             raise serializers.ValidationError(e.errors(), self.field_name)
 
-    def to_representation(self, value: t.Optional["base.ST"]) -> t.Any:
-        obj = self.schema.parse_obj(value)
-        raw_obj = obj.dict(**self.export_params)
-        return raw_obj["__root__"]
+    def to_representation(self, value: SchemaT) -> ty.Any:
+        return self._type_adapter.dump_python(value, **self.export_params)
+
+    def get_json_schema(self):
+        return self._type_adapter.json_schema(by_alias=self.export_params.get("by_alias", False))
+
+    @cached_property
+    def decoder(self):
+        return SchemaDecoder(self._type_adapter)
+
+    @cached_property
+    def _type_adapter(self) -> pydantic.TypeAdapter[SchemaT]:
+        return type_adapter(self.schema, self.config, allow_null=self.allow_null)
 
 
-class SchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
+class SchemaRenderer(AnnotatedSchemaT[SchemaT], renderers.JSONRenderer):
     schema_ctx_attr = "render_schema"
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
@@ -113,7 +108,7 @@ class SchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
 
         try:
             json_str = self.render_data(data, renderer_context)
-        except ValidationError as e:
+        except pydantic.ValidationError as e:
             json_str = e.json().encode()
         except AttributeError:
             json_str = super().render(data, accepted_media_type, renderer_context)
@@ -121,49 +116,42 @@ class SchemaRenderer(AnnotatedSchemaT[base.ST], renderers.JSONRenderer):
         return json_str
 
     def render_data(self, data, renderer_ctx) -> bytes:
-        schema = self.get_schema(renderer_ctx or {})
-        if schema is not None:
-            data = schema(__root__=data)
-
-        export_kw = base.extract_export_kwargs(renderer_ctx)
-        json_str = data.json(**export_kw, ensure_ascii=self.ensure_ascii)
-        return json_str.encode()
+        adapter = type_adapter(self.get_schema(renderer_ctx))
+        export_kw = prepare_export_params(renderer_ctx)
+        return adapter.dump_json(data, **export_kw)
 
 
-class SchemaParser(AnnotatedSchemaT[base.ST], parsers.JSONParser):
+class SchemaParser(AnnotatedSchemaT[SchemaT], parsers.JSONParser):
     schema_ctx_attr = "parser_schema"
     renderer_class = SchemaRenderer
     require_explicit_schema = True
 
     def parse(self, stream, media_type=None, parser_context=None):
         parser_context = parser_context or {}
-        encoding = parser_context.get("encoding", settings.DEFAULT_CHARSET)
-        schema = t.cast(BaseModel, self.get_schema(parser_context))
-
+        adapter = type_adapter(self.get_schema(parser_context))
         try:
-            return schema.parse_raw(stream.read(), encoding=encoding).__root__
-        except ValidationError as e:
+            return adapter.validate_json(stream.read())
+        except pydantic.ValidationError as e:
             raise exceptions.ParseError(e.errors())
 
 
 class AutoSchema(openapi.AutoSchema):
-    get_request_serializer: t.Callable
-    _get_reference: t.Callable
+    get_request_serializer: ty.Callable
 
     def map_field(self, field: serializers.Field):
         if isinstance(field, SchemaField):
-            return field.schema.schema()
+            return field.get_json_schema()
         return super().map_field(field)
 
     def map_parsers(self, path: str, method: str):
-        request_types: t.List[t.Any] = []
-        parser_ctx = self.view.get_parser_context(None)
+        request_types: list[ty.Any] = []
 
         for parser_type in self.view.parser_classes:
             parser = parser_type()
 
             if isinstance(parser, SchemaParser):
-                schema = self._extract_openapi_schema(parser, parser_ctx)
+                parser_ctx = self.view.get_parser_context(None)
+                schema = parser.get_json_schema(parser_ctx)
                 if schema is not None:
                     request_types.append((parser.media_type, schema))
                 else:
@@ -174,14 +162,14 @@ class AutoSchema(openapi.AutoSchema):
         return request_types
 
     def map_renderers(self, path: str, method: str):
-        response_types: t.List[t.Any] = []
-        renderer_ctx = self.view.get_renderer_context()
+        response_types: list[ty.Any] = []
 
         for renderer_type in self.view.renderer_classes:
             renderer = renderer_type()
 
             if isinstance(renderer, SchemaRenderer):
-                schema = self._extract_openapi_schema(renderer, renderer_ctx)
+                renderer_ctx = self.view.get_renderer_context()
+                schema = renderer.get_json_schema(renderer_ctx)
                 if schema is not None:
                     response_types.append((renderer.media_type, schema))
                 else:
@@ -193,7 +181,7 @@ class AutoSchema(openapi.AutoSchema):
         return response_types
 
     def get_request_body(self, path: str, method: str):
-        if method not in ('PUT', 'PATCH', 'POST'):
+        if method not in ("PUT", "PATCH", "POST"):
             return {}
 
         self.request_media_types = self.map_parsers(path, method)
@@ -205,10 +193,14 @@ class AutoSchema(openapi.AutoSchema):
                 media_type, request_schema = request_type
                 content_schemas[media_type] = {"schema": request_schema}
             else:
-                serializer_ref =  self._get_reference(serializer)
+                try:
+                    serializer_ref = self.get_reference(serializer)  # type: ignore
+                except AttributeError:
+                    # For compatibility with elder rest framework
+                    serializer_ref = self._get_reference(serializer)  # type: ignore
                 content_schemas[request_type] = {"schema": serializer_ref}
 
-        return {'content': content_schemas}
+        return {"content": content_schemas}
 
     def get_responses(self, path: str, method: str):
         if method == "DELETE":
@@ -233,28 +225,23 @@ class AutoSchema(openapi.AutoSchema):
             }
         }
 
-    def _extract_openapi_schema(self, schemable: AnnotatedSchemaT, ctx: "RequestResponseContext"):
-        schema_model = schemable.get_schema(ctx)
-        if schema_model is not None:
-            return schema_model.schema()
-        return None
-
     def _get_serializer_response_schema(self, path, method):
         serializer = self.get_response_serializer(path, method)
 
         if not isinstance(serializer, serializers.Serializer):
             item_schema = {}
         else:
-            item_schema = self._get_reference(serializer)
+            try:
+                item_schema = self.get_reference(serializer)  # type: ignore
+            except AttributeError:
+                # For compatibility with elder rest framework
+                item_schema = self._get_reference(serializer)  # type: ignore
 
         if is_list_view(path, method, self.view):
-            response_schema = {
-                "type": "array",
-                "items": item_schema,
-            }
+            response_schema = {"type": "array", "items": item_schema}
             paginator = self.get_paginator()
             if paginator:
-                response_schema = paginator.get_paginated_response_schema(response_schema)
+                response_schema = paginator().get_paginated_response_schema(response_schema)
         else:
             response_schema = item_schema
         return response_schema

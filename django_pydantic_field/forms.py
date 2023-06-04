@@ -1,45 +1,41 @@
-import typing as t
-from functools import partial
+from __future__ import annotations
+
+import typing as ty
 
 import pydantic
-from django.core.exceptions import ValidationError
+from django.core.exceptions import FieldError, ValidationError
+from django.forms import BaseForm, BoundField
 from django.forms.fields import InvalidJSONInput, JSONField
 
-from . import base
+from .serialization import SchemaDecoder, SchemaEncoder, prepare_export_params
+from .type_utils import SchemaT, cached_property, evaluate_forward_ref, get_type_annotation, type_adapter
 
-__all__ = ("SchemaField",)
 
+class SchemaField(JSONField, ty.Generic[SchemaT]):
+    def __init__(self, schema: type[SchemaT], config: pydantic.ConfigDict | None = None, **kwargs):
+        self.schema: type[SchemaT] = schema
+        self.config: pydantic.ConfigDict | None = config
+        self.export_params = prepare_export_params(kwargs, dict.pop)
 
-class SchemaField(JSONField, t.Generic[base.ST]):
-    def __init__(
-        self,
-        schema: t.Union[t.Type["base.ST"], t.ForwardRef],
-        config: t.Optional["base.ConfigType"] = None,
-        __module__: t.Optional[str] = None,
-        **kwargs
-    ):
-        self.schema = base.wrap_schema(
-            schema,
-            config,
-            allow_null=not kwargs.get("required", True),
-            __module__=__module__,
-        )
-        export_params = base.extract_export_kwargs(kwargs, dict.pop)
-        decoder = partial(base.SchemaDecoder, self.schema)
-        encoder = partial(
-            base.SchemaEncoder,
-            schema=self.schema,
-            export=export_params,
-            raise_errors=True,
-        )
-        kwargs.update(encoder=encoder, decoder=decoder)
         super().__init__(**kwargs)
+        del self.encoder
+        del self.decoder
+
+    def encoder(self, **kwargs) -> SchemaEncoder[SchemaT]:
+        return SchemaEncoder(adapter=self._type_adapter, export_params=self.export_params, raise_errors=True, **kwargs)
+
+    def decoder(self) -> SchemaDecoder[SchemaT]:
+        return SchemaDecoder(self._type_adapter)
+
+    def get_bound_field(self, form, field_name):
+        return BoundSchemaField(form, self, field_name)
 
     def to_python(self, value):
         try:
             return super().to_python(value)
         except pydantic.ValidationError as e:
-            raise ValidationError(e.errors(), code="invalid")
+            # FIXME: fix validation error data: e.errors() failing for some reason
+            raise ValidationError(e.json(), code="invalid")
 
     def bound_data(self, data, initial):
         try:
@@ -47,6 +43,37 @@ class SchemaField(JSONField, t.Generic[base.ST]):
         except pydantic.ValidationError:
             return InvalidJSONInput(data)
 
-    def get_bound_field(self, form, field_name):
-        base.prepare_schema(self.schema, form)
-        return super().get_bound_field(form, field_name)
+    def bind_schema(self, schema: type[SchemaT]):
+        self.schema = schema
+        self.__dict__.pop("_type_adapter", None)
+
+    @cached_property
+    def _type_adapter(self) -> pydantic.TypeAdapter[SchemaT]:
+        return type_adapter(self.schema, self.config)
+
+
+class BoundSchemaField(BoundField, ty.Generic[SchemaT]):
+    field: SchemaField[SchemaT]
+
+    def __init__(self, form: BaseForm, field: SchemaField[SchemaT], field_name: str):
+        super().__init__(form, field, field_name)
+        self._bind_schema()
+
+    def _bind_schema(self):
+        schema = self.field.schema
+        if schema is None:
+            self.field.bind_schema(self._get_annotatated_schema())
+        elif isinstance(schema, ty.ForwardRef):
+            self.field.bind_schema(self._evaluate_forward_ref(schema))
+
+    def _get_annotatated_schema(self):
+        try:
+            return get_type_annotation(type(self.form), self.name)
+        except KeyError:
+            raise FieldError(
+                f"{type(self.form)}.{self.name} needs to be either annotated or "
+                "`schema=` field attribute should be explicitly passed"
+            )
+
+    def _evaluate_forward_ref(self, schema: ty.ForwardRef) -> type[SchemaT]:
+        return evaluate_forward_ref(type(self.form), schema)

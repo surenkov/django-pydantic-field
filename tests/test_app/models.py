@@ -2,6 +2,7 @@ import typing as t
 
 import pydantic
 from django.db import models
+
 from django_pydantic_field import SchemaField
 
 from ..conftest import InnerSchema

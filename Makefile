@@ -2,7 +2,7 @@
 .PHONY: install
 install:
 	python3 -m pip install build twine
-	python3 -m pip install -e .[dev,rest]
+	python3 -m pip install -e .[dev,test]
 
 
 .PHONY: build

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-pydantic-field"
-version = "0.2.4"
+version = "0.3.0"
 description = "Django JSONField with Pydantic models as a Schema"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -14,7 +14,7 @@ authors = [
 
 keywords = ["django", "pydantic", "json", "schema"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 1 - Alpha",
     "Intended Audience :: Developers",
     "Framework :: Django",
     "Framework :: Django :: 3",
@@ -38,13 +38,13 @@ classifiers = [
 
 requires-python = ">=3.7"
 dependencies = [
-    "pydantic>=1.9,<2",
+    "pydantic>=2.0a,<3",
     "django>=3.1,<5",
     "typing_extensions",
 ]
 
 [project.optional-dependencies]
-rest = ["djangorestframework>=3,<4", "pyyaml"]
+test = ["djangorestframework>=3,<4", "pyyaml"]
 dev = [
     "black",
     "isort",
@@ -64,6 +64,9 @@ Changelog = "https://github.com/surenkov/django-pydantic-field/releases"
 
 [tool.setuptools]
 packages = ["django_pydantic_field"]
+
+[tool.black]
+line-length = 128
 
 [tool.mypy]
 plugins = [

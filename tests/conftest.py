@@ -1,4 +1,4 @@
-import typing as t
+import typing as ty
 from datetime import date
 
 import pydantic
@@ -8,19 +8,17 @@ from rest_framework.test import APIRequestFactory
 
 
 class InnerSchema(pydantic.BaseModel):
+    model_config = dict(frozen=False)
+
     stub_str: str
     stub_int: int = 1
-    stub_list: t.List[date]
-
-    class Config:
-        allow_mutation = True
-        frozen = False
+    stub_list: ty.List[date]
 
 
 @dataclass
 class SampleDataclass:
     stub_str: str
-    stub_list: t.List[date]
+    stub_list: ty.List[date]
     stub_int: int = 1
 
 
