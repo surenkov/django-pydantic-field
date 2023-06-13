@@ -2,6 +2,7 @@ import json
 import typing as t
 from functools import partial
 
+import django
 import pydantic
 from django.core import exceptions as django_exceptions
 from django.db.models.fields import NOT_PROVIDED
@@ -36,7 +37,7 @@ class SchemaAttribute(DeferredAttribute):
 
 class PydanticSchemaField(JSONField, t.Generic[base.ST]):
     descriptor_class = SchemaAttribute
-    is_prepared_schema: bool = False
+    _is_prepared_schema: bool = False
 
     def __init__(
         self,
@@ -62,7 +63,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
     def to_python(self, value) -> "base.SchemaT":
         # Attempt to resolve forward referencing schema if it was not succesful
         # during `.contribute_to_class` call
-        if not self.is_prepared_schema:
+        if not self._is_prepared_schema:
             self._prepare_model_schema()
         try:
             assert self.decoder is not None
@@ -70,13 +71,22 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         except pydantic.ValidationError as e:
             raise django_exceptions.ValidationError(e.errors())
 
-    def get_prep_value(self, value) -> t.Optional[str]:
-        if not self.is_prepared_schema:
-            self._prepare_model_schema()
-        prep_value = super().get_prep_value(value)
-        if prep_value is not None and not isinstance(prep_value, str):
-            prep_value = self.encoder().encode(prep_value)  # type: ignore
-        return prep_value
+    if django.VERSION[:2] >= (4, 2):
+        def get_prep_value(self, value):
+            if not self._is_prepared_schema:
+                self._prepare_model_schema()
+
+            prep_value = super().get_prep_value(value)
+            if isinstance(prep_value, (str, bytes)):
+                prep_value = self.serializer_schema.parse_raw(prep_value)
+            else:
+                prep_value = self.serializer_schema.parse_obj(prep_value)
+            return json.loads(prep_value.json(**self.export_params))
+
+        def get_db_prep_value(self, value, connection, prepared=False):
+            if not self._is_prepared_schema:
+                self._prepare_model_schema()
+            return super().get_db_prep_value(value, connection, prepared)
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
@@ -98,7 +108,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         except NameError:
             # Pydantic was not able to resolve forward references, which means
             # that it should be postponed until initial access to the field
-            self.is_prepared_schema = False
+            self._is_prepared_schema = False
 
         super().contribute_to_class(cls, name, private_only)
 
@@ -140,20 +150,15 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         cls = cls or getattr(self, "model", None)
         if cls is not None:
             base.prepare_schema(self.serializer_schema, cls)
-            self.is_prepared_schema = True
+            self._is_prepared_schema = True
 
     def _deconstruct_default(self, kwargs):
         default = kwargs.get("default", NOT_PROVIDED)
 
         if not (default is NOT_PROVIDED or callable(default)):
-            # default value deconstruction with SchemaEncoder is meaningful
-            # only if schema resolution is not deferred
-            if self.is_prepared_schema:
-                plain_default = self.get_prep_value(default)
-            else:
-                plain_default = default
-
-            kwargs.update(default=plain_default)
+            if self._is_prepared_schema:
+                default = self.get_prep_value(default)
+            kwargs.update(default=default)
 
     def _deconstruct_schema(self, kwargs):
         schema = self.schema
