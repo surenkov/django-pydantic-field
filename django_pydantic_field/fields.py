@@ -72,21 +72,13 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
             raise django_exceptions.ValidationError(e.errors())
 
     if django.VERSION[:2] >= (4, 2):
+
         def get_prep_value(self, value):
             if not self._is_prepared_schema:
                 self._prepare_model_schema()
-
             prep_value = super().get_prep_value(value)
-            if isinstance(prep_value, (str, bytes)):
-                prep_value = self.serializer_schema.parse_raw(prep_value)
-            else:
-                prep_value = self.serializer_schema.parse_obj(prep_value)
-            return json.loads(prep_value.json(**self.export_params))
-
-        def get_db_prep_value(self, value, connection, prepared=False):
-            if not self._is_prepared_schema:
-                self._prepare_model_schema()
-            return super().get_db_prep_value(value, connection, prepared)
+            prep_value = self.encoder().encode(prep_value)  # type: ignore
+            return json.loads(prep_value)
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()

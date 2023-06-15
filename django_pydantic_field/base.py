@@ -3,6 +3,7 @@ import typing as t
 import pydantic
 from django.core.serializers.json import DjangoJSONEncoder
 from pydantic.config import get_config, inherit_config
+from pydantic.json import pydantic_encoder
 from pydantic.typing import display_as_type
 
 from .utils import get_local_namespace
@@ -55,8 +56,13 @@ class SchemaEncoder(DjangoJSONEncoder):
                 raise
 
             # This branch used for expressions like .filter(data__contains={}).
-            # We don't want that {} to be parsed as a schema.
-            data = super().encode(obj)
+            # We don't want that lookup expression to be parsed as a schema
+            try:
+                # Attempting to encode with pydantic encoder first, to make sure
+                # the output conform with pydantic's built-in serialization
+                data = pydantic_encoder(obj)
+            except TypeError:
+                data = super().encode(obj)
 
         return data
 
