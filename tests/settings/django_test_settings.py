@@ -1,5 +1,6 @@
 import os
 import django
+import dj_database_url
 
 SECRET_KEY = "1"
 SITE_ID = 1
@@ -21,15 +22,14 @@ DATABASES = {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.path.join(BASE_DIR, "settings", "db.sqlite3"),
     },
-    # "default": {
-    #     "ENGINE": "django.db.backends.postgresql",
-    #     "NAME": "test_db",
-    #     "USER": "postgres",
-    #     "PASSWORD": "pass",
-    #     "HOST": "127.0.0.1",
-    #     "PORT": 5432,
-    # }
 }
+
+if os.getenv("POSTGRES_DSN"):
+    DATABASES["postgres"] = dj_database_url.config("POSTGRES_DSN")  # type: ignore
+
+if os.getenv("MYSQL_DSN"):
+    DATABASES["mysql"] = dj_database_url.config("MYSQL_DSN")  # type: ignore
+
 
 REST_FRAMEWORK = {
     "COMPACT_JSON": True,

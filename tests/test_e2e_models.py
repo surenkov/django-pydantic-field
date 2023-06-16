@@ -6,6 +6,8 @@ from django.db.models import Q
 from .conftest import InnerSchema
 from .test_app.models import SampleModel
 
+pytestmark = [pytest.mark.usefixtures("available_database_backends")]
+
 
 @pytest.mark.parametrize(
     "initial_payload,expected_values",
