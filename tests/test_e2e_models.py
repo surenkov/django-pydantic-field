@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from django.db.models import Q
+from django.db.models import Q, F, Value
 from .conftest import InnerSchema
 from .test_app.models import SampleModel
 
@@ -53,6 +53,9 @@ def test_model_db_serde(initial_payload, expected_values):
         Q(sample_field__stub_int=1),
         Q(sample_field__stub_str="abc"),
         Q(sample_field__stub_list=[date(2023, 6, 1)]),
+        Q(sample_field__stub_str=F("sample_field__stub_str")),
+        Q(sample_field__stub_int=F("sample_field__stub_int")),
+        Q(sample_field__stub_int=Value(1)),
     ],
 )
 @pytest.mark.django_db
@@ -77,6 +80,8 @@ def test_model_field_lookup_succeeded(lookup):
         Q(sample_field__stub_int=2),
         Q(sample_field__stub_str="abcd"),
         Q(sample_field__stub_list=[date(2023, 6, 2)]),
+        Q(sample_field__stub_int=F("sample_field__stub_str")),
+        Q(sample_field__stub_int=Value(2)),
     ],
 )
 @pytest.mark.django_db
