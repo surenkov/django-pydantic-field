@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import pytest
 from django.core.management import call_command
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 MIGRATIONS_DIR = "tests/sample_app/migrations/"
 

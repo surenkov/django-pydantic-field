@@ -1,5 +1,4 @@
 import os
-import django
 import dj_database_url
 
 SECRET_KEY = "1"
@@ -30,7 +29,7 @@ if os.getenv("POSTGRES_DSN"):
 if os.getenv("MYSQL_DSN"):
     DATABASES["mysql"] = dj_database_url.config("MYSQL_DSN")  # type: ignore
 
+DATABASE_ROUTERS = ["tests.sample_app.dbrouters.TestDBRouter"]
+CURRENT_TEST_DB = "default"
 
-REST_FRAMEWORK = {
-    "COMPACT_JSON": True,
-}
+REST_FRAMEWORK = {"COMPACT_JSON": True}

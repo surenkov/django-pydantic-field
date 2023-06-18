@@ -1,12 +1,15 @@
 from datetime import date
 
 import pytest
+from django.db.models import F, Q, JSONField, Value
 
-from django.db.models import Q, F, Value
 from .conftest import InnerSchema
 from .test_app.models import SampleModel
 
-pytestmark = [pytest.mark.usefixtures("available_database_backends")]
+pytestmark = [
+    pytest.mark.usefixtures("available_database_backends"),
+    pytest.mark.django_db(databases="__all__"),
+]
 
 
 @pytest.mark.parametrize(
@@ -14,27 +17,32 @@ pytestmark = [pytest.mark.usefixtures("available_database_backends")]
     [
         (
             {
-                "sample_field": InnerSchema(stub_str="abc", stub_list=[date(2023, 6, 1)]),
+                "sample_field": InnerSchema(
+                    stub_str="abc", stub_list=[date(2023, 6, 1)]
+                ),
                 "sample_list": [InnerSchema(stub_str="abc", stub_list=[])],
             },
             {
-                "sample_field": InnerSchema(stub_str="abc", stub_list=[date(2023, 6, 1)]),
+                "sample_field": InnerSchema(
+                    stub_str="abc", stub_list=[date(2023, 6, 1)]
+                ),
                 "sample_list": [InnerSchema(stub_str="abc", stub_list=[])],
             },
         ),
         (
             {
-                "sample_field": {"stub_str": "abc", "stub_list": ['2023-06-01']},
+                "sample_field": {"stub_str": "abc", "stub_list": ["2023-06-01"]},
                 "sample_list": [{"stub_str": "abc", "stub_list": []}],
             },
             {
-                "sample_field": InnerSchema(stub_str="abc", stub_list=[date(2023, 6, 1)]),
+                "sample_field": InnerSchema(
+                    stub_str="abc", stub_list=[date(2023, 6, 1)]
+                ),
                 "sample_list": [InnerSchema(stub_str="abc", stub_list=[])],
             },
         ),
     ],
 )
-@pytest.mark.django_db
 def test_model_db_serde(initial_payload, expected_values):
     instance = SampleModel(**initial_payload)
     instance.save()
@@ -55,10 +63,11 @@ def test_model_db_serde(initial_payload, expected_values):
         Q(sample_field__stub_list=[date(2023, 6, 1)]),
         Q(sample_field__stub_str=F("sample_field__stub_str")),
         Q(sample_field__stub_int=F("sample_field__stub_int")),
-        Q(sample_field__stub_int=Value(1)),
+        Q(sample_field__stub_int=Value(1, output_field=JSONField())),
+        Q(sample_field__stub_str=Value("abc", output_field=JSONField())),
+        ~Q(sample_field__stub_int=Value("abcd", output_field=JSONField())),
     ],
 )
-@pytest.mark.django_db
 def test_model_field_lookup_succeeded(lookup):
     instance = SampleModel(
         sample_field=dict(stub_str="abc", stub_list=["2023-06-01"]),
@@ -81,10 +90,11 @@ def test_model_field_lookup_succeeded(lookup):
         Q(sample_field__stub_str="abcd"),
         Q(sample_field__stub_list=[date(2023, 6, 2)]),
         Q(sample_field__stub_int=F("sample_field__stub_str")),
-        Q(sample_field__stub_int=Value(2)),
+        Q(sample_field__stub_int=Value(2, output_field=JSONField())),
+        Q(sample_field__stub_int=Value("abcd", output_field=JSONField())),
+        Q(sample_field__stub_str=Value("abcd", output_field=JSONField())),
     ],
 )
-@pytest.mark.django_db
 def test_model_field_lookup_failed(lookup):
     instance = SampleModel(
         sample_field=dict(stub_str="abc", stub_list=["2023-06-01"]),
