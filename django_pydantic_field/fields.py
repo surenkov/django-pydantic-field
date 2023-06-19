@@ -160,7 +160,8 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         kwargs.update(schema=schema)
 
     def _deconstruct_config(self, kwargs):
-        kwargs.update(self.export_params, config=self.config)
+        kwargs.update(base.deconstruct_export_kwargs(self.export_params))
+        kwargs.update(config=self.config)
 
 
 if t.TYPE_CHECKING:

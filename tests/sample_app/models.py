@@ -14,8 +14,8 @@ class BuildingTypes(str, enum.Enum):
 
 
 class Building(models.Model):
-    opt_meta: t.Optional["BuildingMeta"] = SchemaField(default={"type": "frame"}, null=True)
-    meta: "BuildingMeta" = SchemaField(default={"type": "frame"})
+    opt_meta: t.Optional["BuildingMeta"] = SchemaField(default={"type": "frame"}, exclude={"type"}, null=True)
+    meta: "BuildingMeta" = SchemaField(default={"type": "frame"}, include={"type"})
 
     meta_schema_list = SchemaField(schema=t.ForwardRef("t.List[BuildingMeta]"), default=list)
     meta_typing_list: t.List["BuildingMeta"] = SchemaField(default=list)
@@ -24,11 +24,11 @@ class Building(models.Model):
 
 
 class BuildingMeta(pydantic.BaseModel):
-    type: t.Optional[BuildingTypes]
+    type: t.Optional[BuildingTypes] = pydantic.Field(alias="buildingType")
 
 
 class PostponedBuilding(models.Model):
-    meta: "BuildingMeta" = SchemaField(default=BuildingMeta(type=BuildingTypes.FRAME))
+    meta: "BuildingMeta" = SchemaField(default=BuildingMeta(type=BuildingTypes.FRAME), by_alias=True)
     meta_builtin_list: t.List[BuildingMeta] = SchemaField(schema=t.List[BuildingMeta], default=list)
     meta_typing_list: t.List["BuildingMeta"] = SchemaField(default=list)
     meta_untyped_list: list = SchemaField(schema=t.List, default=list)
