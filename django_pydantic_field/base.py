@@ -112,6 +112,23 @@ def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
 
     return {k: v for k, v in export_ctx.items() if v is not None}
 
+def deconstruct_export_kwargs(kwargs:t.Dict[str,t.Any]) -> t.Dict[str,t.Any]:
+    # We want to invert the work that was done in extract_export_kwargs
+    for fld in ["include","exclude"]:
+        value = kwargs.pop(fld,None)
+        inner = None
+        if value is not  None : 
+            if not isinstance(value,dict): 
+                kwargs[fld]=value
+                continue
+            inner = value.get("__root__",None)
+        if inner is None:
+            if value: kwargs[fld]=value
+            continue
+        kwargs[fld] = inner
+        
+    return kwargs
+
 
 def _get_field_schema_name(schema) -> str:
     return f"FieldSchema[{display_as_type(schema)}]"
