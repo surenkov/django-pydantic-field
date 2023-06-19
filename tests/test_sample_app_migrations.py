@@ -21,7 +21,7 @@ def test_makemigrations_no_duplicates(capfd):
         call_command("makemigrations", "sample_app", "--noinput", "--dry-run")
         out, _ = capfd.readouterr()
 
-    assert "No changes detected in app 'sample_app'" in out
+    assert "No changes detected in app 'sample_app'" in out, out
 
 
 @contextmanager
