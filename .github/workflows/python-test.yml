@@ -44,6 +44,27 @@ jobs:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: pass
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+      mariadb:
+        image: mariadb:11-jammy
+        env:
+          MARIADB_DATABASE: test_db
+          MYSQL_ROOT_PASSWORD: pass
+        ports:
+          - 3306:3306
+
+    env:
+      POSTGRES_DSN: postgresql://postgres:pass@127.0.0.1:5432/test_db
+      MYSQL_DSN: mysql://root:pass@127.0.0.1:3306/test_db
+
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
@@ -52,7 +73,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
+        sudo apt update && sudo apt install -qy python3-dev default-libmysqlclient-dev build-essential
         python -m pip install --upgrade pip
-        python -m pip install -e .[dev,test]
+        python -m pip install -e .[dev,test,ci]
     - name: Test package
       run: pytest

@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import pytest
 from django.core.management import call_command
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 MIGRATIONS_DIR = "tests/sample_app/migrations/"
 
@@ -21,7 +21,7 @@ def test_makemigrations_no_duplicates(capfd):
         call_command("makemigrations", "sample_app", "--noinput", "--dry-run")
         out, _ = capfd.readouterr()
 
-    assert "No changes detected in app 'sample_app'" in out
+    assert "No changes detected in app 'sample_app'" in out, out
 
 
 @contextmanager

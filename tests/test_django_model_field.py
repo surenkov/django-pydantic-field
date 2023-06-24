@@ -1,8 +1,10 @@
+import json
 import sys
 import typing as ty
 from collections import abc
 from datetime import date
 
+import django
 import pytest
 from django.core.exceptions import FieldError, ValidationError
 from django.db import models
@@ -17,7 +19,9 @@ from .test_app.models import SampleForwardRefModel, SampleModel, SampleSchema
 def test_sample_field():
     sample_field = fields.PydanticSchemaField(schema=InnerSchema)
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
-    expected_encoded = '{"stub_str":"abc","stub_int":1,"stub_list":["2022-07-01"]}'
+    expected_encoded = {"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}
+    if django.VERSION[:2] < (4, 2):
+        expected_encoded = json.dumps(expected_encoded)
 
     assert sample_field.get_prep_value(existing_instance) == expected_encoded
     assert sample_field.to_python(expected_encoded) == existing_instance
@@ -27,6 +31,10 @@ def test_sample_field_with_raw_data():
     sample_field = fields.PydanticSchemaField(schema=InnerSchema)
     existing_raw = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
     expected_encoded = '{"stub_str":"abc","stub_list":["2022-07-01"]}'
+
+    expected_encoded = {"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}
+    if django.VERSION[:2] < (4, 2):
+        expected_encoded = json.dumps(expected_encoded)
 
     assert sample_field.get_prep_value(existing_raw) == expected_encoded
     assert sample_field.to_python(expected_encoded) == InnerSchema(**existing_raw)
@@ -82,10 +90,23 @@ def test_resolved_forwardrefs(forward_ref):
 @pytest.mark.parametrize(
     "field",
     [
-        fields.PydanticSchemaField(schema=InnerSchema, default=InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])),
-        fields.PydanticSchemaField(schema=InnerSchema, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}),
+        fields.PydanticSchemaField(
+            schema=InnerSchema,
+            default=InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)]),
+        ),
+        fields.PydanticSchemaField(
+            schema=InnerSchema,
+            default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)])),
+        ),
+        fields.PydanticSchemaField(
+            schema=InnerSchema,
+            default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]},
+        ),
         fields.PydanticSchemaField(schema=InnerSchema, null=True, default=None),
-        fields.PydanticSchemaField(schema=SampleDataclass, default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}),
+        fields.PydanticSchemaField(
+            schema=SampleDataclass,
+            default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]},
+        ),
         fields.PydanticSchemaField(schema=ty.Optional[InnerSchema], null=True, default=None),
     ],
 )
@@ -198,6 +219,8 @@ def test_model_validation_exceptions():
 @pytest.mark.parametrize(
     "export_kwargs",
     [
+        {"include": {"stub_str", "stub_int"}},
+        {"exclude": {"stub_list"}},
         {"by_alias": True},
         {"exclude_unset": True},
         {"exclude_defaults": True},

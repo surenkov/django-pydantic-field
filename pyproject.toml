@@ -44,7 +44,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["djangorestframework>=3,<4", "pyyaml"]
 dev = [
     "black",
     "isort",
@@ -54,6 +53,16 @@ dev = [
     "django-stubs[compatible-mypy]~=1.12.0",
     "djangorestframework-stubs[compatible-mypy]~=1.7.0",
     "pytest-django>=4.5,<5",
+]
+test = [
+    "dj-database-url~=2.0",
+    "djangorestframework>=3,<4",
+    "pyyaml",
+]
+ci = [
+    'psycopg[binary]>=3.1,<4; python_version>="3.9"',
+    'psycopg2-binary>=2.7,<3; python_version<"3.9"',
+    "mysqlclient>=2.1",
 ]
 
 [project.urls]
@@ -81,7 +90,7 @@ django_settings_module = "tests.settings.django_test_settings"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings.django_test_settings"
 
-addopts = "--capture=no"
+addopts = "--capture=no -vv"
 pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_tests.py"]

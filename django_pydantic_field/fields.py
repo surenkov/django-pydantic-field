@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import typing as ty
 
+import django
 import pydantic
 from django.core.exceptions import FieldError, ValidationError
 from django.db.models.fields import NOT_PROVIDED
@@ -66,6 +68,13 @@ class PydanticSchemaField(JSONField, ty.Generic[SchemaT]):
     def encoder(self, **kwargs):
         return SchemaEncoder(adapter=self._type_adapter, export_params=self.export_params, **kwargs)
 
+    if django.VERSION[:2] >= (4, 2):
+
+        def get_prep_value(self, value):
+            prep_value = super().get_prep_value(value)
+            prep_value = self.encoder().encode(prep_value)  # type: ignore
+            return json.loads(prep_value)
+
     def deconstruct(self):
         # Bypass encoder/decoder deconstruction done by JSONField
         name, path, args, kwargs = super(JSONField, self).deconstruct()
@@ -86,12 +95,6 @@ class PydanticSchemaField(JSONField, ty.Generic[SchemaT]):
         except pydantic.ValidationError as exc:
             # FIXME: fix validation error data: e.errors() failing for some reason
             raise ValidationError(exc.json())
-
-    def get_prep_value(self, value) -> str | None:
-        prep_value = super().get_prep_value(value)
-        if prep_value is not None and not isinstance(prep_value, str):
-            prep_value = self.encoder().encode(prep_value)
-        return prep_value
 
     def formfield(self, **kwargs):
         from .forms import SchemaField
@@ -145,7 +148,7 @@ class PydanticSchemaField(JSONField, ty.Generic[SchemaT]):
         kwargs.update(schema=schema)
 
     def _deconstruct_config(self, kwargs):
-        kwargs.update(self.export_params, config=self.config)
+        kwargs.update(**self.export_params, config=self.config)
 
 
 @ty.overload
