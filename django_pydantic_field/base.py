@@ -2,11 +2,10 @@ import typing as t
 
 import pydantic
 from django.core.serializers.json import DjangoJSONEncoder
-from pydantic.config import get_config, inherit_config
 from pydantic.json import pydantic_encoder
 from pydantic.typing import display_as_type
 
-from .utils import get_local_namespace
+from .utils import get_local_namespace, inherit_configs
 
 __all__ = (
     "SchemaEncoder",
@@ -134,15 +133,9 @@ def _get_field_schema_name(schema) -> str:
 
 def _get_field_schema_params(schema, config=None, allow_null=False, **kwargs) -> dict:
     root_model = t.Optional[schema] if allow_null else schema
-    params: t.Dict[str, t.Any] = dict(kwargs, __root__=(root_model, ...))
-    parent_config = getattr(schema, "Config", None)
-
-    if config is not None:
-        config = get_config(config)
-        if parent_config is not None:
-            config = inherit_config(config, parent_config)
-    else:
-        config = parent_config
-
-    params["__config__"] = config
+    params: t.Dict[str, t.Any] = dict(
+        kwargs,
+        __root__=(root_model, ...),
+        __config__=inherit_configs(schema, config),
+    )
     return params
