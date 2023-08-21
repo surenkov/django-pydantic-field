@@ -2,6 +2,7 @@ import json
 import sys
 import typing as t
 from collections import abc
+from copy import copy
 from datetime import date
 
 import django
@@ -12,6 +13,7 @@ from django.db.migrations.writer import MigrationWriter
 from django_pydantic_field import fields
 
 from .conftest import InnerSchema, SampleDataclass
+from .sample_app.models import Building
 from .test_app.models import SampleForwardRefModel, SampleModel, SampleSchema
 
 
@@ -313,3 +315,11 @@ def serialize_field(field: fields.PydanticSchemaField) -> str:
 
 def reconstruct_field(field_repr: str) -> fields.PydanticSchemaField:
     return eval(field_repr, globals(), sys.modules)
+
+
+def test_copy_field():
+    copied = copy(Building.meta.field)
+
+    assert copied.name == Building.meta.field.name
+    assert copied.attname == Building.meta.field.attname
+    assert copied.concrete == Building.meta.field.concrete
