@@ -54,7 +54,9 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
 
     def __copy__(self):
         _, _, args, kwargs = self.deconstruct()
-        return type(self)(*args, **kwargs)
+        copied = type(self)(*args, **kwargs)
+        copied.set_attributes_from_name(self.name)
+        return copied
 
     def get_default(self):
         value = super().get_default()
