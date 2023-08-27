@@ -26,18 +26,29 @@ def test_empty_form_values():
     assert field.clean(None) is None
 
 
-def test_invalid_raises():
+def test_empty_required_raises():
     field = forms.SchemaField(InnerSchema)
     with pytest.raises(ValidationError) as e:
         field.clean("")
 
     assert e.match("This field is required")
 
+
+def test_invalid_schema_raises():
+    field = forms.SchemaField(InnerSchema)
     with pytest.raises(ValidationError) as e:
         field.clean('{"stub_list": "abc"}')
 
     assert e.match("stub_str")
     assert e.match("stub_list")
+
+
+def test_invalid_json_raises():
+    field = forms.SchemaField(InnerSchema)
+    with pytest.raises(ValidationError) as e:
+        field.clean('{"stub_list": "abc}')
+
+    assert e.match('type=value_error.jsondecode')
 
 
 @pytest.mark.xfail(
