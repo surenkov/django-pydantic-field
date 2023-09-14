@@ -95,6 +95,7 @@ def prepare_schema(schema: "ModelType", owner: t.Any = None) -> None:
 
 
 def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
+    # extract the model.json() kwargs from ctx and return them as export_params
     export_ctx = dict(
         exclude_defaults=extractor(ctx, "exclude_defaults", None),
         exclude_none=extractor(ctx, "exclude_none", None),
@@ -108,6 +109,11 @@ def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
     exclude_fields = extractor(ctx, "exclude", None)
     if exclude_fields is not None:
         export_ctx["exclude"] = {"__root__": exclude_fields}
+
+    # extract json.dumps() kwargs for formatting
+    dumps_kwargs = ['indent', 'separators', 'sort_keys']
+    for key in dumps_kwargs:
+        export_ctx[key] = extractor(ctx, key, None)
 
     return {k: v for k, v in export_ctx.items() if v is not None}
 

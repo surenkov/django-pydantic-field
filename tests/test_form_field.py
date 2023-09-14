@@ -20,10 +20,29 @@ def test_form_schema_field():
     cleaned_data = field.clean('{"stub_str": "abc", "stub_list": ["1970-01-01"]}')
     assert cleaned_data == InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})
 
+
 def test_empty_form_values():
     field = forms.SchemaField(InnerSchema, required=False)
     assert field.clean("") is None
     assert field.clean(None) is None
+
+
+def test_prepare_value():
+    field = forms.SchemaField(InnerSchema, required=False)
+    expected = '{"stub_str": "abc", "stub_int": 1, "stub_list": ["1970-01-01"]}'
+    assert expected == field.prepare_value({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+
+
+def test_prepare_value_export_params():
+    field = forms.SchemaField(InnerSchema, required=False, indent=2, sort_keys=True, separators=('', ' > '))
+    expected = """{
+  "stub_int" > 1
+  "stub_list" > [
+    "1970-01-01"
+  ]
+  "stub_str" > "abc"
+}"""
+    assert expected == field.prepare_value({"stub_str": "abc", "stub_list": ["1970-01-01"]})
 
 
 def test_empty_required_raises():
@@ -83,6 +102,9 @@ def test_forwardref_model_formfield():
     {"exclude_defaults": True},
     {"exclude_none": True},
     {"by_alias": True},
+    {"indent": 4},
+    {"separators": (',', ': ')},
+    {"sort_keys": True},
 ])
 def test_form_field_export_kwargs(export_kwargs):
     field = forms.SchemaField(InnerSchema, required=False, **export_kwargs)
