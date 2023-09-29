@@ -135,6 +135,28 @@ class Migration(migrations.Migration):
                         config=None, default=list, schema=list
                     ),
                 ),
+                (
+                    "nested_generics",
+                    django_pydantic_field.fields.PydanticSchemaField(
+                        config=None,
+                        schema=django_pydantic_field._migration_serializers.GenericContainer(
+                            typing.Union,
+                            (
+                                django_pydantic_field._migration_serializers.GenericContainer(
+                                    list,
+                                    (
+                                        django_pydantic_field._migration_serializers.GenericContainer(
+                                            typing.Literal, ("foo",)
+                                        ),
+                                    ),
+                                ),
+                                django_pydantic_field._migration_serializers.GenericContainer(
+                                    typing.Literal, ("bar",)
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
             ],
         ),
     ]

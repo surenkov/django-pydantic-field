@@ -30,24 +30,29 @@ from django.db.migrations.writer import MigrationWriter
 class GenericContainer:
     __slots__ = "origin", "args"
 
-    def __init__(self, origin, args=()):
+    def __init__(self, origin, args: tuple = ()):
         self.origin = origin
         self.args = args
 
     @classmethod
-    def from_generic(cls, type_alias):
-        return cls(get_origin(type_alias), get_args(type_alias))
+    def wrap(cls, typ):
+        if isinstance(typ, GenericTypes):
+            return cls(get_origin(typ), tuple(map(cls.wrap, get_args(typ))))
+        else:
+            return typ
 
-    def reconstruct_type(self):
-        if not self.args:
-            return self.origin
-        try:
-            return self.origin[self.args]
-        except TypeError:
-            return GenericAlias(self.origin, self.args)
+    @classmethod
+    def unwrap(cls, typ):
+        if isinstance(typ, GenericContainer):
+            if typ.args:
+                return typ.origin[tuple(map(cls.unwrap, typ.args))]
+            else:
+                return typ.origin
+        else:
+            return typ
 
     def __repr__(self):
-        return repr(self.reconstruct_type())
+        return repr(self.unwrap(self))
 
     __str__ = __repr__
 
@@ -55,7 +60,7 @@ class GenericContainer:
         if isinstance(other, self.__class__):
             return self.origin, self.args == other.origin, other.args
         if isinstance(other, GenericTypes):
-            return self == self.from_generic(other)
+            return self == self.wrap(other)
         return NotImplemented
 
 
