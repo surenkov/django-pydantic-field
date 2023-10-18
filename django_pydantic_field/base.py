@@ -95,12 +95,20 @@ def prepare_schema(schema: "ModelType", owner: t.Any = None) -> None:
 
 
 def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
-    # extract the model.json() kwargs from ctx and return them as export_params
+    """ Extract ``BaseModel.json()`` kwargs from ctx for field deconstruction/reconstruction."""
+
     export_ctx = dict(
         exclude_defaults=extractor(ctx, "exclude_defaults", None),
         exclude_none=extractor(ctx, "exclude_none", None),
         exclude_unset=extractor(ctx, "exclude_unset", None),
         by_alias=extractor(ctx, "by_alias", None),
+
+        # extract json.dumps(...) kwargs, see:  https://docs.pydantic.dev/1.10/usage/exporting_models/#modeljson
+        skipkeys=extractor(ctx, "skipkeys", None),
+        indent=extractor(ctx, "indent", None),
+        separators=extractor(ctx, "separators", None),
+        allow_nan=extractor(ctx, "allow_nan", None),
+        sort_keys=extractor(ctx, "sort_keys", None),
     )
     include_fields = extractor(ctx, "include", None)
     if include_fields is not None:
@@ -109,11 +117,6 @@ def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
     exclude_fields = extractor(ctx, "exclude", None)
     if exclude_fields is not None:
         export_ctx["exclude"] = {"__root__": exclude_fields}
-
-    # extract json.dumps() kwargs for formatting
-    dumps_kwargs = ['indent', 'separators', 'sort_keys']
-    for key in dumps_kwargs:
-        export_ctx[key] = extractor(ctx, key, None)
 
     return {k: v for k, v in export_ctx.items() if v is not None}
 
