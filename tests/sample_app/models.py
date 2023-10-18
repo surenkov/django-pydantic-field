@@ -1,10 +1,10 @@
 import enum
 import typing as t
+import typing_extensions as te
 
 import pydantic
 from django.db import models
 from django_pydantic_field import SchemaField
-
 
 
 class BuildingTypes(str, enum.Enum):
@@ -33,3 +33,4 @@ class PostponedBuilding(models.Model):
     meta_typing_list: t.List["BuildingMeta"] = SchemaField(default=list)
     meta_untyped_list: list = SchemaField(schema=t.List, default=list)
     meta_untyped_builtin_list: t.List = SchemaField(schema=list, default=list)
+    nested_generics: t.Union[t.List[te.Literal["foo"]], te.Literal["bar"]] = SchemaField()
