@@ -63,7 +63,7 @@ class GenericContainer:
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self.origin, self.args == other.origin, other.args
+            return self.origin == other.origin and self.args == other.args
         if isinstance(other, GenericTypes):
             return self == self.wrap(other)
         return NotImplemented
