@@ -35,21 +35,19 @@ class GenericContainer:
         self.args = args
 
     @classmethod
-    def wrap(cls, typ):
-        if isinstance(typ, GenericTypes):
-            return cls(get_origin(typ), tuple(map(cls.wrap, get_args(typ))))
-        else:
-            return typ
+    def wrap(cls, typ_):
+        if isinstance(typ_, GenericTypes):
+            return cls(get_origin(typ_), tuple(map(cls.wrap, get_args(typ_))))
+        return typ_
 
     @classmethod
-    def unwrap(cls, typ):
-        if isinstance(typ, GenericContainer):
-            if typ.args:
-                return typ.origin[tuple(map(cls.unwrap, typ.args))]
-            else:
-                return typ.origin
-        else:
-            return typ
+    def unwrap(cls, type_):
+        if isinstance(type_, GenericContainer):
+            if type_.args:
+                unwrapped_args = tuple(map(cls.unwrap, type_.args))
+                return type_.origin[unwrapped_args]
+            return type_.origin
+        return type_
 
     def __repr__(self):
         return repr(self.unwrap(self))

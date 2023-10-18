@@ -3,8 +3,8 @@ import typing as t
 from django.db.migrations.writer import MigrationWriter
 import pytest
 
-import django_pydantic_field._migration_serializers
-from ._migration_serializers import GenericContainer
+import django_pydantic_field
+from django_pydantic_field._migration_serializers import GenericContainer
 
 test_types = [
     str,
