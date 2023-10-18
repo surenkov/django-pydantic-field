@@ -8,7 +8,7 @@ import pytest
 import django_pydantic_field
 from django_pydantic_field._migration_serializers import GenericContainer
 
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 9):
     test_types = [
         str,
         list,
@@ -39,7 +39,5 @@ def test_wrap_unwrap_idempotent(typ):
 def test_serialize_eval_idempotent(typ):
     typ = GenericContainer.wrap(typ)
     expression, _ = MigrationWriter.serialize(GenericContainer.wrap(typ))
-    imports = dict(typing=t, django_pydantic_field=django_pydantic_field)
-    if sys.version_info < (3, 8):
-        imports.update(typing_extensions=te)
+    imports = dict(typing=t, typing_extensions=te, django_pydantic_field=django_pydantic_field)
     assert eval(expression, imports) == typ
