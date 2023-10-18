@@ -122,8 +122,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         return super().formfield(**field_kwargs)
 
     def _resolve_schema(self, schema):
-        if isinstance(schema, GenericContainer):
-            schema = t.cast(t.Type["base.ST"], schema.reconstruct_type())
+        schema = t.cast(t.Type["base.ST"], GenericContainer.unwrap(schema))
 
         self.schema = schema
         if schema is not None:
@@ -155,11 +154,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
             kwargs.update(default=default)
 
     def _deconstruct_schema(self, kwargs):
-        schema = self.schema
-        if isinstance(schema, GenericTypes):
-            schema = GenericContainer.from_generic(self.schema)
-
-        kwargs.update(schema=schema)
+        kwargs.update(schema=GenericContainer.wrap(self.schema))
 
     def _deconstruct_config(self, kwargs):
         kwargs.update(base.deconstruct_export_kwargs(self.export_params))

@@ -30,24 +30,34 @@ from django.db.migrations.writer import MigrationWriter
 class GenericContainer:
     __slots__ = "origin", "args"
 
-    def __init__(self, origin, args=()):
+    def __init__(self, origin, args: tuple = ()):
         self.origin = origin
         self.args = args
 
     @classmethod
-    def from_generic(cls, type_alias):
-        return cls(get_origin(type_alias), get_args(type_alias))
+    def wrap(cls, typ_):
+        if isinstance(typ_, GenericTypes):
+            wrapped_args = tuple(map(cls.wrap, get_args(typ_)))
+            return cls(get_origin(typ_), wrapped_args)
+        return typ_
 
-    def reconstruct_type(self):
-        if not self.args:
-            return self.origin
+    @classmethod
+    def unwrap(cls, type_):
+        if not isinstance(type_, GenericContainer):
+            return type_
+
+        if not type_.args:
+            return type_.origin
+
+        unwrapped_args = tuple(map(cls.unwrap, type_.args))
         try:
-            return self.origin[self.args]
+            # This is a fallback for Python < 3.8, please be careful with that
+            return type_.origin[unwrapped_args]
         except TypeError:
-            return GenericAlias(self.origin, self.args)
+            return GenericAlias(type_.origin, unwrapped_args)
 
     def __repr__(self):
-        return repr(self.reconstruct_type())
+        return repr(self.unwrap(self))
 
     __str__ = __repr__
 
@@ -55,7 +65,7 @@ class GenericContainer:
         if isinstance(other, self.__class__):
             return self.origin == other.origin and self.args == other.args
         if isinstance(other, GenericTypes):
-            return self == self.from_generic(other)
+            return self == self.wrap(other)
         return NotImplemented
 
 
