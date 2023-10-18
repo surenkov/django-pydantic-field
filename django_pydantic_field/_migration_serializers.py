@@ -37,17 +37,24 @@ class GenericContainer:
     @classmethod
     def wrap(cls, typ_):
         if isinstance(typ_, GenericTypes):
-            return cls(get_origin(typ_), tuple(map(cls.wrap, get_args(typ_))))
+            wrapped_args = tuple(map(cls.wrap, get_args(typ_)))
+            return cls(get_origin(typ_), wrapped_args)
         return typ_
 
     @classmethod
     def unwrap(cls, type_):
-        if isinstance(type_, GenericContainer):
-            if type_.args:
-                unwrapped_args = tuple(map(cls.unwrap, type_.args))
-                return type_.origin[unwrapped_args]
+        if not isinstance(type_, GenericContainer):
+            return type_
+
+        if not type_.args:
             return type_.origin
-        return type_
+
+        unwrapped_args = tuple(map(cls.unwrap, type_.args))
+        try:
+            # This is a fallback for Python < 3.8, please be careful with that
+            return type_.origin[unwrapped_args]
+        except TypeError:
+            return GenericAlias(type_.origin, unwrapped_args)
 
     def __repr__(self):
         return repr(self.unwrap(self))
