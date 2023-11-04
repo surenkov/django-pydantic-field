@@ -12,3 +12,5 @@ dist/
 *.egg-info/
 build
 htmlcov
+
+.python-version

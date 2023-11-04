@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-pydantic-field"
-version = "0.2.11"
+version = "0.3.0-alpha1"
 description = "Django JSONField with Pydantic models as a Schema"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -39,7 +39,7 @@ classifiers = [
 
 requires-python = ">=3.7"
 dependencies = [
-    "pydantic>=1.9,<2",
+    "pydantic>=1.10,<3",
     "django>=3.1,<5",
     "typing_extensions",
 ]

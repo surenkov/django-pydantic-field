@@ -115,8 +115,8 @@ if sys.version_info >= (3, 9):
 else:
     # types.GenericAlias is missing, meaning python version < 3.9,
     # which has a different inheritance models for typed generics
-    GenericAlias = type(t.List[int])
-    GenericTypes = GenericAlias, type(t.List)
+    GenericAlias = type(t.List[int])  # noqa
+    GenericTypes = GenericAlias, type(t.List)  # noqa
 
 
 MigrationWriter.register_serializer(GenericContainer, GenericSerializer)
