@@ -5,15 +5,14 @@ import typing as ty
 import pydantic
 
 from django.core import checks, exceptions
+from django.core.serializers.json import DjangoJSONEncoder
 
 from django.db.models.expressions import BaseExpression
 from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
 
 from . import types
-
-if ty.TYPE_CHECKING:
-    from ..compat.django import GenericContainer
+from ..compat.django import GenericContainer
 
 
 class SchemaAttribute(DeferredAttribute):
@@ -27,6 +26,8 @@ class SchemaAttribute(DeferredAttribute):
 
 
 class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
+    descriptor_class = SchemaAttribute
+
     def __init__(
         self,
         *args,
@@ -34,8 +35,11 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         config: pydantic.ConfigDict | None = None,
         **kwargs,
     ):
+        kwargs.setdefault("encoder", DjangoJSONEncoder)
+
         self.export_kwargs = export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
         super().__init__(*args, **kwargs)
+
         self.schema = schema
         self.config = config
         self.adapter = types.SchemaAdapter(schema, config, None, self.get_attname(), self.null, **export_kwargs)
@@ -63,6 +67,10 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             performed_checks.append(checks.Error(exc.args[0], obj=self))
         return performed_checks
 
+    def validate(self, value: ty.Any, model_instance: ty.Any) -> None:
+        value = self.adapter.validate_python(value)
+        return super().validate(value, model_instance)
+
     def to_python(self, value: ty.Any):
         try:
             return self.adapter.validate_python(value)
@@ -73,11 +81,26 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         if isinstance(value, BaseExpression):
             # We don't want to perform coercion on database query expressions.
             return super().get_prep_value(value)
-        return self.adapter.dump_python(value)
 
-    def validate(self, value: ty.Any, model_instance: ty.Any) -> None:
-        value = self.adapter.validate_python(value)
-        return super().validate(value, model_instance)
+        try:
+            prep_value = self.adapter.validate_python(value, strict=True)
+        except TypeError:
+            prep_value = self.adapter.dump_python(value)
+            prep_value = self.adapter.validate_python(prep_value)
+
+        plain_value = self.adapter.dump_python(prep_value)
+        return super().get_prep_value(plain_value)
+
+    def get_default(self) -> types.ST:
+        default_value = super().get_default()
+        try:
+            raw_value = dict(default_value)
+            prep_value = self.adapter.validate_python(raw_value, strict=True)
+        except (TypeError, ValueError):
+            prep_value = self.adapter.validate_python(default_value)
+
+        return prep_value
+
 
 
 @ty.overload

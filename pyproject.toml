@@ -76,7 +76,7 @@ Changelog = "https://github.com/surenkov/django-pydantic-field/releases"
 packages = ["django_pydantic_field"]
 
 [tool.isort]
-py_version = 312
+py_version = 311
 profile = "black"
 line_length = 120
 multi_line_output = 3

@@ -80,12 +80,11 @@ class SchemaAdapter(ty.Generic[ST]):
         """Validate the schema and raise an exception if it is invalid."""
         self._get_prepared_schema()
 
-    def validate_python(self, value: ty.Any) -> ST:
+    def validate_python(self, value: ty.Any, *, strict: bool | None = None) -> ST:
         """Validate the value and raise an exception if it is invalid."""
-        return self.type_adapter.validate_python(
-            value,
-            strict=self.export_kwargs.get("strict", None),
-        )
+        if strict is None:
+            strict = self.export_kwargs.get("strict", None)
+        return self.type_adapter.validate_python(value, strict=strict)
 
     def dump_python(self, value: ty.Any) -> ty.Any:
         """Dump the value to a Python object."""

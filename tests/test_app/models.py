@@ -7,8 +7,12 @@ from django_pydantic_field import SchemaField
 from ..conftest import InnerSchema
 
 
+class FrozenInnerSchema(InnerSchema):
+    model_config = pydantic.ConfigDict({"frozen": True})
+
+
 class SampleModel(models.Model):
-    sample_field: InnerSchema = SchemaField(config={"frozen": True, "allow_mutation": False})
+    sample_field: InnerSchema = SchemaField()
     sample_list: t.List[InnerSchema] = SchemaField()
     sample_seq: t.Sequence[InnerSchema] = SchemaField(schema=t.List[InnerSchema], default=list)
 

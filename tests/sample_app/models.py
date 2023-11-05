@@ -28,7 +28,7 @@ class BuildingMeta(pydantic.BaseModel):
 
 
 class PostponedBuilding(models.Model):
-    meta: "BuildingMeta" = SchemaField(default=BuildingMeta(type=BuildingTypes.FRAME), by_alias=True)
+    meta: "BuildingMeta" = SchemaField(default=BuildingMeta(buildingType=BuildingTypes.FRAME), by_alias=True)
     meta_builtin_list: t.List[BuildingMeta] = SchemaField(schema=t.List[BuildingMeta], default=list)
     meta_typing_list: t.List["BuildingMeta"] = SchemaField(default=list)
     meta_untyped_list: list = SchemaField(schema=t.List, default=list)

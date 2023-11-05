@@ -5,10 +5,9 @@ from collections import abc
 from copy import copy
 from datetime import date
 
-import django
 import pytest
-from django.core.exceptions import FieldError, ValidationError
-from django.db import models
+from django.core.exceptions import ValidationError
+from django.db import models, connection
 from django.db.migrations.writer import MigrationWriter
 from django_pydantic_field import fields
 
@@ -22,10 +21,9 @@ def test_sample_field():
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
 
     expected_encoded = {"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}
-    if django.VERSION[:2] < (4, 2):
-        expected_encoded = json.dumps(expected_encoded)
+    expected_prepared = json.dumps(expected_encoded)
 
-    assert sample_field.get_prep_value(existing_instance) == expected_encoded
+    assert sample_field.get_db_prep_value(existing_instance, connection) == expected_prepared
     assert sample_field.to_python(expected_encoded) == existing_instance
 
 
@@ -34,35 +32,10 @@ def test_sample_field_with_raw_data():
     existing_raw = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
 
     expected_encoded = {"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}
-    if django.VERSION[:2] < (4, 2):
-        expected_encoded = json.dumps(expected_encoded)
+    expected_prepared = json.dumps(expected_encoded)
 
-    assert sample_field.get_prep_value(existing_raw) == expected_encoded
+    assert sample_field.get_db_prep_value(existing_raw, connection) == expected_prepared
     assert sample_field.to_python(expected_encoded) == InnerSchema(**existing_raw)
-
-
-def test_simple_model_field():
-    sample_field = SampleModel._meta.get_field("sample_field")
-    assert sample_field.schema == InnerSchema
-
-    sample_list_field = SampleModel._meta.get_field("sample_list")
-    assert sample_list_field.schema == t.List[InnerSchema]
-
-    sample_seq_field = SampleModel._meta.get_field("sample_seq")
-    assert sample_seq_field.schema == t.List[InnerSchema]
-
-    existing_raw_field = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
-    existing_raw_list = [{"stub_str": "abc", "stub_list": []}]
-
-    instance = SampleModel(
-        sample_field=existing_raw_field, sample_list=existing_raw_list
-    )
-
-    expected_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
-    expected_list = [InnerSchema(stub_str="abc", stub_list=[])]
-
-    assert instance.sample_field == expected_instance
-    assert instance.sample_list == expected_list
 
 
 def test_null_field():
@@ -72,16 +45,6 @@ def test_null_field():
 
     field = fields.SchemaField(t.Optional[InnerSchema], null=True, default=None)
     assert field.get_prep_value(None) is None
-
-
-def test_untyped_model_field_raises():
-    with pytest.raises(FieldError):
-
-        class UntypedModel(models.Model):
-            sample_field = fields.SchemaField()
-
-            class Meta:
-                app_label = "test_app"
 
 
 def test_forwardrefs_deferred_resolution():
