@@ -21,7 +21,7 @@ import typing as t
 try:
     from typing import get_args, get_origin
 except ImportError:
-    from typing_extensions import get_args, get_origin
+    from typing_extensions import get_args, get_origin  # type: ignore[no-redef]
 
 from django.db.migrations.serializer import BaseSerializer, serializer_factory
 from django.db.migrations.writer import MigrationWriter

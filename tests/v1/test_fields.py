@@ -3,6 +3,7 @@ import typing as t
 from datetime import date
 
 from django.core.exceptions import FieldError
+from django.db import models
 
 from tests.conftest import InnerSchema
 from tests.test_app.models import SampleModel

@@ -27,7 +27,8 @@ class SchemaAttribute(DeferredAttribute):
 
 
 class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
-    descriptor_class = SchemaAttribute
+    descriptor_class: type[DeferredAttribute] = SchemaAttribute
+    adapter: types.SchemaAdapter
 
     def __init__(
         self,
@@ -76,23 +77,21 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         try:
             return self.adapter.validate_python(value)
         except pydantic.ValidationError as exc:
-            raise exceptions.ValidationError(exc.title, code="invalid", params=exc.errors()) from exc
+            error_params = {"errors": exc.errors(), "field": self}
+            raise exceptions.ValidationError(exc.title, code="invalid", params=error_params) from exc
 
     def get_prep_value(self, value: ty.Any):
         if isinstance(value, BaseExpression):
             # We don't want to perform coercion on database query expressions.
             return super().get_prep_value(value)
 
-        try:
-            prep_value = self.adapter.validate_python(value, strict=True)
-        except pydantic.ValidationError:
-            prep_value = self.adapter.dump_python(value)
-            prep_value = self.adapter.validate_python(prep_value)
-
+        prep_value = self.adapter.validate_python(value)
         plain_value = self.adapter.dump_python(prep_value)
+
         return super().get_prep_value(plain_value)
 
     def get_transform(self, lookup_name: str):
+        transform: type[Transform] | SchemaKeyTransformAdapter | None
         transform = super().get_transform(lookup_name)
         if transform is not None:
             transform = SchemaKeyTransformAdapter(transform)

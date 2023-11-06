@@ -29,6 +29,7 @@ if ty.TYPE_CHECKING:
 
 class ExportKwargs(ty.TypedDict, total=False):
     strict: bool
+    from_attributes: bool
     mode: ty.Literal["json", "python"]
     include: IncEx | None
     exclude: IncEx | None
@@ -80,11 +81,13 @@ class SchemaAdapter(ty.Generic[ST]):
         """Validate the schema and raise an exception if it is invalid."""
         self._get_prepared_schema()
 
-    def validate_python(self, value: ty.Any, *, strict: bool | None = None) -> ST:
+    def validate_python(self, value: ty.Any, *, strict: bool | None = None, from_attributes: bool | None = None) -> ST:
         """Validate the value and raise an exception if it is invalid."""
         if strict is None:
             strict = self.export_kwargs.get("strict", None)
-        return self.type_adapter.validate_python(value, strict=strict)
+        if from_attributes is None:
+            from_attributes = self.export_kwargs.get("from_attributes", None)
+        return self.type_adapter.validate_python(value, strict=strict, from_attributes=from_attributes)
 
     def dump_python(self, value: ty.Any) -> ty.Any:
         """Dump the value to a Python object."""
