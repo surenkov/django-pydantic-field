@@ -7,8 +7,9 @@ import pydantic
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 
-from django.db.models.expressions import BaseExpression
+from django.db.models.expressions import BaseExpression, Col
 from django.db.models.fields.json import JSONField
+from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
 from . import types
@@ -84,12 +85,18 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         try:
             prep_value = self.adapter.validate_python(value, strict=True)
-        except TypeError:
+        except pydantic.ValidationError:
             prep_value = self.adapter.dump_python(value)
             prep_value = self.adapter.validate_python(prep_value)
 
         plain_value = self.adapter.dump_python(prep_value)
         return super().get_prep_value(plain_value)
+
+    def get_transform(self, lookup_name: str):
+        transform = super().get_transform(lookup_name)
+        if transform is not None:
+            transform = SchemaKeyTransformAdapter(transform)
+        return transform
 
     def get_default(self) -> types.ST:
         default_value = super().get_default()
@@ -101,6 +108,20 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         return prep_value
 
+
+class SchemaKeyTransformAdapter:
+    """An adapter for creating key transforms for schema field lookups."""
+
+    def __init__(self, transform: type[Transform]):
+        self.transform = transform
+
+    def __call__(self, col: Col | None = None, *args, **kwargs) -> Transform | None:
+        """All transforms should bypass the SchemaField's adaptaion with `get_prep_value`,
+        and routed to JSONField's `get_prep_value` for further processing."""
+        if isinstance(col, BaseExpression):
+            col = col.copy()
+            col.output_field = super(PydanticSchemaField, col.output_field)  # type: ignore
+        return self.transform(col, *args, **kwargs)
 
 
 @ty.overload
