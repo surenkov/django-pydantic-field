@@ -94,7 +94,7 @@ class SchemaField(serializers.Field, t.Generic[base.ST]):
         try:
             return self.decoder.decode(data)
         except ValidationError as e:
-            raise serializers.ValidationError(e.errors(), self.field_name)
+            raise serializers.ValidationError(e.errors(), self.field_name)  # type: ignore[arg-type]
 
     def to_representation(self, value: t.Optional["base.ST"]) -> t.Any:
         obj = self.schema.parse_obj(value)

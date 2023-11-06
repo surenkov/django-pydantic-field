@@ -43,7 +43,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         self,
         *args,
         schema: t.Union[t.Type["base.ST"], "GenericContainer", "t.ForwardRef", str, None] = None,
-        config: "base.ConfigType" = None,
+        config: t.Optional["base.ConfigType"] = None,
         **kwargs,
     ):
         self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
