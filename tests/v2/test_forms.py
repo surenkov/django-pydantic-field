@@ -1,24 +1,26 @@
-import typing as t
+import typing as ty
 
 import django
 import pytest
 from django.core.exceptions import ValidationError
 from django.forms import Form, modelform_factory
-from django_pydantic_field import fields, forms
 
-from .conftest import InnerSchema
-from .test_app.models import SampleForwardRefModel, SampleSchema
+from tests.conftest import InnerSchema
+from tests.test_app.models import SampleForwardRefModel, SampleSchema
+
+fields = pytest.importorskip("django_pydantic_field.v2.fields")
+forms = pytest.importorskip("django_pydantic_field.v2.forms")
 
 
 class SampleForm(Form):
-    field = forms.SchemaField(t.ForwardRef("SampleSchema"))
+    field = forms.SchemaField(ty.ForwardRef("SampleSchema"))
 
 
 def test_form_schema_field():
     field = forms.SchemaField(InnerSchema)
 
     cleaned_data = field.clean('{"stub_str": "abc", "stub_list": ["1970-01-01"]}')
-    assert cleaned_data == InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+    assert cleaned_data == InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
 
 
 def test_empty_form_values():
@@ -29,19 +31,7 @@ def test_empty_form_values():
 
 def test_prepare_value():
     field = forms.SchemaField(InnerSchema, required=False)
-    expected = '{"stub_str": "abc", "stub_int": 1, "stub_list": ["1970-01-01"]}'
-    assert expected == field.prepare_value({"stub_str": "abc", "stub_list": ["1970-01-01"]})
-
-
-def test_prepare_value_export_params():
-    field = forms.SchemaField(InnerSchema, required=False, indent=2, sort_keys=True, separators=('', ' > '))
-    expected = """{
-  "stub_int" > 1
-  "stub_list" > [
-    "1970-01-01"
-  ]
-  "stub_str" > "abc"
-}"""
+    expected = '{"stub_str":"abc","stub_int":1,"stub_list":["1970-01-01"]}'
     assert expected == field.prepare_value({"stub_str": "abc", "stub_list": ["1970-01-01"]})
 
 
@@ -58,8 +48,9 @@ def test_invalid_schema_raises():
     with pytest.raises(ValidationError) as e:
         field.clean('{"stub_list": "abc"}')
 
-    assert e.match("stub_str")
-    assert e.match("stub_list")
+    assert e.match("Schema didn't match for")
+    assert "stub_list" in e.value.params["detail"]  # type: ignore
+    assert "stub_str" in e.value.params["detail"]  # type: ignore
 
 
 def test_invalid_json_raises():
@@ -67,7 +58,8 @@ def test_invalid_json_raises():
     with pytest.raises(ValidationError) as e:
         field.clean('{"stub_list": "abc}')
 
-    assert e.match('type=value_error.jsondecode')
+    assert e.match("Schema didn't match for")
+    assert '"type":"json_invalid"' in e.value.params["detail"]  # type: ignore
 
 
 @pytest.mark.xfail(
@@ -102,11 +94,8 @@ def test_forwardref_model_formfield():
     {"exclude_defaults": True},
     {"exclude_none": True},
     {"by_alias": True},
-    {"indent": 4},
-    {"separators": (',', ': ')},
-    {"sort_keys": True},
 ])
 def test_form_field_export_kwargs(export_kwargs):
     field = forms.SchemaField(InnerSchema, required=False, **export_kwargs)
-    value = InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+    value = InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
     assert field.prepare_value(value)

@@ -12,15 +12,12 @@ from django.db.models.fields.json import JSONField
 from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
-from . import types
+from . import types, forms, utils
 from ..compat.django import GenericContainer
 
 
 class SchemaAttribute(DeferredAttribute):
     field: PydanticSchemaField
-
-    def __set_name__(self, owner, name):
-        self.field.adapter.bind(owner, name)
 
     def __set__(self, obj, value):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
@@ -71,14 +68,14 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
     def validate(self, value: ty.Any, model_instance: ty.Any) -> None:
         value = self.adapter.validate_python(value)
-        return super().validate(value, model_instance)
+        return super(JSONField, self).validate(value, model_instance)
 
     def to_python(self, value: ty.Any):
         try:
             return self.adapter.validate_python(value)
         except pydantic.ValidationError as exc:
             error_params = {"errors": exc.errors(), "field": self}
-            raise exceptions.ValidationError(exc.title, code="invalid", params=error_params) from exc
+            raise exceptions.ValidationError(exc.json(), code="invalid", params=error_params) from exc
 
     def get_prep_value(self, value: ty.Any):
         if isinstance(value, BaseExpression):
@@ -87,7 +84,6 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         prep_value = self.adapter.validate_python(value)
         plain_value = self.adapter.dump_python(prep_value)
-
         return super().get_prep_value(plain_value)
 
     def get_transform(self, lookup_name: str):
@@ -107,6 +103,20 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         return prep_value
 
+    def formfield(self, **kwargs):
+        schema = self.schema
+        if schema is None:
+            schema = utils.get_annotated_type(self.model, self.attname)
+
+        field_kwargs = dict(
+            form_class=forms.SchemaField,
+            schema=schema,
+            config=self.config,
+            **self.export_kwargs,
+        )
+        field_kwargs.update(kwargs)
+        return super().formfield(**field_kwargs)  # type: ignore
+
 
 class SchemaKeyTransformAdapter:
     """An adapter for creating key transforms for schema field lookups."""
@@ -121,16 +131,6 @@ class SchemaKeyTransformAdapter:
             col = col.copy()
             col.output_field = super(PydanticSchemaField, col.output_field)  # type: ignore
         return self.transform(col, *args, **kwargs)
-
-
-@ty.overload
-def SchemaField(schema: None = None) -> ty.Any:
-    ...
-
-
-@ty.overload
-def SchemaField(schema: type[types.ST]) -> ty.Any:
-    ...
 
 
 def SchemaField(schema=None, config=None, *args, **kwargs):  # type: ignore

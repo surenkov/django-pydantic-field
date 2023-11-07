@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import functools
 import typing as ty
+import typing_extensions as te
+from collections import ChainMap
 
-from pydantic.type_adapter import TypeAdapter
+import pydantic
 
 from . import utils
 from ..compat.django import GenericContainer
@@ -11,15 +12,16 @@ from ..compat.django import GenericContainer
 ST = ty.TypeVar("ST", bound="SchemaT")
 
 if ty.TYPE_CHECKING:
-    from pydantic import BaseModel
+    from collections.abc import MutableMapping
+
     from pydantic.type_adapter import IncEx
     from pydantic.dataclasses import DataclassClassOrWrapper
     from django.db.models import Model
 
-    ModelType = ty.Type[BaseModel]
+    ModelType = ty.Type[pydantic.BaseModel]
     DjangoModelType = ty.Type[Model]
     SchemaT = ty.Union[
-        BaseModel,
+        pydantic.BaseModel,
         DataclassClassOrWrapper,
         ty.Sequence[ty.Any],
         ty.Mapping[str, ty.Any],
@@ -27,7 +29,8 @@ if ty.TYPE_CHECKING:
         ty.FrozenSet[ty.Any],
     ]
 
-class ExportKwargs(ty.TypedDict, total=False):
+
+class ExportKwargs(te.TypedDict, total=False):
     strict: bool
     from_attributes: bool
     mode: ty.Literal["json", "python"]
@@ -44,11 +47,11 @@ class ExportKwargs(ty.TypedDict, total=False):
 class SchemaAdapter(ty.Generic[ST]):
     def __init__(
         self,
-        schema,
-        config,
-        parent_type,
-        attname,
-        allow_null,
+        schema: ty.Any,
+        config: pydantic.ConfigDict | None,
+        parent_type: type | None,
+        attname: str | None,
+        allow_null: bool | None = None,
         *,
         parent_depth=4,
         **export_kwargs: ty.Unpack[ExportKwargs],
@@ -60,6 +63,7 @@ class SchemaAdapter(ty.Generic[ST]):
         self.allow_null = allow_null
         self.parent_depth = parent_depth
         self.export_kwargs = export_kwargs
+        self.__namespace: MutableMapping[str, ty.Any] = {}
 
     @staticmethod
     def extract_export_kwargs(kwargs: dict[str, ty.Any]) -> ExportKwargs:
@@ -67,14 +71,19 @@ class SchemaAdapter(ty.Generic[ST]):
         export_kwargs = {key: kwargs.pop(key) for key in common_keys}
         return ty.cast(ExportKwargs, export_kwargs)
 
-    @functools.cached_property
-    def type_adapter(self) -> TypeAdapter:
+    @utils.cached_property
+    def type_adapter(self) -> pydantic.TypeAdapter:
         schema = self._get_prepared_schema()
-        return TypeAdapter(schema, config=self.config, _parent_depth=4)  # type: ignore
+        return pydantic.TypeAdapter(schema, config=self.config, _parent_depth=4)  # type: ignore
 
-    def bind(self, parent_type, attname):
+    @property
+    def is_bound(self) -> bool:
+        return self.parent_type is not None and self.attname is not None
+
+    def bind(self, parent_type, attname, __namespace: MutableMapping[str, ty.Any] | None = None):
         self.parent_type = parent_type
         self.attname = attname
+        self.__namespace = __namespace if __namespace is not None else {}
         self.__dict__.pop("type_adapter", None)
 
     def validate_schema(self) -> None:
@@ -89,9 +98,17 @@ class SchemaAdapter(ty.Generic[ST]):
             from_attributes = self.export_kwargs.get("from_attributes", None)
         return self.type_adapter.validate_python(value, strict=strict, from_attributes=from_attributes)
 
+    def validate_json(self, value: str | bytes, *, strict: bool | None = None) -> ST:
+        if strict is None:
+            strict = self.export_kwargs.get("strict", None)
+        return self.type_adapter.validate_json(value, strict=strict)
+
     def dump_python(self, value: ty.Any) -> ty.Any:
         """Dump the value to a Python object."""
         return self.type_adapter.dump_python(value, **self._dump_python_kwargs)
+
+    def dump_json(self, value: ty.Any) -> bytes:
+        return self.type_adapter.dump_json(value, **self._dump_python_kwargs)
 
     def json_schema(self) -> ty.Any:
         """Return the JSON schema for the field."""
@@ -104,17 +121,20 @@ class SchemaAdapter(ty.Generic[ST]):
         if schema is None:
             schema = self._guess_schema_from_annotations()
         if isinstance(schema, GenericContainer):
-            schema = ty.cast(type[ST], GenericContainer.unwrap(schema))
+            schema = ty.cast(ty.Type[ST], GenericContainer.unwrap(schema))
         if isinstance(schema, (str, ty.ForwardRef)):
             schema = self._resolve_schema_forward_ref(schema)
 
         if schema is None:
-            error_msg = f"Schema not provided for {self.parent_type.__name__}.{self.attname}"
+            if self.parent_type is not None:
+                error_msg = f"Schema not provided for {self.parent_type.__name__}.{self.attname}"
+            else:
+                error_msg = "The adapter is accessed before it was bound to a field"
             raise ValueError(error_msg)
 
         if self.allow_null:
             schema = ty.Optional[schema]
-        return ty.cast(type[ST], schema)
+        return ty.cast(ty.Type[ST], schema)
 
     def _guess_schema_from_annotations(self) -> type[ST] | str | ty.ForwardRef | None:
         return utils.get_annotated_type(self.parent_type, self.attname)
@@ -122,10 +142,15 @@ class SchemaAdapter(ty.Generic[ST]):
     def _resolve_schema_forward_ref(self, schema: str | ty.ForwardRef) -> ty.Any:
         if isinstance(schema, str):
             schema = ty.ForwardRef(schema)
-        namespace = utils.get_local_namespace(self.parent_type)
-        return schema._evaluate(namespace, vars(self.parent_type), frozenset())  # type: ignore
 
-    @functools.cached_property
+        globalns = ChainMap(
+            self.__namespace,
+            utils.get_local_namespace(self.parent_type),
+            utils.get_global_namespace(self.parent_type),
+        )
+        return schema._evaluate(dict(globalns), {}, frozenset())  # type: ignore
+
+    @utils.cached_property
     def _dump_python_kwargs(self) -> dict[str, ty.Any]:
         export_kwargs = self.export_kwargs.copy()
         export_kwargs.pop("strict", None)
