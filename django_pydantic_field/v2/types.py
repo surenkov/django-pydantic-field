@@ -148,7 +148,7 @@ class SchemaAdapter(ty.Generic[ST]):
             utils.get_local_namespace(self.parent_type),
             utils.get_global_namespace(self.parent_type),
         )
-        return schema._evaluate(dict(globalns), {}, frozenset())  # type: ignore
+        return utils.evaluate_forward_ref(schema, globalns)
 
     @utils.cached_property
     def _dump_python_kwargs(self) -> dict[str, ty.Any]:
