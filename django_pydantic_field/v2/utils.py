@@ -9,6 +9,11 @@ try:
 except ImportError:
     from django.utils.functional import cached_property as cached_property  # type: ignore
 
+try:
+    from typing import get_args as get_args
+except ImportError:
+    from typing_extensions import get_args as get_args  # type: ignore
+
 if ty.TYPE_CHECKING:
     from collections.abc import Mapping
 

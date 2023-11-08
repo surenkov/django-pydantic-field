@@ -114,7 +114,7 @@ class SchemaAdapter(ty.Generic[ST]):
     def prepared_schema(self) -> type[ST]:
         schema = self.schema
 
-        if schema is None:
+        if schema is None and self.attname is not None:
             schema = self._guess_schema_from_annotations()
         if isinstance(schema, GenericContainer):
             schema = ty.cast(ty.Type[ST], GenericContainer.unwrap(schema))
@@ -122,10 +122,10 @@ class SchemaAdapter(ty.Generic[ST]):
             schema = self._resolve_schema_forward_ref(schema)
 
         if schema is None:
-            if self.parent_type is not None:
+            if self.parent_type is not None and self.attname is not None:
                 error_msg = f"Schema not provided for {self.parent_type.__name__}.{self.attname}"
             else:
-                error_msg = "The adapter is accessed before it was bound to a field"
+                error_msg = "The adapter is accessed before it was bound"
             raise ValueError(error_msg)
 
         if self.allow_null:

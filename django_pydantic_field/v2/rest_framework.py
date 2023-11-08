@@ -5,13 +5,18 @@ import typing as ty
 import pydantic
 from rest_framework import exceptions, fields, parsers, renderers
 
-from . import types
+from . import types, utils
 
 if ty.TYPE_CHECKING:
+    from collections.abc import Mapping
     from rest_framework.serializers import BaseSerializer
+
+    RequestResponseContext = Mapping[str, ty.Any]
 
 
 class SchemaField(fields.Field, ty.Generic[types.ST]):
+    adapter: types.SchemaAdapter
+
     def __init__(
         self,
         schema: type[types.ST],
@@ -47,14 +52,84 @@ class SchemaField(fields.Field, ty.Generic[types.ST]):
             raise exceptions.ValidationError(exc.errors(), code="invalid")  # type: ignore
 
 
-class SchemaParser(ty.Generic[types.ST]):
-    def __init__(*args, **kwargs):
-        ...
+class _AnnotatedAdapterMixin(ty.Generic[types.ST]):
+    schema_context_key: ty.ClassVar[str] = "response_schema"
+    config_context_key: ty.ClassVar[str] = "response_schema_config"
+
+    def get_adapter(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
+        adapter = self._make_adapter_from_context(ctx)
+        if adapter is None:
+            adapter = self._make_adapter_from_annotation(ctx)
+
+        return adapter
+
+    def _make_adapter_from_context(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
+        schema = ctx.get(self.schema_context_key)
+        if schema is not None:
+            config = ctx.get(self.config_context_key)
+            export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
+            return types.SchemaAdapter(schema, config, type(ctx.get("view")), None, **export_kwargs)
+
+        return schema
+
+    def _make_adapter_from_annotation(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
+        try:
+            schema = utils.get_args(self.__orig_class__)[0]  # type: ignore
+        except (AttributeError, IndexError):
+            return None
+
+        config = ctx.get(self.config_context_key)
+        export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
+        return types.SchemaAdapter(schema, config, type(ctx.get("view")), None, **export_kwargs)
 
 
-class SchemaRenderer(ty.Generic[types.ST]):
-    def __init__(*args, **kwargs):
-        ...
+class SchemaRenderer(_AnnotatedAdapterMixin[types.ST], renderers.JSONRenderer):
+    schema_context_key = "renderer_schema"
+    config_context_key = "renderer_schema_config"
+
+    def render(self, data: ty.Any, accepted_media_type=None, renderer_context=None):
+        renderer_context = renderer_context or {}
+        response = renderer_context.get("response")
+        if response is not None and response.exception:
+            return super().render(data, accepted_media_type, renderer_context)
+
+        adapter = self.get_adapter(renderer_context)
+        if adapter is None and isinstance(data, pydantic.BaseModel):
+            return self.render_pydantic_model(data, renderer_context)
+        if adapter is None:
+            raise RuntimeError("Schema should be either explicitly set with annotation or passed in the context")
+
+        try:
+            prep_data = adapter.validate_python(data)
+            return adapter.dump_json(prep_data)
+        except pydantic.ValidationError as exc:
+            return exc.json(indent=True, include_input=True).encode()
+
+    def render_pydantic_model(self, instance: pydantic.BaseModel, renderer_context: Mapping[str, ty.Any]):
+        export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(renderer_context))
+        export_kwargs.pop("strict", None)
+        export_kwargs.pop("from_attributes", None)
+        export_kwargs.pop("mode", None)
+
+        json_dump = instance.model_dump_json(**export_kwargs)  # type: ignore
+        return json_dump.encode()
+
+
+class SchemaParser(_AnnotatedAdapterMixin[types.ST], parsers.JSONParser):
+    schema_context_key = "parser_schema"
+    config_context_key = "parser_schema_config"
+    renderer_class = SchemaRenderer
+
+    def parse(self, stream: ty.IO[bytes], media_type=None, parser_context=None):
+        parser_context = parser_context or {}
+        adapter = self.get_adapter(parser_context)
+        if adapter is None:
+            raise RuntimeError("Schema should be either explicitly set with annotation or passed in the context")
+
+        try:
+            return adapter.validate_json(stream.read())
+        except pydantic.ValidationError as exc:
+            raise exceptions.ParseError(exc.errors())  # type: ignore
 
 
 class AutoSchema:
