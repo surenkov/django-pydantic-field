@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import sys
 import typing as ty
+from collections import ChainMap
 
 try:
     from functools import cached_property as cached_property
 except ImportError:
-    from django.utils.functional import cached_property as cached_property
+    from django.utils.functional import cached_property as cached_property  # type: ignore
 
 if ty.TYPE_CHECKING:
     from collections.abc import Mapping
@@ -24,6 +25,10 @@ def get_annotated_type(obj, field, default=None) -> ty.Any:
         return default
 
 
+def get_namespace(cls) -> ChainMap[str, ty.Any]:
+    return ChainMap(get_local_namespace(cls), get_global_namespace(cls))
+
+
 def get_global_namespace(cls) -> dict[str, ty.Any]:
     try:
         module = cls.__module__
@@ -34,7 +39,7 @@ def get_global_namespace(cls) -> dict[str, ty.Any]:
 
 def get_local_namespace(cls) -> dict[str, ty.Any]:
     try:
-        return dict(vars(cls))
+        return vars(cls)
     except TypeError:
         return {}
 

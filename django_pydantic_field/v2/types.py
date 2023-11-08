@@ -12,7 +12,7 @@ from ..compat.django import GenericContainer
 ST = ty.TypeVar("ST", bound="SchemaT")
 
 if ty.TYPE_CHECKING:
-    from collections.abc import MutableMapping
+    from collections.abc import Mapping
 
     from pydantic.type_adapter import IncEx
     from pydantic.dataclasses import DataclassClassOrWrapper
@@ -52,8 +52,6 @@ class SchemaAdapter(ty.Generic[ST]):
         parent_type: type | None,
         attname: str | None,
         allow_null: bool | None = None,
-        *,
-        parent_depth=4,
         **export_kwargs: ty.Unpack[ExportKwargs],
     ):
         self.schema = schema
@@ -61,9 +59,7 @@ class SchemaAdapter(ty.Generic[ST]):
         self.parent_type = parent_type
         self.attname = attname
         self.allow_null = allow_null
-        self.parent_depth = parent_depth
         self.export_kwargs = export_kwargs
-        self.__namespace: MutableMapping[str, ty.Any] = {}
 
     @staticmethod
     def extract_export_kwargs(kwargs: dict[str, ty.Any]) -> ExportKwargs:
@@ -73,22 +69,21 @@ class SchemaAdapter(ty.Generic[ST]):
 
     @utils.cached_property
     def type_adapter(self) -> pydantic.TypeAdapter:
-        schema = self._get_prepared_schema()
-        return pydantic.TypeAdapter(schema, config=self.config, _parent_depth=4)  # type: ignore
+        return pydantic.TypeAdapter(self.prepared_schema, config=self.config)  # type: ignore
 
     @property
     def is_bound(self) -> bool:
         return self.parent_type is not None and self.attname is not None
 
-    def bind(self, parent_type, attname, __namespace: MutableMapping[str, ty.Any] | None = None):
+    def bind(self, parent_type: type, attname: str) -> None:
         self.parent_type = parent_type
         self.attname = attname
-        self.__namespace = __namespace if __namespace is not None else {}
+        self.__dict__.pop("prepared_schema", None)
         self.__dict__.pop("type_adapter", None)
 
     def validate_schema(self) -> None:
         """Validate the schema and raise an exception if it is invalid."""
-        self._get_prepared_schema()
+        self.prepared_schema()
 
     def validate_python(self, value: ty.Any, *, strict: bool | None = None, from_attributes: bool | None = None) -> ST:
         """Validate the value and raise an exception if it is invalid."""
@@ -115,7 +110,8 @@ class SchemaAdapter(ty.Generic[ST]):
         by_alias = self.export_kwargs.get("by_alias", True)
         return self.type_adapter.json_schema(by_alias=by_alias)
 
-    def _get_prepared_schema(self) -> type[ST]:
+    @utils.cached_property
+    def prepared_schema(self) -> type[ST]:
         schema = self.schema
 
         if schema is None:
@@ -134,6 +130,7 @@ class SchemaAdapter(ty.Generic[ST]):
 
         if self.allow_null:
             schema = ty.Optional[schema]
+
         return ty.cast(ty.Type[ST], schema)
 
     def _guess_schema_from_annotations(self) -> type[ST] | str | ty.ForwardRef | None:
@@ -143,11 +140,7 @@ class SchemaAdapter(ty.Generic[ST]):
         if isinstance(schema, str):
             schema = ty.ForwardRef(schema)
 
-        globalns = ChainMap(
-            self.__namespace,
-            utils.get_local_namespace(self.parent_type),
-            utils.get_global_namespace(self.parent_type),
-        )
+        globalns = utils.get_namespace(self.parent_type)
         return utils.evaluate_forward_ref(schema, globalns)
 
     @utils.cached_property

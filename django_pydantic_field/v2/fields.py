@@ -12,7 +12,7 @@ from django.db.models.fields.json import JSONField
 from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
-from . import types, forms, utils
+from . import types, forms
 from ..compat.django import GenericContainer
 
 
@@ -104,13 +104,11 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         return prep_value
 
     def formfield(self, **kwargs):
-        schema = self.schema
-        if schema is None:
-            schema = utils.get_annotated_type(self.model, self.attname)
-
         field_kwargs = dict(
             form_class=forms.SchemaField,
-            schema=schema,
+            # Trying to resolve the schema before passing it to the formfield, since in Django < 4.0,
+            # formfield is unbound during form validation and is not able to resolve forward refs defined in the model.
+            schema=self.adapter.prepared_schema,
             config=self.config,
             **self.export_kwargs,
         )
