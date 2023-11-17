@@ -62,7 +62,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         performed_checks = super().check(**kwargs)
         try:
             self.adapter.validate_schema()
-        except ValueError as exc:
+        except types.ImproperlyConfiguredSchema as exc:
             performed_checks.append(checks.Error(exc.args[0], obj=self))
         return performed_checks
 

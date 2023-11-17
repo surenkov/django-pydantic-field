@@ -5,7 +5,8 @@ import typing as ty
 import pydantic
 from rest_framework import exceptions, fields, parsers, renderers
 
-from . import types, utils
+from . import types
+from ..compat.typing import get_args
 
 if ty.TYPE_CHECKING:
     from collections.abc import Mapping
@@ -74,7 +75,7 @@ class _AnnotatedAdapterMixin(ty.Generic[types.ST]):
 
     def _make_adapter_from_annotation(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
         try:
-            schema = utils.get_args(self.__orig_class__)[0]  # type: ignore
+            schema = get_args(self.__orig_class__)[0]  # type: ignore
         except (AttributeError, IndexError):
             return None
 

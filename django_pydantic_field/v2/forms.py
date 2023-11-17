@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 import typing as ty
-from collections import ChainMap
 
 import pydantic
 from django.core.exceptions import ValidationError
 from django.forms.fields import InvalidJSONInput, JSONField, JSONString
 from django.utils.translation import gettext_lazy as _
 
-from . import types, utils
-
-if ty.TYPE_CHECKING:
-    from django.forms import BaseForm
+from . import types
 
 
 class SchemaField(JSONField, ty.Generic[types.ST]):
