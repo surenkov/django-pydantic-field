@@ -54,6 +54,8 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
     def deconstruct(self) -> ty.Any:
         field_name, import_path, args, kwargs = super().deconstruct()
+        if import_path.startswith("django_pydantic_field.v2."):
+            import_path = import_path.replace("django_pydantic_field.v2", "django_pydantic_field", 1)
 
         default = kwargs.get("default", NOT_PROVIDED)
         if default is not NOT_PROVIDED and not callable(default):
@@ -61,6 +63,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         prep_schema = GenericContainer.wrap(self.adapter.prepared_schema)
         kwargs.update(schema=prep_schema, config=self.config, **self.export_kwargs)
+
         return field_name, import_path, args, kwargs
 
     def contribute_to_class(self, cls: types.DjangoModelType, name: str, private_only: bool = False) -> None:

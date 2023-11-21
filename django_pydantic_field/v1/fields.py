@@ -84,6 +84,9 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
+        if path.startswith("django_pydantic_field.v1."):
+            path = path.replace("django_pydantic_field.v1", "django_pydantic_field", 1)
+
         self._deconstruct_schema(kwargs)
         self._deconstruct_default(kwargs)
         self._deconstruct_config(kwargs)
