@@ -73,20 +73,25 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         # Remove checks of using mutable datastructure instances as `default` values, since they'll be adapted anyway.
         performed_checks = [check for check in super().check(**kwargs) if check.id != "fields.E010"]
         try:
+            # Test that the schema could be resolved in runtime, even if it contains forward references.
             self.adapter.validate_schema()
         except types.ImproperlyConfiguredSchema as exc:
-            performed_checks.append(checks.Error(exc.args[0], obj=self))
+            message = f"Cannot resolve the schema. Original error: \n{exc.args[0]}"
+            performed_checks.append(checks.Error(message, obj=self, id="pydantic.E001"))
 
         if self.has_default():
             try:
+                # Test that the default value conforms to the schema.
                 self.get_prep_value(self.get_default())
             except pydantic.ValidationError as exc:
                 message = f"Default value cannot be adapted to the schema. Pydantic error: \n{str(exc)}"
-                performed_checks.append(checks.Error(message, obj=self, id="pydantic.E001"))
+                performed_checks.append(checks.Error(message, obj=self, id="pydantic.E002"))
 
         if {"include", "exclude"} & self.export_kwargs.keys():
+            # Try to prepare the default value to test export ability against it.
             schema_default = self.get_default()
             if schema_default is None:
+                # If the default value is not set, try to get the default value from the schema.
                 prep_value = self.adapter.type_adapter.get_default_value()
                 if prep_value is not None:
                     prep_value = prep_value.value
@@ -94,11 +99,12 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
             if schema_default is not None:
                 try:
+                    # Perform the full round-trip transformation to test the export ability.
                     self.adapter.validate_python(self.get_prep_value(self.default))
                 except pydantic.ValidationError as exc:
                     message = f"Export arguments may lead to data integrity problems. Pydantic error: \n{str(exc)}"
                     hint = "Please review `import` and `export` arguments."
-                    performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.E002"))
+                    performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.E003"))
 
         return performed_checks
 

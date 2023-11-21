@@ -46,7 +46,7 @@ class ExportKwargs(te.TypedDict, total=False):
 
 
 class ImproperlyConfiguredSchema(ValueError):
-    """Raised when a schema is improperly configured."""
+    """Raised when the schema is improperly configured."""
 
 
 class SchemaAdapter(ty.Generic[ST]):
