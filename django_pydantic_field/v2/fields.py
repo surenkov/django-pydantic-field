@@ -7,7 +7,8 @@ import pydantic
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 
-from django.db.models.expressions import BaseExpression, Col
+from django.db.models.fields import NOT_PROVIDED
+from django.db.models.expressions import BaseExpression, Col, Value
 from django.db.models.fields.json import JSONField
 from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
@@ -18,6 +19,9 @@ from ..compat.django import GenericContainer
 
 class SchemaAttribute(DeferredAttribute):
     field: PydanticSchemaField
+
+    def __set_name__(self, owner, name):
+        self.field.adapter.bind(owner, name)
 
     def __set__(self, obj, value):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
@@ -35,11 +39,10 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         **kwargs,
     ):
         kwargs.setdefault("encoder", DjangoJSONEncoder)
-
         self.export_kwargs = export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
         super().__init__(*args, **kwargs)
 
-        self.schema = schema
+        self.schema = GenericContainer.unwrap(schema)
         self.config = config
         self.adapter = types.SchemaAdapter(schema, config, None, self.get_attname(), self.null, **export_kwargs)
 
@@ -51,7 +54,13 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
     def deconstruct(self) -> ty.Any:
         field_name, import_path, args, kwargs = super().deconstruct()
-        kwargs.update(schema=GenericContainer.wrap(self.schema), config=self.config, **self.export_kwargs)
+
+        default = kwargs.get("default", NOT_PROVIDED)
+        if default is not NOT_PROVIDED and not callable(default):
+            kwargs["default"] = self.adapter.dump_python(default, include=None, exclude=None, round_trip=True)
+
+        prep_schema = GenericContainer.wrap(self.adapter.prepared_schema)
+        kwargs.update(schema=prep_schema, config=self.config, **self.export_kwargs)
         return field_name, import_path, args, kwargs
 
     def contribute_to_class(self, cls: types.DjangoModelType, name: str, private_only: bool = False) -> None:
@@ -59,11 +68,36 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         super().contribute_to_class(cls, name, private_only)
 
     def check(self, **kwargs: ty.Any) -> list[checks.CheckMessage]:
-        performed_checks = super().check(**kwargs)
+        # Remove checks of using mutable datastructure instances as `default` values, since they'll be adapted anyway.
+        performed_checks = [check for check in super().check(**kwargs) if check.id != "fields.E010"]
         try:
             self.adapter.validate_schema()
         except types.ImproperlyConfiguredSchema as exc:
             performed_checks.append(checks.Error(exc.args[0], obj=self))
+
+        if self.has_default():
+            try:
+                self.get_prep_value(self.get_default())
+            except pydantic.ValidationError as exc:
+                message = f"Default value cannot be adapted to the schema. Pydantic error: \n{str(exc)}"
+                performed_checks.append(checks.Error(message, obj=self, id="pydantic.E001"))
+
+        if {"include", "exclude"} & self.export_kwargs.keys():
+            schema_default = self.get_default()
+            if schema_default is None:
+                prep_value = self.adapter.type_adapter.get_default_value()
+                if prep_value is not None:
+                    prep_value = prep_value.value
+                schema_default = prep_value
+
+            if schema_default is not None:
+                try:
+                    self.adapter.validate_python(self.get_prep_value(self.default))
+                except pydantic.ValidationError as exc:
+                    message = f"Export arguments may lead to data integrity problems. Pydantic error: \n{str(exc)}"
+                    hint = "Please review `import` and `export` arguments."
+                    performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.E002"))
+
         return performed_checks
 
     def validate(self, value: ty.Any, model_instance: ty.Any) -> None:
@@ -78,30 +112,25 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             raise exceptions.ValidationError(exc.json(), code="invalid", params=error_params) from exc
 
     def get_prep_value(self, value: ty.Any):
-        if isinstance(value, BaseExpression):
-            # We don't want to perform coercion on database query expressions.
-            return super().get_prep_value(value)
+        if isinstance(value, Value) and isinstance(value.output_field, self.__class__):
+            # Prepare inner value for `Value`-wrapped expressions.
+            value = Value(self.get_prep_value(value.value), value.output_field)
+        elif not isinstance(value, BaseExpression):
+            # Prepare the value if it is not a query expression.
+            prep_value = self.adapter.validate_python(value)
+            value = self.adapter.dump_python(prep_value)
 
-        prep_value = self.adapter.validate_python(value)
-        plain_value = self.adapter.dump_python(prep_value)
-        return super().get_prep_value(plain_value)
+        return super().get_prep_value(value)
 
     def get_transform(self, lookup_name: str):
-        transform: type[Transform] | SchemaKeyTransformAdapter | None
-        transform = super().get_transform(lookup_name)
+        transform: type[Transform] | SchemaKeyTransformAdapter | None = super().get_transform(lookup_name)
         if transform is not None:
             transform = SchemaKeyTransformAdapter(transform)
         return transform
 
     def get_default(self) -> types.ST:
         default_value = super().get_default()
-        try:
-            raw_value = dict(default_value)
-            prep_value = self.adapter.validate_python(raw_value, strict=True)
-        except (TypeError, ValueError):
-            prep_value = self.adapter.validate_python(default_value)
-
-        return prep_value
+        return self.adapter.validate_python(default_value)
 
     def formfield(self, **kwargs):
         field_kwargs = dict(
@@ -132,4 +161,5 @@ class SchemaKeyTransformAdapter:
 
 
 def SchemaField(schema=None, config=None, *args, **kwargs):  # type: ignore
+    kwargs.pop("_adapter", None)
     return PydanticSchemaField(*args, schema=schema, config=config, **kwargs)

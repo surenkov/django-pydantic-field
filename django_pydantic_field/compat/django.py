@@ -40,7 +40,7 @@ class GenericContainer:
 
     @classmethod
     def unwrap(cls, type_):
-        if not isinstance(type_, GenericContainer):
+        if not isinstance(type_, cls):
             return type_
 
         if not type_.args:
@@ -129,7 +129,7 @@ if sys.version_info >= (3, 10):
 
         def serialize(self):
             imports = set()
-            if isinstance(self.value, type(ty.Union)):  # type: ignore
+            if isinstance(self.value, (type(ty.Union), types.UnionType)):  # type: ignore
                 imports.add("import typing")
 
             for arg in get_args(self.value):

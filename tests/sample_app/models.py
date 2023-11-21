@@ -14,8 +14,8 @@ class BuildingTypes(str, enum.Enum):
 
 
 class Building(models.Model):
-    opt_meta: t.Optional["BuildingMeta"] = SchemaField(default={"type": "frame"}, exclude={"type"}, null=True)
-    meta: "BuildingMeta" = SchemaField(default={"type": "frame"}, include={"type"})
+    opt_meta: t.Optional["BuildingMeta"] = SchemaField(default={"buildingType": "frame"}, exclude={"type"}, null=True)
+    meta: "BuildingMeta" = SchemaField(default={"buildingType": "frame"}, include={"type"}, by_alias=True)
 
     meta_schema_list = SchemaField(schema=t.ForwardRef("t.List[BuildingMeta]"), default=list)
     meta_typing_list: t.List["BuildingMeta"] = SchemaField(default=list)

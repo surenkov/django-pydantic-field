@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typing as ty
+from collections import ChainMap
 
 import pydantic
 import typing_extensions as te
@@ -107,12 +108,14 @@ class SchemaAdapter(ty.Generic[ST]):
             strict = self.export_kwargs.get("strict", None)
         return self.type_adapter.validate_json(value, strict=strict)
 
-    def dump_python(self, value: ty.Any) -> ty.Any:
+    def dump_python(self, value: ty.Any, **override_kwargs: ty.Unpack[ExportKwargs]) -> ty.Any:
         """Dump the value to a Python object."""
-        return self.type_adapter.dump_python(value, **self._dump_python_kwargs)
+        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)  # type: ignore
+        return self.type_adapter.dump_python(value, **union_kwargs)
 
-    def dump_json(self, value: ty.Any) -> bytes:
-        return self.type_adapter.dump_json(value, **self._dump_python_kwargs)
+    def dump_json(self, value: ty.Any, **override_kwargs: ty.Unpack[ExportKwargs]) -> bytes:
+        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)  # type: ignore
+        return self.type_adapter.dump_json(value, **union_kwargs)
 
     def json_schema(self) -> ty.Any:
         """Return the JSON schema for the field."""
@@ -124,9 +127,10 @@ class SchemaAdapter(ty.Generic[ST]):
 
         if schema is None and self.attname is not None:
             schema = self._guess_schema_from_annotations()
-        if isinstance(schema, (str, ty.ForwardRef)):
-            schema = self._resolve_schema_forward_ref(schema)
+        if isinstance(schema, str):
+            schema = ty.ForwardRef(schema)
 
+        schema = self._resolve_schema_forward_ref(schema)
         if schema is None:
             if self.parent_type is not None and self.attname is not None:
                 error_msg = f"Schema not provided for {self.parent_type.__name__}.{self.attname}"
@@ -135,21 +139,64 @@ class SchemaAdapter(ty.Generic[ST]):
             raise ImproperlyConfiguredSchema(error_msg)
 
         if self.allow_null:
-            schema = ty.Optional[schema]
+            schema = ty.Optional[schema]  # type: ignore
 
         return ty.cast(ty.Type[ST], schema)
 
     prepared_schema = cached_property(_prepare_schema)
 
+    def __copy__(self):
+        instance = self.__class__(
+            self.schema,
+            self.config,
+            self.parent_type,
+            self.attname,
+            self.allow_null,
+            **self.export_kwargs,
+        )
+        instance.__dict__.update(self.__dict__)
+        return instance
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(bound={self.is_bound}, schema={self.schema!r}, config={self.config!r})"
+
+    def __eq__(self, other: ty.Any) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+
+        self_fields = [self.attname, self.export_kwargs]
+        other_fields = [other.attname, other.export_kwargs]
+        try:
+            self_fields.append(self.prepared_schema)
+            other_fields.append(other.prepared_schema)
+        except ImproperlyConfiguredSchema:
+            if self.is_bound and other.is_bound:
+                return False
+            else:
+                self_fields.extend((self.schema, self.config, self.allow_null))
+                other_fields.extend((other.schema, other.config, other.allow_null))
+
+        return self_fields == other_fields
+
     def _guess_schema_from_annotations(self) -> type[ST] | str | ty.ForwardRef | None:
         return utils.get_annotated_type(self.parent_type, self.attname)
 
-    def _resolve_schema_forward_ref(self, schema: str | ty.ForwardRef) -> ty.Any:
-        if isinstance(schema, str):
-            schema = ty.ForwardRef(schema)
+    def _resolve_schema_forward_ref(self, schema: ty.Any) -> ty.Any:
+        if schema is None:
+            return None
 
-        globalns = utils.get_namespace(self.parent_type)
-        return utils.evaluate_forward_ref(schema, globalns)
+        if isinstance(schema, ty.ForwardRef):
+            globalns = utils.get_namespace(self.parent_type)
+            return utils.evaluate_forward_ref(schema, globalns)
+
+        wrapped_schema = GenericContainer.wrap(schema)
+        if not isinstance(wrapped_schema, GenericContainer):
+            return schema
+
+        origin = self._resolve_schema_forward_ref(wrapped_schema.origin)
+        args = map(self._resolve_schema_forward_ref, wrapped_schema.args)
+        return GenericContainer.unwrap(GenericContainer(origin, tuple(args)))
+
 
     @cached_property
     def _dump_python_kwargs(self) -> dict[str, ty.Any]:
