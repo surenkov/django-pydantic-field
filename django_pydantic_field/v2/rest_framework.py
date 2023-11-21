@@ -5,11 +5,13 @@ import typing as ty
 import pydantic
 from rest_framework import exceptions, fields, parsers, renderers
 
-from . import types
+from ..compat.deprecation import truncate_deprecated_v1_export_kwargs
 from ..compat.typing import get_args
+from . import types
 
 if ty.TYPE_CHECKING:
     from collections.abc import Mapping
+
     from rest_framework.serializers import BaseSerializer
 
     RequestResponseContext = Mapping[str, ty.Any]
@@ -26,6 +28,7 @@ class SchemaField(fields.Field, ty.Generic[types.ST]):
         allow_null: bool = False,
         **kwargs,
     ):
+        truncate_deprecated_v1_export_kwargs(kwargs)
         self.schema = schema
         self.config = config
         self.export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)

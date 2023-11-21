@@ -3,18 +3,17 @@ from __future__ import annotations
 import typing as ty
 
 import pydantic
-
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
-
-from django.db.models.fields import NOT_PROVIDED
 from django.db.models.expressions import BaseExpression, Col, Value
+from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField
 from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
-from . import types, forms
+from ..compat.deprecation import truncate_deprecated_v1_export_kwargs
 from ..compat.django import GenericContainer
+from . import forms, types
 
 
 class SchemaAttribute(DeferredAttribute):
@@ -164,5 +163,5 @@ class SchemaKeyTransformAdapter:
 
 
 def SchemaField(schema=None, config=None, *args, **kwargs):  # type: ignore
-    kwargs.pop("_adapter", None)
+    truncate_deprecated_v1_export_kwargs(kwargs)
     return PydanticSchemaField(*args, schema=schema, config=config, **kwargs)
