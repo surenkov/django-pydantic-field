@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing as t
 from functools import partial
 
@@ -15,6 +17,8 @@ class SchemaField(JSONField, t.Generic[base.ST]):
     default_error_messages = {
         "schema_error": _("Schema didn't match. Detail: %(detail)s"),
     }
+    decoder: partial[base.SchemaDecoder]
+    encoder: partial[base.SchemaEncoder]
 
     def __init__(
         self,
@@ -30,8 +34,8 @@ class SchemaField(JSONField, t.Generic[base.ST]):
             __module__=__module__,
         )
         export_params = base.extract_export_kwargs(kwargs, dict.pop)
-        decoder = partial(base.SchemaDecoder, self.schema)
-        encoder = partial(
+        decoder: partial[base.SchemaDecoder] = partial(base.SchemaDecoder, self.schema)
+        encoder: partial[base.SchemaEncoder] = partial(
             base.SchemaEncoder,
             schema=self.schema,
             export=export_params,

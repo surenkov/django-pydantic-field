@@ -164,8 +164,8 @@ class SchemaAdapter(ty.Generic[ST]):
         if not isinstance(other, self.__class__):
             return NotImplemented
 
-        self_fields = [self.attname, self.export_kwargs]
-        other_fields = [other.attname, other.export_kwargs]
+        self_fields: list[ty.Any] = [self.attname, self.export_kwargs]
+        other_fields: list[ty.Any] = [other.attname, other.export_kwargs]
         try:
             self_fields.append(self.prepared_schema)
             other_fields.append(other.prepared_schema)

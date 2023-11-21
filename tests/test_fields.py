@@ -5,13 +5,16 @@ from collections import abc
 from copy import copy
 from datetime import date
 
+import pydantic
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import models, connection
+from django.db import connection, models
 from django.db.migrations.writer import MigrationWriter
-from django_pydantic_field import fields
 
-from .conftest import InnerSchema, SampleDataclass
+from django_pydantic_field import fields
+from django_pydantic_field.compat.pydantic import PYDANTIC_V1, PYDANTIC_V2
+
+from .conftest import InnerSchema, SampleDataclass  # noqa
 from .sample_app.models import Building
 from .test_app.models import SampleForwardRefModel, SampleModel, SampleSchema
 
@@ -78,10 +81,6 @@ def test_resolved_forwardrefs(forward_ref):
         ),
         fields.PydanticSchemaField(
             schema=InnerSchema,
-            default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)])),
-        ),
-        fields.PydanticSchemaField(
-            schema=InnerSchema,
             default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]},
         ),
         fields.PydanticSchemaField(schema=InnerSchema, null=True, default=None),
@@ -90,6 +89,17 @@ def test_resolved_forwardrefs(forward_ref):
             default={"stub_str": "abc", "stub_list": [date(2022, 7, 1)]},
         ),
         fields.PydanticSchemaField(schema=ty.Optional[InnerSchema], null=True, default=None),
+        pytest.param(
+            fields.PydanticSchemaField(
+                schema=InnerSchema,
+                default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)])),
+            ),
+            marks=pytest.mark.xfail(
+                PYDANTIC_V2,
+                reason="Tuple-based default reconstruction is not supported with Pydantic 2",
+                raises=pydantic.ValidationError,
+            ),
+        ),
     ],
 )
 def test_field_serialization(field):
@@ -121,7 +131,7 @@ def test_field_union_type_serialization():
     "field",
     [
         fields.PydanticSchemaField(schema=ty.List[InnerSchema], default=list),
-        fields.PydanticSchemaField(schema=ty.Dict[str, InnerSchema], default=list),
+        fields.PydanticSchemaField(schema=ty.Dict[str, InnerSchema], default=dict),
         fields.PydanticSchemaField(schema=ty.Sequence[InnerSchema], default=list),
         fields.PydanticSchemaField(schema=ty.Mapping[str, InnerSchema], default=dict),
     ],
@@ -229,11 +239,23 @@ def _test_field_serialization(field):
 
     reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
     assert field.get_default() == reconstructed_field.get_default()
-    assert reconstructed_field.deconstruct() == field_data
+
+    if PYDANTIC_V2:
+        assert reconstructed_field.deconstruct() == field_data
+    elif PYDANTIC_V1:
+        assert reconstructed_field.schema == field.schema
+    else:
+        pytest.fail("Unsupported Pydantic version")
 
     deserialized_field = reconstruct_field(serialize_field(field))
     assert deserialized_field.get_default() == field.get_default()
-    assert deserialized_field.deconstruct() == field_data
+
+    if PYDANTIC_V2:
+        assert deserialized_field.deconstruct() == field_data
+    elif PYDANTIC_V1:
+        assert deserialized_field.schema == field.schema
+    else:
+        pytest.fail("Unsupported Pydantic version")
 
 
 def serialize_field(field: fields.PydanticSchemaField) -> str:

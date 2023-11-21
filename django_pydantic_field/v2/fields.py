@@ -126,7 +126,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         return super().get_prep_value(value)
 
     def get_transform(self, lookup_name: str):
-        transform: type[Transform] | SchemaKeyTransformAdapter | None = super().get_transform(lookup_name)
+        transform: ty.Any = super().get_transform(lookup_name)
         if transform is not None:
             transform = SchemaKeyTransformAdapter(transform)
         return transform
