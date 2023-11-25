@@ -66,8 +66,31 @@ class SchemaAdapter(ty.Generic[ST]):
         self.allow_null = allow_null
         self.export_kwargs = export_kwargs
 
+    @classmethod
+    def from_type(
+        cls,
+        schema: ty.Any,
+        config: pydantic.ConfigDict | None = None,
+        **kwargs: ty.Unpack[ExportKwargs],
+    ) -> SchemaAdapter[ST]:
+        """Create an adapter from a type."""
+        return cls(schema, config, None, None, **kwargs)
+
+    @classmethod
+    def from_annotation(
+        cls,
+        parent_type: type,
+        attname: str,
+        config: pydantic.ConfigDict | None = None,
+        **kwargs: ty.Unpack[ExportKwargs],
+    ) -> SchemaAdapter[ST]:
+        """Create an adapter from a type annotation."""
+        return cls(None, config, parent_type, attname, **kwargs)
+
     @staticmethod
     def extract_export_kwargs(kwargs: dict[str, ty.Any]) -> ExportKwargs:
+        """Extract the export kwargs from the kwargs passed to the field.
+        This method mutates passed kwargs by removing those that are used by the adapter."""
         common_keys = kwargs.keys() & ExportKwargs.__annotations__.keys()
         export_kwargs = {key: kwargs.pop(key) for key in common_keys}
         return ty.cast(ExportKwargs, export_kwargs)
@@ -78,9 +101,11 @@ class SchemaAdapter(ty.Generic[ST]):
 
     @property
     def is_bound(self) -> bool:
+        """Return True if the adapter is bound to a specific attribute of a `parent_type`."""
         return self.parent_type is not None and self.attname is not None
 
     def bind(self, parent_type: type, attname: str) -> None:
+        """Bind the adapter to specific attribute of a `parent_type`."""
         self.parent_type = parent_type
         self.attname = attname
         self.__dict__.pop("prepared_schema", None)
@@ -123,19 +148,24 @@ class SchemaAdapter(ty.Generic[ST]):
         return self.type_adapter.json_schema(by_alias=by_alias)
 
     def _prepare_schema(self) -> type[ST]:
+        """Prepare the schema for the adapter.
+
+        This method is called by `prepared_schema` property and should not be called directly.
+        The intent is to resolve the real schema from an annotations or a forward references.
+        """
         schema = self.schema
 
-        if schema is None and self.attname is not None:
+        if schema is None and self.is_bound:
             schema = self._guess_schema_from_annotations()
         if isinstance(schema, str):
             schema = ty.ForwardRef(schema)
 
         schema = self._resolve_schema_forward_ref(schema)
         if schema is None:
-            if self.parent_type is not None and self.attname is not None:
-                error_msg = f"Schema not provided for {self.parent_type.__name__}.{self.attname}"
+            if self.is_bound:
+                error_msg = f"Annotation is not provided for {self.parent_type.__name__}.{self.attname}"  # type: ignore[union-attr]
             else:
-                error_msg = "The adapter is accessed before it was bound"
+                error_msg = "Cannot resolve the schema. The adapter is accessed before it was bound."
             raise ImproperlyConfiguredSchema(error_msg)
 
         if self.allow_null:
@@ -197,9 +227,9 @@ class SchemaAdapter(ty.Generic[ST]):
         args = map(self._resolve_schema_forward_ref, wrapped_schema.args)
         return GenericContainer.unwrap(GenericContainer(origin, tuple(args)))
 
-
     @cached_property
     def _dump_python_kwargs(self) -> dict[str, ty.Any]:
         export_kwargs = self.export_kwargs.copy()
         export_kwargs.pop("strict", None)
+        export_kwargs.pop("from_attributes", None)
         return ty.cast(dict, export_kwargs)
