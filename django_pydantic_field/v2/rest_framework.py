@@ -4,6 +4,7 @@ import typing as ty
 
 import pydantic
 from rest_framework import exceptions, fields, parsers, renderers
+from rest_framework.schemas import coreapi
 
 from ..compat.deprecation import truncate_deprecated_v1_export_kwargs
 from ..compat.typing import get_args
@@ -89,7 +90,7 @@ class _AnnotatedAdapterMixin(ty.Generic[types.ST]):
 
 class SchemaRenderer(_AnnotatedAdapterMixin[types.ST], renderers.JSONRenderer):
     schema_context_key = "renderer_schema"
-    config_context_key = "renderer_schema_config"
+    config_context_key = "renderer_config"
 
     def render(self, data: ty.Any, accepted_media_type=None, renderer_context=None):
         renderer_context = renderer_context or {}
@@ -121,7 +122,7 @@ class SchemaRenderer(_AnnotatedAdapterMixin[types.ST], renderers.JSONRenderer):
 
 class SchemaParser(_AnnotatedAdapterMixin[types.ST], parsers.JSONParser):
     schema_context_key = "parser_schema"
-    config_context_key = "parser_schema_config"
+    config_context_key = "parser_config"
     renderer_class = SchemaRenderer
 
     def parse(self, stream: ty.IO[bytes], media_type=None, parser_context=None):
@@ -136,6 +137,5 @@ class SchemaParser(_AnnotatedAdapterMixin[types.ST], parsers.JSONParser):
             raise exceptions.ParseError(exc.errors())  # type: ignore
 
 
-class AutoSchema:
-    def __init__(*args, **kwargs):
-        ...
+class AutoSchema(coreapi.AutoSchema):
+    """Not implemented yet."""

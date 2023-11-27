@@ -104,12 +104,13 @@ class SchemaAdapter(ty.Generic[ST]):
         """Return True if the adapter is bound to a specific attribute of a `parent_type`."""
         return self.parent_type is not None and self.attname is not None
 
-    def bind(self, parent_type: type, attname: str) -> None:
+    def bind(self, parent_type: type | None, attname: str | None) -> te.Self:
         """Bind the adapter to specific attribute of a `parent_type`."""
         self.parent_type = parent_type
         self.attname = attname
         self.__dict__.pop("prepared_schema", None)
         self.__dict__.pop("type_adapter", None)
+        return self
 
     def validate_schema(self) -> None:
         """Validate the schema and raise an exception if it is invalid."""

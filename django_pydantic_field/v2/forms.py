@@ -19,7 +19,7 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
 
     def __init__(
         self,
-        schema: types.ST,
+        schema: type[types.ST] | ty.ForwardRef | str,
         config: pydantic.ConfigDict | None = None,
         allow_null: bool | None = None,
         *args,

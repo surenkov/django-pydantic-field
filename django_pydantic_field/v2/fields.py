@@ -15,6 +15,40 @@ from ..compat.deprecation import truncate_deprecated_v1_export_kwargs
 from ..compat.django import GenericContainer
 from . import forms, types
 
+if ty.TYPE_CHECKING:
+    import json
+    import typing_extensions as te
+
+    class _SchemaFieldKwargs(types.ExportKwargs, total=False):
+        # django.db.models.fields.Field kwargs
+        name: str | None
+        verbose_name: str | None
+        primary_key: bool
+        max_length: int | None
+        unique: bool
+        blank: bool
+        db_index: bool
+        rel: ty.Any
+        editable: bool
+        serialize: bool
+        unique_for_date: str | None
+        unique_for_month: str | None
+        unique_for_year: str | None
+        choices: ty.Sequence[ty.Tuple[str, str]] | None
+        help_text: str | None
+        db_column: str | None
+        db_tablespace: str | None
+        auto_created: bool
+        validators: ty.Sequence[ty.Callable] | None
+        error_messages: ty.Mapping[str, str] | None
+        db_comment: str | None
+        # django.db.models.fields.json.JSONField kwargs
+        encoder: ty.Callable[[], json.JSONEncoder]
+        decoder: ty.Callable[[], json.JSONDecoder]
+
+
+__all__ = ("SchemaField",)
+
 
 class SchemaAttribute(DeferredAttribute):
     field: PydanticSchemaField
@@ -168,6 +202,30 @@ class SchemaKeyTransformAdapter:
         return self.transform(col, *args, **kwargs)
 
 
-def SchemaField(schema=None, config=None, *args, **kwargs):  # type: ignore
+@ty.overload
+def SchemaField(
+    schema: type[types.ST | None] | ty.ForwardRef = ...,
+    config: pydantic.ConfigDict = ...,
+    default: types.SchemaT | None | ty.Callable[[], types.SchemaT | None] = ...,
+    *args,
+    null: ty.Literal[True],
+    **kwargs: te.Unpack[_SchemaFieldKwargs],
+) -> types.ST | None:
+    ...
+
+
+@ty.overload
+def SchemaField(
+    schema: type[types.ST] | ty.ForwardRef = ...,
+    config: pydantic.ConfigDict = ...,
+    default: ty.Union[types.SchemaT, ty.Callable[[], types.SchemaT]] = ...,
+    *args,
+    null: ty.Literal[False] = ...,
+    **kwargs: te.Unpack[_SchemaFieldKwargs],
+) -> types.ST:
+    ...
+
+
+def SchemaField(schema=None, config=None, default=None, *args, **kwargs):  # type: ignore
     truncate_deprecated_v1_export_kwargs(kwargs)
-    return PydanticSchemaField(*args, schema=schema, config=config, **kwargs)
+    return PydanticSchemaField(*args, schema=schema, config=config, default=default, **kwargs)

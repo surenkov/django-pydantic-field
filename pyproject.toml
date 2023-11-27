@@ -50,7 +50,7 @@ dev = [
     "black",
     "isort",
     "mypy",
-    "pytest==7.0.*",
+    "pytest~=7.4",
     "djangorestframework>=3.11,<4",
     "django-stubs[compatible-mypy]~=4.2",
     "djangorestframework-stubs[compatible-mypy]~=3.14",

@@ -192,6 +192,6 @@ def SchemaField(
     ...
 
 
-def SchemaField(schema=None, config=None, *args, **kwargs) -> t.Any:
-    kwargs.update(schema=schema, config=config)
+def SchemaField(schema=None, config=None, default=None, *args, **kwargs) -> t.Any:
+    kwargs.update(schema=schema, config=config, default=default)
     return PydanticSchemaField(*args, **kwargs)
