@@ -8,7 +8,7 @@
 
 Django JSONField with Pydantic models as a Schema
 
-**[Pydantic 2 support](https://github.com/surenkov/django-pydantic-field/tree/feature/pydantic-v2) is in progress, 
+**[Pydantic 2 support](https://github.com/surenkov/django-pydantic-field/discussions/36) is in progress, 
 you can track the status [in this PR](https://github.com/surenkov/django-pydantic-field/pull/34)**
 
 ## Usage
