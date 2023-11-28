@@ -38,6 +38,15 @@ class _JSONFieldKwargs(_CharFieldKwargs, total=False):
 class _SchemaFieldKwargs(_ExportKwargs, _JSONFieldKwargs, total=False):
     allow_null: bool | None
 
+
+class _DeprecatedSchemaFieldKwargs(_SchemaFieldKwargs, total=False):
+    allow_nan: ty.Any
+    indent: ty.Any
+    separators: ty.Any
+    skipkeys: ty.Any
+    sort_keys: ty.Any
+
+
 class SchemaField(JSONField, ty.Generic[ST]):
     @ty.overload
     def __init__(
@@ -48,16 +57,11 @@ class SchemaField(JSONField, ty.Generic[ST]):
         **kwargs: te.Unpack[_SchemaFieldKwargs],
     ) -> None: ...
     @ty.overload
-    @te.deprecated("Passing `json.dumps` kwargs to `SchemaField` is not supported by Pydantic v2 and will be removed in the future versions.")
+    @te.deprecated("Passing `json.dump` kwargs to `SchemaField` is not supported by Pydantic 2 and will be removed in the future versions.")
     def __init__(
         self,
         schema: ty.Type[ST] | ty.ForwardRef | str,
         config: ConfigType | None = ...,
         *args,
-        allow_nan: ty.Any = ...,
-        indent: ty.Any = ...,
-        separators: ty.Any = ...,
-        skipkeys: ty.Any = ...,
-        sort_keys: ty.Any = ...,
-        **kwargs: te.Unpack[_SchemaFieldKwargs],
+        **kwargs: te.Unpack[_DeprecatedSchemaFieldKwargs],
     ) -> None: ...
