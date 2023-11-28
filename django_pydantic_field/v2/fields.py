@@ -226,6 +226,6 @@ def SchemaField(
     ...
 
 
-def SchemaField(schema=None, config=None, default=None, *args, **kwargs):  # type: ignore
+def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs):  # type: ignore
     truncate_deprecated_v1_export_kwargs(kwargs)
     return PydanticSchemaField(*args, schema=schema, config=config, default=default, **kwargs)
