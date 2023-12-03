@@ -11,6 +11,7 @@ from tests.conftest import InnerSchema
 from tests.test_app.models import SampleModel
 
 rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework")
+coreapi = pytest.importorskip("django_pydantic_field.v2.rest_framework.coreapi")
 
 
 class SampleSerializer(serializers.Serializer):
@@ -136,7 +137,7 @@ def test_schema_parser():
 
 
 @api_view(["POST"])
-@schema(rest_framework.AutoSchema())
+@schema(coreapi.AutoSchema())
 @parser_classes([rest_framework.SchemaParser[InnerSchema]])
 @renderer_classes([rest_framework.SchemaRenderer[t.List[InnerSchema]]])
 def sample_view(request):
@@ -146,7 +147,7 @@ def sample_view(request):
 
 class ClassBasedViewWithSerializer(generics.RetrieveAPIView):
     serializer_class = SampleSerializer
-    schema = rest_framework.AutoSchema()
+    schema = coreapi.AutoSchema()
 
 
 class ClassBasedViewWithModel(generics.ListCreateAPIView):
