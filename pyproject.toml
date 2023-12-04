@@ -27,6 +27,7 @@ classifiers = [
     "Framework :: Django :: 5.0",
     "Framework :: Pydantic",
     "Framework :: Pydantic :: 1",
+    "Framework :: Pydantic :: 2",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
