@@ -1,6 +1,6 @@
 [![PyPI Version](https://img.shields.io/pypi/v/django-pydantic-field)](https://pypi.org/project/django-pydantic-field/)
 [![Lint and Test Package](https://github.com/surenkov/django-pydantic-field/actions/workflows/python-test.yml/badge.svg)](https://github.com/surenkov/django-pydantic-field/actions/workflows/python-test.yml)
-[![Downloads](https://static.pepy.tech/badge/django-pydantic-field/month)](https://pepy.tech/project/django-pydantic-field)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/django-pydantic-field)
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/django-pydantic-field)](https://pypi.org/project/django-pydantic-field/)
 [![Supported Django Versions](https://img.shields.io/pypi/frameworkversions/django/django-pydantic-field)](https://pypi.org/project/django-pydantic-field/)
 
