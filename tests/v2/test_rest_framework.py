@@ -1,10 +1,13 @@
 import io
 import typing as t
 from datetime import date
+from types import SimpleNamespace
 
 import pytest
-from rest_framework import exceptions, generics, serializers, views
+from django.urls import path
+from rest_framework import exceptions, generics, schemas, serializers, views
 from rest_framework.decorators import api_view, parser_classes, renderer_classes, schema
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from tests.conftest import InnerSchema
@@ -136,7 +139,7 @@ def test_schema_parser():
     assert parser.parse(io.StringIO(existing_encoded)) == expected_instance
 
 
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @schema(coreapi.AutoSchema())
 @parser_classes([rest_framework.SchemaParser[InnerSchema]])
 @renderer_classes([rest_framework.SchemaRenderer[t.List[InnerSchema]]])
@@ -145,7 +148,7 @@ def sample_view(request):
     return Response([request.data])
 
 
-class ClassBasedViewWithSerializer(generics.RetrieveAPIView):
+class ClassBasedViewWithSerializer(generics.RetrieveUpdateAPIView):
     serializer_class = SampleSerializer
     schema = coreapi.AutoSchema()
 
@@ -216,3 +219,27 @@ def test_end_to_end_list_create_api_view(request_factory):
     request = request_factory.get("/", content_type="application/json")
     response = ClassBasedViewWithModel.as_view()(request)
     assert response.data == [expected_result]
+
+
+urlconf = SimpleNamespace(
+    urlpatterns=[
+        path("/func", sample_view),
+        path("/class", ClassBasedViewWithSerializer.as_view()),
+    ],
+)
+
+
+@pytest.mark.parametrize(
+    "method, path",
+    [
+        ("GET", "/func"),
+        ("POST", "/func"),
+        ("GET", "/class"),
+        ("PUT", "/class"),
+    ],
+)
+def test_coreapi_schema_generators(request_factory, method, path):
+    generator = schemas.SchemaGenerator(urlconf=urlconf)
+    request = Request(request_factory.generic(method, path))
+    coreapi_schema = generator.get_schema(request)
+    assert coreapi_schema

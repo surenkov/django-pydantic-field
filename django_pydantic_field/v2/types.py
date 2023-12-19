@@ -143,7 +143,7 @@ class SchemaAdapter(ty.Generic[ST]):
         union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)  # type: ignore
         return self.type_adapter.dump_json(value, **union_kwargs)
 
-    def json_schema(self) -> ty.Any:
+    def json_schema(self) -> dict[str, ty.Any]:
         """Return the JSON schema for the field."""
         by_alias = self.export_kwargs.get("by_alias", True)
         return self.type_adapter.json_schema(by_alias=by_alias)
