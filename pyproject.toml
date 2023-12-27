@@ -49,6 +49,7 @@ dependencies = [
 
 [project.optional-dependencies]
 openapi = ["uritemplate"]
+coreapi = ["coreapi"]
 dev = [
     "build",
     "black",
@@ -61,7 +62,7 @@ dev = [
     "pytest-django>=4.5,<5",
 ]
 test = [
-    "django_pydantic_field[openapi]",
+    "django_pydantic_field[openapi,coreapi]",
     "dj-database-url~=2.0",
     "djangorestframework>=3,<4",
     "pyyaml",
