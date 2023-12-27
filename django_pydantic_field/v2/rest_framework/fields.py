@@ -5,8 +5,8 @@ import typing as ty
 import pydantic
 from rest_framework import exceptions, fields
 
-from ...compat.deprecation import truncate_deprecated_v1_export_kwargs
-from .. import types
+from django_pydantic_field.compat import deprecation
+from django_pydantic_field.v2 import types
 
 if ty.TYPE_CHECKING:
     from collections.abc import Mapping
@@ -27,7 +27,8 @@ class SchemaField(fields.Field, ty.Generic[types.ST]):
         allow_null: bool = False,
         **kwargs,
     ):
-        truncate_deprecated_v1_export_kwargs(kwargs)
+        deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
+
         self.schema = schema
         self.config = config
         self.export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)

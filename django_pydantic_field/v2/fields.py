@@ -11,8 +11,9 @@ from django.db.models.fields.json import JSONField
 from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
-from ..compat.deprecation import truncate_deprecated_v1_export_kwargs
-from ..compat.django import GenericContainer
+from django_pydantic_field.compat import deprecation
+from django_pydantic_field.compat.django import GenericContainer
+
 from . import forms, types
 
 if ty.TYPE_CHECKING:
@@ -227,5 +228,5 @@ def SchemaField(
 
 
 def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs):  # type: ignore
-    truncate_deprecated_v1_export_kwargs(kwargs)
+    deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
     return PydanticSchemaField(*args, schema=schema, config=config, default=default, **kwargs)

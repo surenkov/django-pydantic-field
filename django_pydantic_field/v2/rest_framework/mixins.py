@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import typing as ty
 
-from ...compat.typing import get_args
-from .. import types
+from django_pydantic_field.compat.typing import get_args
+from django_pydantic_field.v2 import types
 
 if ty.TYPE_CHECKING:
     from collections.abc import Mapping

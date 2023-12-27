@@ -8,7 +8,7 @@ from rest_framework.schemas import openapi
 from rest_framework.schemas.utils import is_list_view
 
 from . import base
-from ..compat.typing import get_args
+from django_pydantic_field.compat.typing import get_args
 
 __all__ = (
     "SchemaField",

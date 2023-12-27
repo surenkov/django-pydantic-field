@@ -9,8 +9,9 @@ from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
 
+from django_pydantic_field.compat.django import GenericContainer, GenericTypes
+
 from . import base, forms, utils
-from ..compat.django import GenericContainer, GenericTypes
 
 __all__ = ("SchemaField",)
 

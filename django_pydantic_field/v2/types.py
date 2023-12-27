@@ -6,8 +6,8 @@ from collections import ChainMap
 import pydantic
 import typing_extensions as te
 
-from ..compat.django import GenericContainer
-from ..compat.functools import cached_property
+from django_pydantic_field.compat.django import GenericContainer
+from django_pydantic_field.compat.functools import cached_property
 from . import utils
 
 if ty.TYPE_CHECKING:

@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.forms.fields import InvalidJSONInput, JSONField, JSONString
 from django.utils.translation import gettext_lazy as _
 
-from ..compat.deprecation import truncate_deprecated_v1_export_kwargs
+from django_pydantic_field.compat import deprecation
 from . import types
 
 
@@ -25,7 +25,7 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
         *args,
         **kwargs,
     ):
-        truncate_deprecated_v1_export_kwargs(kwargs)
+        deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
 
         self.schema = schema
         self.config = config
