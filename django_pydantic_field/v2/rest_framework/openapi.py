@@ -24,15 +24,13 @@ class AutoSchema(openapi.AutoSchema):
     def __init__(self, tags=None, operation_id_base=None, component_name=None) -> None:
         super().__init__(tags, operation_id_base, component_name)
         self.collected_schema_defs: dict[str, ty.Any] = {}
-        self.adapter_type_to_schema_refs = weakref.WeakKeyDictionary[type, str]()
+        self.collected_adapter_schema_refs: dict[str, ty.Any] = {}
         self.adapter_mode: JsonSchemaMode = "validation"
         self.rf = APIRequestFactory()
 
     def get_components(self, path: str, method: str) -> dict[str, ty.Any]:
         if method.lower() == "delete":
             return {}
-
-        super().get_components
 
         request_serializer = self.get_request_serializer(path, method)  # type: ignore[attr-defined]
         response_serializer = self.get_response_serializer(path, method)  # type: ignore[attr-defined]
@@ -61,9 +59,9 @@ class AutoSchema(openapi.AutoSchema):
         schema_content = {}
 
         for parser, ct in zip(self.view.parser_classes, self.request_media_types):
-            if issubclass(parser, parsers.SchemaParser):
-                ref_path = self._get_component_ref(self.adapter_type_to_schema_refs[parser])
-                schema_content[ct] = {"schema": {"$ref": ref_path}}
+            if isinstance(parser(), parsers.SchemaParser):
+                parser_schema = self.collected_adapter_schema_refs[repr(parser)]
+                schema_content[ct] = {"schema": parser_schema}
             else:
                 schema_content[ct] = request_schema
 
@@ -76,23 +74,21 @@ class AutoSchema(openapi.AutoSchema):
         self.response_media_types = self.map_renderers(path, method)
         serializer = self.get_response_serializer(path, method)
 
-        item_schema = {}
+        response_schema = {}
         if isinstance(serializer, serializers.Serializer):
-            item_schema = self.get_reference(serializer)
+            response_schema = self.get_reference(serializer)
 
-        if drf_schema_utils.is_list_view(path, method, self.view):
-            response_schema = {"type": "array", "items": item_schema}
-            paginator = self.get_paginator()
-            if paginator:
-                response_schema = paginator.get_paginated_response_schema(response_schema)
-        else:
-            response_schema = item_schema
+        is_list_view = drf_schema_utils.is_list_view(path, method, self.view)
+        if is_list_view:
+            response_schema = self._get_paginated_schema(response_schema)
 
         schema_content = {}
         for renderer, ct in zip(self.view.renderer_classes, self.response_media_types):
-            if issubclass(renderer, renderers.SchemaRenderer):
-                ref_path = self._get_component_ref(self.adapter_type_to_schema_refs[renderer])
-                schema_content[ct] = {"schema": {"$ref": ref_path}}
+            if isinstance(renderer(), renderers.SchemaRenderer):
+                renderer_schema = {"schema": self.collected_adapter_schema_refs[repr(renderer)]}
+                if is_list_view:
+                    renderer_schema = self._get_paginated_schema(renderer_schema)
+                schema_content[ct] = renderer_schema
             else:
                 schema_content[ct] = response_schema
 
@@ -110,14 +106,15 @@ class AutoSchema(openapi.AutoSchema):
 
         for parser in self.view.parser_classes:
             media_types.append(parser.media_type)
-            if issubclass(parser, parsers.SchemaParser):
-                schema_parsers.append(parser())
+            instance = parser()
+            if isinstance(instance, parsers.SchemaParser):
+                schema_parsers.append(parser)
 
         if schema_parsers:
             self.adapter_mode = "validation"
             request = self.rf.generic(method, path)
             schemas = self._collect_adapter_components(schema_parsers, self.view.get_parser_context(request))
-            self.collected_schema_defs.update(schemas)
+            self.collected_adapter_schema_refs.update(schemas)
 
         return media_types
 
@@ -127,13 +124,14 @@ class AutoSchema(openapi.AutoSchema):
 
         for renderer in self.view.renderer_classes:
             media_types.append(renderer.media_type)
-            if issubclass(renderer, renderers.SchemaRenderer):
-                schema_renderers.append(renderer())
+            instance = renderer()
+            if isinstance(instance, renderers.SchemaRenderer):
+                schema_renderers.append(renderer)
 
         if schema_renderers:
             self.adapter_mode = "serialization"
             schemas = self._collect_adapter_components(schema_renderers, self.view.get_renderer_context())
-            self.collected_schema_defs.update(schemas)
+            self.collected_adapter_schema_refs.update(schemas)
 
         return media_types
 
@@ -160,16 +158,13 @@ class AutoSchema(openapi.AutoSchema):
             schema_definition[component_name] = self.map_serializer(serializer)
         return schema_definition
 
-    def _collect_adapter_components(self, components: Iterable[mixins.AnnotatedAdapterMixin], context: dict):
+    def _collect_adapter_components(self, components: Iterable[type[mixins.AnnotatedAdapterMixin]], context: dict):
         type_adapters = []
 
         for component in components:
-            schema_adapter = component.get_adapter(context)
+            schema_adapter = component().get_adapter(context)
             if schema_adapter is not None:
-                schema_name = schema_adapter.prepared_schema.__class__.__name__
-                self.adapter_type_to_schema_refs[type(component)] = schema_name
-
-                type_adapters.append((schema_name, self.adapter_mode, schema_adapter.type_adapter))
+                type_adapters.append((repr(component), self.adapter_mode, schema_adapter.type_adapter))
 
         if type_adapters:
             return self._collect_type_adapter_schemas(type_adapters)
@@ -186,5 +181,9 @@ class AutoSchema(openapi.AutoSchema):
         self.collected_schema_defs.update(common_schemas.get("$defs", {}))
         return inner_schemas
 
-    def _get_component_ref(self, model: str):
-        return self.REF_TEMPLATE_PREFIX.format(model=model)
+    def _get_paginated_schema(self, schema) -> ty.Any:
+        response_schema = {"type": "array", "items": schema}
+        paginator = self.get_paginator()
+        if paginator:
+            response_schema = paginator.get_paginated_response_schema(response_schema)  # type: ignore
+        return response_schema
