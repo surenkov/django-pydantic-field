@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-pydantic-field"
-version = "0.2.12"
+version = "0.2.13"
 description = "Django JSONField with Pydantic models as a Schema"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -73,9 +73,6 @@ Homepage = "https://github.com/surenkov/django-pydantic-field"
 Documentation = "https://github.com/surenkov/django-pydantic-field"
 Source = "https://github.com/surenkov/django-pydantic-field"
 Changelog = "https://github.com/surenkov/django-pydantic-field/releases"
-
-[tool.setuptools]
-packages = ["django_pydantic_field"]
 
 [tool.mypy]
 plugins = [
