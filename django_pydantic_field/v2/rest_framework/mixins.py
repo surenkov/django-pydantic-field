@@ -12,6 +12,7 @@ if ty.TYPE_CHECKING:
 
 
 class AnnotatedAdapterMixin(ty.Generic[types.ST]):
+    media_type: ty.ClassVar[str]
     schema_context_key: ty.ClassVar[str] = "response_schema"
     config_context_key: ty.ClassVar[str] = "response_schema_config"
 

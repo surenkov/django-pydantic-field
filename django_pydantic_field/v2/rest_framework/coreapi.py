@@ -8,7 +8,7 @@ from rest_framework.schemas.coreapi import AutoSchema as _CoreAPIAutoSchema
 from .fields import SchemaField
 
 if ty.TYPE_CHECKING:
-    from coreschema.schemas import Schema as _CoreAPISchema
+    from coreschema.schemas import Schema as _CoreAPISchema  # type: ignore[import-untyped]
     from rest_framework.serializers import Serializer
 
 __all__ = ("AutoSchema",)

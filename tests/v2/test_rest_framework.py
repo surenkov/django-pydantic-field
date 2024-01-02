@@ -1,4 +1,5 @@
 import io
+import sys
 import typing as t
 from datetime import date
 from types import SimpleNamespace
@@ -229,6 +230,7 @@ urlconf = SimpleNamespace(
 )
 
 
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="CoreAPI is not compatible with 3.12")
 @pytest.mark.parametrize(
     "method, path",
     [
