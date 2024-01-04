@@ -4,6 +4,8 @@ import sys
 import typing as ty
 from collections import ChainMap
 
+from django_pydantic_field.compat import typing
+
 if ty.TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -37,6 +39,13 @@ def get_local_namespace(cls) -> dict[str, ty.Any]:
         return vars(cls)
     except TypeError:
         return {}
+
+
+def get_origin_type(cls: type):
+    origin_tp = typing.get_origin(cls)
+    if origin_tp is not None:
+        return origin_tp
+    return cls
 
 
 if sys.version_info >= (3, 9):

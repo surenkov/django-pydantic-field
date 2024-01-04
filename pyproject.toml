@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-pydantic-field"
-version = "0.3.0-alpha5"
+version = "0.3.0-beta1"
 description = "Django JSONField with Pydantic models as a Schema"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -66,6 +66,7 @@ test = [
     "dj-database-url~=2.0",
     "djangorestframework>=3,<4",
     "pyyaml",
+    "syrupy>=3,<5",
 ]
 ci = [
     'psycopg[binary]>=3.1,<4; python_version>="3.9"',

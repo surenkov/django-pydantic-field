@@ -1,5 +1,6 @@
 import typing as t
 from datetime import date
+from syrupy.extensions.json import JSONSnapshotExtension
 
 import pydantic
 import pytest
@@ -70,3 +71,8 @@ def mysql_backend(settings):
 )
 def available_database_backends(request, settings):
     yield request.param(settings)
+
+
+@pytest.fixture
+def snapshot_json(snapshot):
+    return snapshot.use_extension(JSONSnapshotExtension)

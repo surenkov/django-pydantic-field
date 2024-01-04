@@ -15,9 +15,8 @@ openapi = pytest.importorskip("django_pydantic_field.v2.rest_framework.openapi")
         ("PUT", "/class"),
     ],
 )
-def test_coreapi_schema_generators(request_factory, method, path):
+def test_openapi_schema_generators(request_factory, method, path, snapshot_json):
     urlconf = create_views_urlconf(openapi.AutoSchema)
     generator = SchemaGenerator(urlconf=urlconf)
     request = Request(request_factory.generic(method, path))
-    openapi_schema = generator.get_schema(request)
-    assert openapi_schema
+    assert snapshot_json() == generator.get_schema(request)

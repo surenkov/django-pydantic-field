@@ -6,9 +6,13 @@ import typing as ty
 from ..conftest import InnerSchema, SampleDataclass
 
 types = pytest.importorskip("django_pydantic_field.v2.types")
-skip_unsupported_builtin_subscription = pytest.mark.skipif(sys.version_info < (3, 9), reason="Built-in type subscription supports only in 3.9+")
+skip_unsupported_builtin_subscription = pytest.mark.skipif(
+    sys.version_info < (3, 9),
+    reason="Built-in type subscription supports only in 3.9+",
+)
 
 
+# fmt: off
 @pytest.mark.parametrize(
     "ctor, args, kwargs",
     [
@@ -26,8 +30,9 @@ skip_unsupported_builtin_subscription = pytest.mark.skipif(sys.version_info < (3
         (types.SchemaAdapter.from_annotation, [InnerSchema, "stub_int", {"strict": True}], {}),
         (types.SchemaAdapter.from_annotation, [SampleDataclass, "stub_int"], {}),
         (types.SchemaAdapter.from_annotation, [SampleDataclass, "stub_int", {"strict": True}], {}),
-    ]
+    ],
 )
+# fmt: on
 def test_schema_adapter_constructors(ctor, args, kwargs):
     adapter = ctor(*args, **kwargs)
     adapter.validate_schema()
@@ -52,6 +57,7 @@ def test_schema_adapter_is_bound():
     adapter.validate_schema()  # Schema should be resolved from bound attribute
 
 
+# fmt: off
 @pytest.mark.parametrize(
     "kwargs, expected_export_kwargs",
     [
@@ -61,6 +67,7 @@ def test_schema_adapter_is_bound():
         ({"strict": True, "from_attributes": False, "on_delete": "CASCADE"}, {"strict": True, "from_attributes": False}),
     ],
 )
+# fmt: on
 def test_schema_adapter_extract_export_kwargs(kwargs, expected_export_kwargs):
     orig_kwargs = dict(kwargs)
     assert types.SchemaAdapter.extract_export_kwargs(kwargs) == expected_export_kwargs

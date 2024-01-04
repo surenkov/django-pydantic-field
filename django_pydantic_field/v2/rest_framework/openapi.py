@@ -3,12 +3,13 @@ from __future__ import annotations
 import typing as ty
 
 import pydantic
-import weakref
 from rest_framework import serializers
-from rest_framework.schemas import openapi, utils as drf_schema_utils
+from rest_framework.schemas import openapi
+from rest_framework.schemas import utils as drf_schema_utils
 from rest_framework.test import APIRequestFactory
 
 from . import fields, parsers, renderers
+from ..utils import get_origin_type
 
 if ty.TYPE_CHECKING:
     from collections.abc import Iterable
@@ -59,11 +60,12 @@ class AutoSchema(openapi.AutoSchema):
         schema_content = {}
 
         for parser, ct in zip(self.view.parser_classes, self.request_media_types):
-            if isinstance(parser(), parsers.SchemaParser):
+            if issubclass(get_origin_type(parser), parsers.SchemaParser):
                 parser_schema = self.collected_adapter_schema_refs[repr(parser)]
-                schema_content[ct] = {"schema": parser_schema}
             else:
-                schema_content[ct] = request_schema
+                parser_schema = request_schema
+
+            schema_content[ct] = {"schema": parser_schema}
 
         return {"content": schema_content}
 
@@ -84,7 +86,7 @@ class AutoSchema(openapi.AutoSchema):
 
         schema_content = {}
         for renderer, ct in zip(self.view.renderer_classes, self.response_media_types):
-            if isinstance(renderer(), renderers.SchemaRenderer):
+            if issubclass(get_origin_type(renderer), renderers.SchemaRenderer):
                 renderer_schema = {"schema": self.collected_adapter_schema_refs[repr(renderer)]}
                 if is_list_view:
                     renderer_schema = self._get_paginated_schema(renderer_schema)
@@ -106,8 +108,7 @@ class AutoSchema(openapi.AutoSchema):
 
         for parser in self.view.parser_classes:
             media_types.append(parser.media_type)
-            instance = parser()
-            if isinstance(instance, parsers.SchemaParser):
+            if issubclass(get_origin_type(parser), parsers.SchemaParser):
                 schema_parsers.append(parser)
 
         if schema_parsers:
@@ -124,8 +125,7 @@ class AutoSchema(openapi.AutoSchema):
 
         for renderer in self.view.renderer_classes:
             media_types.append(renderer.media_type)
-            instance = renderer()
-            if isinstance(instance, renderers.SchemaRenderer):
+            if issubclass(get_origin_type(renderer), renderers.SchemaRenderer):
                 schema_renderers.append(renderer)
 
         if schema_renderers:
