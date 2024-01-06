@@ -1,18 +1,18 @@
 import io
-import json
 import typing as t
 from datetime import date
 
 import pytest
 import yaml
 from django.urls import path
-from django_pydantic_field import rest_framework
 from rest_framework import exceptions, generics, schemas, serializers, views
 from rest_framework.decorators import api_view, parser_classes, renderer_classes, schema
 from rest_framework.response import Response
 
-from .conftest import InnerSchema
-from .test_app.models import SampleModel
+from tests.conftest import InnerSchema
+from tests.test_app.models import SampleModel
+
+rest_framework = pytest.importorskip("django_pydantic_field.v1.rest_framework")
 
 
 class SampleSerializer(serializers.Serializer):

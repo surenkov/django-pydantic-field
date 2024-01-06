@@ -6,7 +6,10 @@ from django.db.migrations.writer import MigrationWriter
 import pytest
 
 import django_pydantic_field
-from django_pydantic_field._migration_serializers import GenericContainer
+try:
+    from django_pydantic_field.compat.django import GenericContainer
+except ImportError:
+    from django_pydantic_field._migration_serializers import GenericContainer
 
 if sys.version_info < (3, 9):
     test_types = [

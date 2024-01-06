@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-pydantic-field"
-version = "0.2.13"
+version = "0.3.0-beta1"
 description = "Django JSONField with Pydantic models as a Schema"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -27,6 +27,7 @@ classifiers = [
     "Framework :: Django :: 5.0",
     "Framework :: Pydantic",
     "Framework :: Pydantic :: 1",
+    "Framework :: Pydantic :: 2",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -41,26 +42,31 @@ classifiers = [
 
 requires-python = ">=3.7"
 dependencies = [
-    "pydantic>=1.9,<2",
+    "pydantic>=1.10,<3",
     "django>=3.1,<6",
     "typing_extensions",
 ]
 
 [project.optional-dependencies]
+openapi = ["uritemplate"]
+coreapi = ["coreapi"]
 dev = [
+    "build",
     "black",
     "isort",
     "mypy",
-    "pytest==7.0.*",
+    "pytest~=7.4",
     "djangorestframework>=3.11,<4",
-    "django-stubs[compatible-mypy]~=1.12.0",
-    "djangorestframework-stubs[compatible-mypy]~=1.7.0",
+    "django-stubs[compatible-mypy]~=4.2",
+    "djangorestframework-stubs[compatible-mypy]~=3.14",
     "pytest-django>=4.5,<5",
 ]
 test = [
+    "django_pydantic_field[openapi,coreapi]",
     "dj-database-url~=2.0",
     "djangorestframework>=3,<4",
     "pyyaml",
+    "syrupy>=3,<5",
 ]
 ci = [
     'psycopg[binary]>=3.1,<4; python_version>="3.9"',
@@ -74,12 +80,38 @@ Documentation = "https://github.com/surenkov/django-pydantic-field"
 Source = "https://github.com/surenkov/django-pydantic-field"
 Changelog = "https://github.com/surenkov/django-pydantic-field/releases"
 
+[tool.isort]
+py_version = 311
+profile = "black"
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+force_alphabetical_sort_within_sections = true
+force_grid_wrap = 0
+use_parentheses = true
+skip_glob = [
+    "*/migrations/*",
+]
+
+[tool.black]
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+line-length = 120
+exclude = '''
+/(
+    \.pytest_cache
+  | \.venv
+  | venv
+  | migrations
+)/
+'''
+
 [tool.mypy]
 plugins = [
     "mypy_django_plugin.main",
     "mypy_drf_plugin.main"
 ]
 exclude = [".env", "tests"]
+enable_incomplete_feature = ["Unpack"]
 
 [tool.django-stubs]
 django_settings_module = "tests.settings.django_test_settings"

@@ -1,0 +1,217 @@
+{
+  "components": {
+    "schemas": {
+      "InnerSchema": {
+        "properties": {
+          "stub_int": {
+            "default": 1,
+            "title": "Stub Int",
+            "type": "integer"
+          },
+          "stub_list": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Stub List",
+            "type": "array"
+          },
+          "stub_str": {
+            "title": "Stub Str",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stub_str",
+          "stub_list"
+        ],
+        "title": "InnerSchema",
+        "type": "object"
+      },
+      "Sample": {
+        "properties": {
+          "field": {
+            "items": {
+              "$ref": "#/components/schemas/InnerSchema"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "field"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "",
+    "version": ""
+  },
+  "openapi": "3.0.2",
+  "paths": {
+    "/class": {
+      "get": {
+        "description": "",
+        "operationId": "retrieveSample",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "$ref": "#/components/schemas/Sample"
+              },
+              "text/html": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "class"
+        ]
+      },
+      "patch": {
+        "description": "",
+        "operationId": "partialUpdateSample",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "$ref": "#/components/schemas/Sample"
+              },
+              "text/html": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "class"
+        ]
+      },
+      "put": {
+        "description": "",
+        "operationId": "updateSample",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "$ref": "#/components/schemas/Sample"
+              },
+              "text/html": {
+                "$ref": "#/components/schemas/Sample"
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "class"
+        ]
+      }
+    },
+    "/func": {
+      "get": {
+        "description": "",
+        "operationId": "listsample_views",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "items": {
+                  "schema": {
+                    "items": {
+                      "$ref": "#/components/schemas/InnerSchema"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "array"
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "func"
+        ]
+      },
+      "post": {
+        "description": "",
+        "operationId": "createsample_view",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InnerSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InnerSchema"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "func"
+        ]
+      }
+    }
+  }
+}

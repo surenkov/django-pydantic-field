@@ -3,8 +3,8 @@ from datetime import date
 import pytest
 from django.db.models import F, Q, JSONField, Value
 
-from .conftest import InnerSchema
-from .test_app.models import SampleModel
+from tests.conftest import InnerSchema
+from tests.test_app.models import SampleModel
 
 pytestmark = [
     pytest.mark.usefixtures("available_database_backends"),
@@ -17,15 +17,11 @@ pytestmark = [
     [
         (
             {
-                "sample_field": InnerSchema(
-                    stub_str="abc", stub_list=[date(2023, 6, 1)]
-                ),
+                "sample_field": InnerSchema(stub_str="abc", stub_list=[date(2023, 6, 1)]),
                 "sample_list": [InnerSchema(stub_str="abc", stub_list=[])],
             },
             {
-                "sample_field": InnerSchema(
-                    stub_str="abc", stub_list=[date(2023, 6, 1)]
-                ),
+                "sample_field": InnerSchema(stub_str="abc", stub_list=[date(2023, 6, 1)]),
                 "sample_list": [InnerSchema(stub_str="abc", stub_list=[])],
             },
         ),
@@ -35,9 +31,7 @@ pytestmark = [
                 "sample_list": [{"stub_str": "abc", "stub_list": []}],
             },
             {
-                "sample_field": InnerSchema(
-                    stub_str="abc", stub_list=[date(2023, 6, 1)]
-                ),
+                "sample_field": InnerSchema(stub_str="abc", stub_list=[date(2023, 6, 1)]),
                 "sample_list": [InnerSchema(stub_str="abc", stub_list=[])],
             },
         ),
