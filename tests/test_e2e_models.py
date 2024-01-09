@@ -1,7 +1,8 @@
 from datetime import date
 
 import pytest
-from django.db.models import F, Q, JSONField, Value
+from django.core import serializers
+from django.db.models import F, JSONField, Q, Value
 
 from .conftest import InnerSchema
 from .test_app.models import SampleModel
@@ -50,6 +51,32 @@ def test_model_db_serde(initial_payload, expected_values):
     instance = SampleModel.objects.get(pk=instance.pk)
     instance_values = {k: getattr(instance, k) for k in expected_values.keys()}
     assert instance_values == expected_values
+
+
+@pytest.mark.parametrize("format", ["python", "json", "yaml", "jsonl"])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "sample_field": InnerSchema(stub_str="abc", stub_list=[date(2023, 6, 1)]),
+            "sample_list": [InnerSchema(stub_str="abc", stub_list=[])],
+        },
+        {
+            "sample_field": {"stub_str": "abc", "stub_list": ["2023-06-01"]},
+            "sample_list": [{"stub_str": "abc", "stub_list": []}],
+        },
+    ],
+)
+def test_model_serialization(payload, format):
+    instance = SampleModel(**payload)
+    instance_values = {k: getattr(instance, k) for k in payload.keys()}
+
+    serialized_instances = serializers.serialize(format, [instance])
+    deserialized_instance = next(serializers.deserialize(format, serialized_instances)).object
+    deserialized_values = {k: getattr(deserialized_instance, k) for k in payload.keys()}
+
+    assert instance_values == deserialized_values
+    assert serialized_instances == serializers.serialize(format, [deserialized_instance])
 
 
 @pytest.mark.parametrize(
