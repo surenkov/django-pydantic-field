@@ -125,6 +125,9 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         field_kwargs.update(kwargs)
         return super().formfield(**field_kwargs)
 
+    def value_from_object(self, obj):
+        return super().value_from_object().dict()
+
     def _resolve_schema(self, schema):
         schema = t.cast(t.Type["base.ST"], GenericContainer.unwrap(schema))
 

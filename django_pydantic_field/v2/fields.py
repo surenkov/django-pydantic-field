@@ -187,6 +187,9 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         field_kwargs.update(kwargs)
         return super().formfield(**field_kwargs)  # type: ignore
 
+    def value_from_object(self, obj):
+        return super().value_from_object().model_dump()
+
 
 class SchemaKeyTransformAdapter:
     """An adapter for creating key transforms for schema field lookups."""
