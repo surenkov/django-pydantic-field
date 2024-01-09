@@ -19,6 +19,7 @@ from . import forms, types
 if ty.TYPE_CHECKING:
     import json
     import typing_extensions as te
+    from django.db.models import Model
 
     class _SchemaFieldKwargs(types.ExportKwargs, total=False):
         # django.db.models.fields.Field kwargs
@@ -149,6 +150,11 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
     def to_python(self, value: ty.Any):
         try:
+            value = self.adapter.validate_json(value)
+        except ValueError:
+            """This is an expected error, this step is required to parse serialized values."""
+
+        try:
             return self.adapter.validate_python(value)
         except pydantic.ValidationError as exc:
             error_params = {"errors": exc.errors(), "field": self}
@@ -187,8 +193,9 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         field_kwargs.update(kwargs)
         return super().formfield(**field_kwargs)  # type: ignore
 
-    def value_from_object(self, obj):
-        return super().value_from_object().model_dump()
+    def value_to_string(self, obj: Model):
+        value = super().value_from_object(obj)
+        return self.get_prep_value(value)
 
 
 class SchemaKeyTransformAdapter:
