@@ -5,10 +5,12 @@ on:
     branches:
       - dev
       - master
+      - pydantic-1
   pull_request:
     branches:
       - dev
       - master
+      - pydantic-1
     types:
       - opened
       - synchronize
