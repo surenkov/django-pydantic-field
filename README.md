@@ -6,7 +6,7 @@
 
 # Django + Pydantic = 🖤
 
-Django JSONField with Pydantic models as a Schema
+Django JSONField with Pydantic models as a Schema.
 
 **Now supports both Pydantic v1 and v2!** [Please join the discussion](https://github.com/surenkov/django-pydantic-field/discussions/36) if you have any thoughts or suggestions!
 
