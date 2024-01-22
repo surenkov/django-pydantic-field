@@ -53,7 +53,7 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
             return value
         if value in self.empty_values:
             return None
-        elif isinstance(value, JSONString):
+        elif isinstance(value, (pydantic.BaseModel, JSONString)):
             return value
         try:
             converted = self.adapter.validate_json(value)
