@@ -5,7 +5,7 @@ from django.core import serializers
 from django.db.models import F, Q, JSONField, Value
 
 from tests.conftest import InnerSchema
-from tests.test_app.models import SampleModel
+from tests.test_app.models import ExampleModel, SampleModel
 
 pytestmark = [
     pytest.mark.usefixtures("available_database_backends"),
@@ -45,6 +45,43 @@ def test_model_db_serde(initial_payload, expected_values):
     instance = SampleModel.objects.get(pk=instance.pk)
     instance_values = {k: getattr(instance, k) for k in expected_values.keys()}
     assert instance_values == expected_values
+
+
+@pytest.mark.parametrize(
+    "Model,payload,update_fields",
+    [
+        (
+            SampleModel,
+            {
+                "sample_field": InnerSchema(stub_str="abc", stub_list=[date(2023, 6, 1)]),
+                "sample_list": [InnerSchema(stub_str="abc", stub_list=[])],
+            },
+            ["sample_field", "sample_list", "sample_seq"],
+        ),
+        (
+            SampleModel,
+            {
+                "sample_field": {"stub_str": "abc", "stub_list": ["2023-06-01"]},
+                "sample_list": [{"stub_str": "abc", "stub_list": []}],
+            },
+            ["sample_field", "sample_list", "sample_seq"],
+        ),
+        (ExampleModel, {}, ["example_field"]),
+        (ExampleModel, {"example_field": {"count": 1}}, ["example_field"]),
+    ],
+)
+def test_model_bulk_operations(Model, payload, update_fields):
+    models = [
+        Model(**payload),
+        Model(**payload),
+        Model(**payload),
+    ]
+    saved_models = Model.objects.bulk_create(models)
+    fetched_models = Model.objects.order_by("pk")
+    assert len(fetched_models) == len(saved_models) == 3
+
+    Model.objects.bulk_update(fetched_models, update_fields)
+    assert len(fetched_models.all()) == 3
 
 
 @pytest.mark.parametrize("format", ["python", "json", "yaml", "jsonl"])
