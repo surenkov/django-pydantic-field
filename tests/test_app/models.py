@@ -30,3 +30,11 @@ class SampleForwardRefModel(models.Model):
 
 class SampleSchema(pydantic.BaseModel):
     field: int = 1
+
+
+class ExampleSchema(pydantic.BaseModel):
+    count: int
+
+
+class ExampleModel(models.Model):
+    example_field: ExampleSchema = SchemaField(default=ExampleSchema(count=1))
