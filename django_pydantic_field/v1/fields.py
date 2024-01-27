@@ -1,10 +1,11 @@
 import json
 import typing as t
+import contextlib
 from functools import partial
 
-import django
 import pydantic
 from django.core import exceptions as django_exceptions
+from django.db.models.expressions import BaseExpression, Value
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
@@ -74,14 +75,20 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         except pydantic.ValidationError as e:
             raise django_exceptions.ValidationError(e.errors())
 
-    if django.VERSION[:2] >= (4, 2):
+    def get_prep_value(self, value):
+        if not self._is_prepared_schema:
+            self._prepare_model_schema()
 
-        def get_prep_value(self, value):
-            if not self._is_prepared_schema:
-                self._prepare_model_schema()
-            prep_value = super().get_prep_value(value)
-            prep_value = self.encoder().encode(prep_value)  # type: ignore
-            return json.loads(prep_value)
+        if isinstance(value, Value) and isinstance(value.output_field, self.__class__):
+            # Prepare inner value for `Value`-wrapped expressions.
+            value = Value(self.get_prep_value(value.value), value.output_field)
+        elif not isinstance(value, BaseExpression):
+            # Prepare the value if it is not a query expression.
+            with contextlib.suppress(Exception):
+                value = self.to_python(value)
+            value = json.loads(self.encoder().encode(value))
+
+        return super().get_prep_value(value)
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
