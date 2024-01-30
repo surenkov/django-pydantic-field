@@ -1,4 +1,5 @@
 import typing as ty
+from datetime import date
 
 import django
 import pytest
@@ -16,11 +17,20 @@ class SampleForm(Form):
     field = forms.SchemaField(ty.ForwardRef("SampleSchema"))
 
 
-def test_form_schema_field():
+@pytest.mark.parametrize(
+    "raw_data, clean_data",
+    [
+        ('{"stub_str": "abc", "stub_list": ["1970-01-01"]}', {"stub_str": "abc", "stub_list": ["1970-01-01"]}),
+        (b'{"stub_str": "abc", "stub_list": ["1970-01-01"]}', {"stub_str": "abc", "stub_list": ["1970-01-01"]}),
+        ({"stub_str": "abc", "stub_list": ["1970-01-01"]}, {"stub_str": "abc", "stub_list": ["1970-01-01"]}),
+        (InnerSchema(stub_str="abc", stub_list=[date(1970, 1, 1)]), {"stub_str": "abc", "stub_list": ["1970-01-01"]}),
+    ],
+)
+def test_form_schema_field(raw_data, clean_data):
     field = forms.SchemaField(InnerSchema)
 
-    cleaned_data = field.clean('{"stub_str": "abc", "stub_list": ["1970-01-01"]}')
-    assert cleaned_data == InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+    cleaned_data = field.clean(raw_data)
+    assert cleaned_data == InnerSchema.model_validate(clean_data)
 
 
 def test_empty_form_values():
@@ -87,14 +97,17 @@ def test_forwardref_model_formfield():
     assert cleaned_data["annotated_field"] == SampleSchema(field=2)
 
 
-@pytest.mark.parametrize("export_kwargs", [
-    {"include": {"stub_str", "stub_int"}},
-    {"exclude": {"stub_list"}},
-    {"exclude_unset": True},
-    {"exclude_defaults": True},
-    {"exclude_none": True},
-    {"by_alias": True},
-])
+@pytest.mark.parametrize(
+    "export_kwargs",
+    [
+        {"include": {"stub_str", "stub_int"}},
+        {"exclude": {"stub_list"}},
+        {"exclude_unset": True},
+        {"exclude_defaults": True},
+        {"exclude_none": True},
+        {"by_alias": True},
+    ],
+)
 def test_form_field_export_kwargs(export_kwargs):
     field = forms.SchemaField(InnerSchema, required=False, **export_kwargs)
     value = InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
