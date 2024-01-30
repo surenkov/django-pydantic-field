@@ -21,6 +21,7 @@ class SampleForm(Form):
     "raw_data, clean_data",
     [
         ('{"stub_str": "abc", "stub_list": ["1970-01-01"]}', {"stub_str": "abc", "stub_list": ["1970-01-01"]}),
+        (b'{"stub_str": "abc", "stub_list": ["1970-01-01"]}', {"stub_str": "abc", "stub_list": ["1970-01-01"]}),
         ({"stub_str": "abc", "stub_list": ["1970-01-01"]}, {"stub_str": "abc", "stub_list": ["1970-01-01"]}),
         (InnerSchema(stub_str="abc", stub_list=[date(1970, 1, 1)]), {"stub_str": "abc", "stub_list": ["1970-01-01"]}),
     ],

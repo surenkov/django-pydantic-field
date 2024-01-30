@@ -55,11 +55,11 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
             return None
 
         try:
-            if not isinstance(value, str):
+            if not isinstance(value, (str, bytes)):
                 # The form data may contain python objects for some cases (e.g. using django-constance).
                 value = self.adapter.validate_python(value)
             elif not isinstance(value, JSONString):
-                # Otherwise, try to parse incoming JSON accoring to the schema.
+                # Otherwise, try to parse incoming JSON according to the schema.
                 value = self.adapter.validate_json(value)
         except pydantic.ValidationError as exc:
             error_params = {"value": value, "title": exc.title, "detail": exc.json(), "errors": exc.errors()}
