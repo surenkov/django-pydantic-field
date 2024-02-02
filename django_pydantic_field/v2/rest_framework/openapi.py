@@ -9,7 +9,7 @@ from rest_framework.schemas import utils as drf_schema_utils
 from rest_framework.test import APIRequestFactory
 
 from . import fields, parsers, renderers
-from ..utils import get_origin_type
+from django_pydantic_field.v2 import utils
 
 if ty.TYPE_CHECKING:
     from collections.abc import Iterable
@@ -60,7 +60,7 @@ class AutoSchema(openapi.AutoSchema):
         schema_content = {}
 
         for parser, ct in zip(self.view.parser_classes, self.request_media_types):
-            if issubclass(get_origin_type(parser), parsers.SchemaParser):
+            if issubclass(utils.get_origin_type(parser), parsers.SchemaParser):
                 parser_schema = self.collected_adapter_schema_refs[repr(parser)]
             else:
                 parser_schema = request_schema
@@ -86,7 +86,7 @@ class AutoSchema(openapi.AutoSchema):
 
         schema_content = {}
         for renderer, ct in zip(self.view.renderer_classes, self.response_media_types):
-            if issubclass(get_origin_type(renderer), renderers.SchemaRenderer):
+            if issubclass(utils.get_origin_type(renderer), renderers.SchemaRenderer):
                 renderer_schema = {"schema": self.collected_adapter_schema_refs[repr(renderer)]}
                 if is_list_view:
                     renderer_schema = self._get_paginated_schema(renderer_schema)
@@ -108,7 +108,7 @@ class AutoSchema(openapi.AutoSchema):
 
         for parser in self.view.parser_classes:
             media_types.append(parser.media_type)
-            if issubclass(get_origin_type(parser), parsers.SchemaParser):
+            if issubclass(utils.get_origin_type(parser), parsers.SchemaParser):
                 schema_parsers.append(parser)
 
         if schema_parsers:
@@ -125,7 +125,7 @@ class AutoSchema(openapi.AutoSchema):
 
         for renderer in self.view.renderer_classes:
             media_types.append(renderer.media_type)
-            if issubclass(get_origin_type(renderer), renderers.SchemaRenderer):
+            if issubclass(utils.get_origin_type(renderer), renderers.SchemaRenderer):
                 schema_renderers.append(renderer)
 
         if schema_renderers:
