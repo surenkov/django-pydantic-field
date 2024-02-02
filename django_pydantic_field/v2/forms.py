@@ -10,6 +10,8 @@ from django.utils.translation import gettext_lazy as _
 from django_pydantic_field.compat import deprecation
 from . import types
 
+__all__ = ("SchemaField",)
+
 
 class SchemaField(JSONField, ty.Generic[types.ST]):
     adapter: types.SchemaAdapter

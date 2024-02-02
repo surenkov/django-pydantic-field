@@ -19,6 +19,15 @@ from .sample_app.models import Building
 from .test_app.models import SampleForwardRefModel, SampleModel, SampleSchema
 
 
+@pytest.mark.parametrize(
+    "exported_primitive_name",
+    ["SchemaField"],
+)
+def test_module_imports(exported_primitive_name):
+    assert exported_primitive_name in dir(fields)
+    assert getattr(fields, exported_primitive_name, None) is not None
+
+
 def test_sample_field():
     sample_field = fields.PydanticSchemaField(schema=InnerSchema)
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])

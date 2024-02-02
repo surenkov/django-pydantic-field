@@ -1,15 +1,15 @@
 import typing as ty
-import typing_extensions as te
 
+import typing_extensions as te
+from django.utils.functional import _StrOrPromise
 from rest_framework import parsers, renderers
 from rest_framework.fields import _DefaultInitial, Field
+from rest_framework.schemas.openapi import AutoSchema as _OpenAPIAutoSchema
 from rest_framework.validators import Validator
 
-from django.utils.functional import _StrOrPromise
+from .fields import _ExportKwargs, ConfigType, ST
 
-from .fields import ST, ConfigType, _ExportKwargs
-
-__all__ = ("SchemaField", "SchemaParser", "SchemaRenderer")
+__all__ = ("SchemaField", "SchemaParser", "SchemaRenderer", "AutoSchema")
 
 class _FieldKwargs(te.TypedDict, ty.Generic[ST], total=False):
     read_only: bool
@@ -45,7 +45,9 @@ class SchemaField(Field, ty.Generic[ST]):
         **kwargs: te.Unpack[_SchemaFieldKwargs[ST]],
     ) -> None: ...
     @ty.overload
-    @te.deprecated("Passing `json.dump` kwargs to `SchemaField` is not supported by Pydantic 2 and will be removed in the future versions.")
+    @te.deprecated(
+        "Passing `json.dump` kwargs to `SchemaField` is not supported by Pydantic 2 and will be removed in the future versions."
+    )
     def __init__(
         self,
         schema: ty.Type[ST] | ty.ForwardRef | str,
@@ -61,3 +63,5 @@ class SchemaParser(parsers.JSONParser, ty.Generic[ST]):
 class SchemaRenderer(renderers.JSONRenderer, ty.Generic[ST]):
     schema_context_key: ty.ClassVar[str]
     config_context_key: ty.ClassVar[str]
+
+class AutoSchema(_OpenAPIAutoSchema): ...

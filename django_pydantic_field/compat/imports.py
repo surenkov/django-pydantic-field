@@ -14,7 +14,15 @@ def compat_getattr(module_name: str):
 
 def compat_dir(module_name: str):
     compat_module = _import_compat_module(module_name)
-    return dir(compat_module)
+    module_ns = vars(compat_module)
+
+    if "__dir__" in module_ns:
+        return module_ns["__dir__"]
+
+    if "__all__" in module_ns:
+        return functools.partial(list, module_ns["__all__"])
+
+    return functools.partial(dir, compat_module)
 
 
 def _import_compat_module(module_name: str) -> types.ModuleType:
