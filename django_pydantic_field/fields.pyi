@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import typing as ty
-import typing_extensions as te
 
 import typing_extensions as te
+from django.db.models.expressions import BaseExpression
 from pydantic import BaseConfig, BaseModel, ConfigDict
 
 try:
@@ -80,7 +80,7 @@ class _DeprecatedSchemaFieldKwargs(_SchemaFieldKwargs, total=False):
 def SchemaField(
     schema: ty.Type[ST] | None | ty.ForwardRef = ...,
     config: ConfigType = ...,
-    default: OptSchemaT | ty.Callable[[], OptSchemaT] = ...,
+    default: OptSchemaT | ty.Callable[[], OptSchemaT] | BaseExpression = ...,
     *args,
     null: ty.Literal[True],
     **kwargs: te.Unpack[_SchemaFieldKwargs],
@@ -89,7 +89,7 @@ def SchemaField(
 def SchemaField(
     schema: ty.Type[ST] | ty.ForwardRef = ...,
     config: ConfigType = ...,
-    default: ty.Union[SchemaT, ty.Callable[[], SchemaT]] = ...,
+    default: SchemaT | ty.Callable[[], SchemaT] | BaseExpression = ...,
     *args,
     null: ty.Literal[False] = ...,
     **kwargs: te.Unpack[_SchemaFieldKwargs],
@@ -99,7 +99,7 @@ def SchemaField(
 def SchemaField(
     schema: ty.Type[ST] | None | ty.ForwardRef = ...,
     config: ConfigType = ...,
-    default: ty.Union[SchemaT, ty.Callable[[], SchemaT]] = ...,
+    default: SchemaT | ty.Callable[[], SchemaT] | BaseExpression = ...,
     *args,
     null: ty.Literal[True],
     **kwargs: te.Unpack[_DeprecatedSchemaFieldKwargs],
@@ -109,7 +109,7 @@ def SchemaField(
 def SchemaField(
     schema: ty.Type[ST] | ty.ForwardRef = ...,
     config: ConfigType = ...,
-    default: ty.Union[SchemaT, ty.Callable[[], SchemaT]] = ...,
+    default: SchemaT | ty.Callable[[], SchemaT] | BaseExpression = ...,
     *args,
     null: ty.Literal[False] = ...,
     **kwargs: te.Unpack[_DeprecatedSchemaFieldKwargs],
