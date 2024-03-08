@@ -3,7 +3,7 @@ import typing as t
 import pydantic
 from django.db import models
 from django_pydantic_field import SchemaField
-from django_pydantic_field.compat.pydantic import PYDANTIC_V2
+from django_pydantic_field.compat import PYDANTIC_V2
 
 from ..conftest import InnerSchema
 
@@ -12,20 +12,10 @@ class FrozenInnerSchema(InnerSchema):
     model_config = pydantic.ConfigDict({"frozen": True})
 
 
-if PYDANTIC_V2:
-    class RootSchema(pydantic.RootModel):
-        root: list[str]
-else:
-    class RootSchema(pydantic.BaseModel):
-        __root__: list[str]
-
-
 class SampleModel(models.Model):
     sample_field: InnerSchema = SchemaField()
     sample_list: t.List[InnerSchema] = SchemaField()
     sample_seq: t.Sequence[InnerSchema] = SchemaField(schema=t.List[InnerSchema], default=list)
-    sample_root_schema: RootSchema = SchemaField(default=[])
-    sample_null_root_schema: t.Optional[RootSchema] = SchemaField(null=True, default=None)
 
     class Meta:
         app_label = "test_app"
@@ -48,3 +38,17 @@ class ExampleSchema(pydantic.BaseModel):
 
 class ExampleModel(models.Model):
     example_field: ExampleSchema = SchemaField(default=ExampleSchema(count=1))
+
+
+if PYDANTIC_V2:
+    class RootModel(pydantic.RootModel):
+        root: t.List[int]
+
+else:
+    class RootModel(pydantic.BaseModel):
+        __root__: t.List[int]
+
+
+class SampleModelWithRoot(models.Model):
+    class Meta:
+        managed = False

@@ -200,7 +200,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             try:
                 value = self.adapter.validate_python(value)
             except pydantic.ValidationError:
-                """This is a legitimate situation(?), the data could not be initially coerced."""
+                """This is a legitimate situation, the data could not be initially coerced."""
             value = self.adapter.dump_python(value, **dump_kwargs)
 
         return value

@@ -20,11 +20,14 @@ from .test_app.models import SampleForwardRefModel, SampleModel, SampleSchema
 
 
 if PYDANTIC_V2:
+
     class SampleRootModel(pydantic.RootModel):
-        root: list[str]
+        root: ty.List[str]
+
 else:
+
     class SampleRootModel(pydantic.BaseModel):
-        __root__: list[str]
+        __root__: ty.List[str]
 
 
 @pytest.mark.parametrize(
@@ -107,11 +110,25 @@ def test_resolved_forwardrefs(forward_ref):
         ),
         fields.PydanticSchemaField(schema=ty.Optional[InnerSchema], null=True, default=None),
         fields.PydanticSchemaField(schema=SampleRootModel, default=[""]),
-        fields.PydanticSchemaField(schema=SampleRootModel, default=SampleRootModel([])),
         fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], default=[""]),
-        fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], default=SampleRootModel([])),
         fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], null=True, default=None),
         fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], null=True, blank=True),
+        pytest.param(
+            fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], default=SampleRootModel.parse_obj([])),
+            marks=pytest.mark.xfail(
+                PYDANTIC_V1,
+                reason="Prepared root-model based defaults are not supported with Pydantic v1",
+                raises=ValidationError,
+            ),
+        ),
+        pytest.param(
+            fields.PydanticSchemaField(schema=SampleRootModel, default=SampleRootModel.parse_obj([""])),
+            marks=pytest.mark.xfail(
+                PYDANTIC_V1,
+                reason="Prepared root-model based defaults are not supported with Pydantic v1",
+                raises=ValidationError,
+            ),
+        ),
         pytest.param(
             fields.PydanticSchemaField(
                 schema=InnerSchema,

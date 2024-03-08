@@ -13,6 +13,11 @@ class SampleForwardRefModelAdmin(admin.ModelAdmin):
     pass
 
 
+@admin.register(models.SampleModelWithRoot)
+class SampleModelWithRootAdmin(admin.ModelAdmin):
+    pass
+
+
 @admin.register(models.ExampleModel)
 class ExampleModelAdmin(admin.ModelAdmin):
     pass
