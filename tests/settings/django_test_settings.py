@@ -4,6 +4,7 @@ import dj_database_url
 SECRET_KEY = "1"
 SITE_ID = 1
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_URL = "/static/"
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",

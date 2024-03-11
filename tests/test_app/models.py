@@ -41,14 +41,13 @@ class ExampleModel(models.Model):
 
 
 if PYDANTIC_V2:
-    class RootModel(pydantic.RootModel):
+    class RootSchema(pydantic.RootModel):
         root: t.List[int]
 
 else:
-    class RootModel(pydantic.BaseModel):
+    class RootSchema(pydantic.BaseModel):
         __root__: t.List[int]
 
 
 class SampleModelWithRoot(models.Model):
-    class Meta:
-        managed = False
+    root_field = SchemaField(schema=RootSchema, default=list)

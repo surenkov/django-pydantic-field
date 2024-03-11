@@ -171,9 +171,11 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             transform = SchemaKeyTransformAdapter(transform)
         return transform
 
-    def get_default(self) -> types.ST:
+    def get_default(self) -> ty.Any:
         default_value = super().get_default()
-        return self.adapter.validate_python(default_value)
+        if self.has_default():
+            return self.adapter.validate_python(default_value)
+        return default_value
 
     def formfield(self, **kwargs):
         field_kwargs = dict(
