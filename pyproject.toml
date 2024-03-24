@@ -48,7 +48,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-openapi = ["uritemplate"]
+openapi = ["uritemplate", "inflection"]
 coreapi = ["coreapi"]
 dev = [
     "build",
