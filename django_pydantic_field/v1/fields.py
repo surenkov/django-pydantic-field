@@ -1,6 +1,6 @@
+import contextlib
 import json
 import typing as t
-import contextlib
 from functools import partial
 
 import pydantic
@@ -188,8 +188,7 @@ def SchemaField(
     *args,
     null: "t.Literal[True]",
     **kwargs,
-) -> "t.Optional[base.ST]":
-    ...
+) -> "t.Optional[base.ST]": ...
 
 
 @t.overload
@@ -200,8 +199,7 @@ def SchemaField(
     *args,
     null: "t.Literal[False]" = ...,
     **kwargs,
-) -> "base.ST":
-    ...
+) -> "base.ST": ...
 
 
 def SchemaField(schema=None, config=None, default=None, *args, **kwargs) -> t.Any:

@@ -8,6 +8,7 @@ import typing_extensions as te
 
 from django_pydantic_field.compat.django import GenericContainer
 from django_pydantic_field.compat.functools import cached_property
+
 from . import utils
 
 if ty.TYPE_CHECKING:
