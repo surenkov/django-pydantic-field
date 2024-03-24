@@ -188,6 +188,14 @@ class FooClassBasedView(views.APIView):
         return Response([request.data])
 ```
 
+## Contributing
+To get `django-pydantic-field` up and running in development mode:
+1. Clone this repo;
+1. Create a virtual environment: `python -m venv .venv`;
+1. Activate `.venv`: `. .venv/bin/activate`;
+1. Install the project and its dependencies: `pip install -e .[dev,test]`;
+1. Setup `pre-commit`: `pre-commit install`.
+
 ## Acknowledgement
 
 * [Churkin Oleg](https://gist.github.com/Bahus/98a9848b1f8e2dcd986bf9f05dbf9c65) for his Gist as a source of inspiration;
