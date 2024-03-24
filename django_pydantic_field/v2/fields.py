@@ -18,6 +18,7 @@ from . import forms, types
 
 if ty.TYPE_CHECKING:
     import json
+
     import typing_extensions as te
     from django.db.models import Model
 
@@ -94,7 +95,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         default = kwargs.get("default", NOT_PROVIDED)
         if default is not NOT_PROVIDED and not callable(default):
-            kwargs["default"] = self.adapter.dump_python(default, include=None, exclude=None, round_trip=True)
+            kwargs["default"] = self._prepare_raw_value(default, include=None, exclude=None, round_trip=True)
 
         prep_schema = GenericContainer.wrap(self.adapter.prepared_schema)
         kwargs.update(schema=prep_schema, config=self.config, **self.export_kwargs)
@@ -161,14 +162,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             raise exceptions.ValidationError(exc.json(), code="invalid", params=error_params) from exc
 
     def get_prep_value(self, value: ty.Any):
-        if isinstance(value, Value) and isinstance(value.output_field, self.__class__):
-            # Prepare inner value for `Value`-wrapped expressions.
-            value = Value(self.get_prep_value(value.value), value.output_field)
-        elif not isinstance(value, BaseExpression):
-            # Prepare the value if it is not a query expression.
-            prep_value = self.adapter.validate_python(value)
-            value = self.adapter.dump_python(prep_value)
-
+        value = self._prepare_raw_value(value)
         return super().get_prep_value(value)
 
     def get_transform(self, lookup_name: str):
@@ -177,9 +171,11 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             transform = SchemaKeyTransformAdapter(transform)
         return transform
 
-    def get_default(self) -> types.ST:
+    def get_default(self) -> ty.Any:
         default_value = super().get_default()
-        return self.adapter.validate_python(default_value)
+        if self.has_default():
+            return self.adapter.validate_python(default_value)
+        return default_value
 
     def formfield(self, **kwargs):
         field_kwargs = dict(
@@ -195,7 +191,21 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
     def value_to_string(self, obj: Model):
         value = super().value_from_object(obj)
-        return self.get_prep_value(value)
+        return self._prepare_raw_value(value)
+
+    def _prepare_raw_value(self, value: ty.Any, **dump_kwargs):
+        if isinstance(value, Value) and isinstance(value.output_field, self.__class__):
+            # Prepare inner value for `Value`-wrapped expressions.
+            value = Value(self._prepare_raw_value(value.value), value.output_field)
+        elif not isinstance(value, BaseExpression):
+            # Prepare the value if it is not a query expression.
+            try:
+                value = self.adapter.validate_python(value)
+            except pydantic.ValidationError:
+                """This is a legitimate situation, the data could not be initially coerced."""
+            value = self.adapter.dump_python(value, **dump_kwargs)
+
+        return value
 
 
 class SchemaKeyTransformAdapter:
@@ -217,24 +227,22 @@ class SchemaKeyTransformAdapter:
 def SchemaField(
     schema: type[types.ST | None] | ty.ForwardRef = ...,
     config: pydantic.ConfigDict = ...,
-    default: types.SchemaT | None | ty.Callable[[], types.SchemaT | None] = ...,
+    default: types.SchemaT | ty.Callable[[], types.SchemaT | None] | BaseExpression | None = ...,
     *args,
     null: ty.Literal[True],
     **kwargs: te.Unpack[_SchemaFieldKwargs],
-) -> types.ST | None:
-    ...
+) -> types.ST | None: ...
 
 
 @ty.overload
 def SchemaField(
     schema: type[types.ST] | ty.ForwardRef = ...,
     config: pydantic.ConfigDict = ...,
-    default: ty.Union[types.SchemaT, ty.Callable[[], types.SchemaT]] = ...,
+    default: types.SchemaT | ty.Callable[[], types.SchemaT] | BaseExpression = ...,
     *args,
     null: ty.Literal[False] = ...,
     **kwargs: te.Unpack[_SchemaFieldKwargs],
-) -> types.ST:
-    ...
+) -> types.ST: ...
 
 
 def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs):  # type: ignore

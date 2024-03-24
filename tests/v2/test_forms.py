@@ -2,6 +2,7 @@ import typing as ty
 from datetime import date
 
 import django
+import pydantic
 import pytest
 from django.core.exceptions import ValidationError
 from django.forms import Form, modelform_factory
@@ -43,6 +44,39 @@ def test_prepare_value():
     field = forms.SchemaField(InnerSchema, required=False)
     expected = '{"stub_str":"abc","stub_int":1,"stub_list":["1970-01-01"]}'
     assert expected == field.prepare_value({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ([], "[]"),
+        ([42], "[42]"),
+        ("[42]", "[42]"),
+    ],
+)
+def test_root_value_passes(value, expected):
+    RootModel = pydantic.RootModel[ty.List[int]]
+    field = forms.SchemaField(RootModel)
+    assert field.prepare_value(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value, initial, expected",
+    [
+        ("[]", "[]", False),
+        ([], [], False),
+        ([], [42], True),
+        ("[]", [], False),
+        ("[42]", [], True),
+        ([42], "[42]", False),
+        ("[42]", "[42]", False),
+        ("[42]", "[41]", True),
+    ],
+)
+def test_root_value_has_changed(value, initial, expected):
+    RootModel = pydantic.RootModel[ty.List[int]]
+    field = forms.SchemaField(RootModel)
+    assert field.has_changed(initial, value) is expected
 
 
 def test_empty_required_raises():

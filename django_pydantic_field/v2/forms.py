@@ -57,12 +57,7 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
             return None
 
         try:
-            if not isinstance(value, (str, bytes)):
-                # The form data may contain python objects for some cases (e.g. using django-constance).
-                value = self.adapter.validate_python(value)
-            elif not isinstance(value, JSONString):
-                # Otherwise, try to parse incoming JSON according to the schema.
-                value = self.adapter.validate_json(value)
+            value = self._try_coerce(value)
         except pydantic.ValidationError as exc:
             error_params = {"value": value, "title": exc.title, "detail": exc.json(), "errors": exc.errors()}
             raise ValidationError(self.error_messages["schema_error"], code="invalid", params=error_params) from exc
@@ -76,10 +71,23 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
         if isinstance(value, InvalidJSONInput):
             return value
 
-        value = self.adapter.validate_python(value)
+        value = self._try_coerce(value)
         return self.adapter.dump_json(value).decode()
 
     def has_changed(self, initial: ty.Any | None, data: ty.Any | None) -> bool:
-        if super(JSONField, self).has_changed(initial, data):
+        try:
+            initial = self._try_coerce(initial)
+            data = self._try_coerce(data)
+            return self.adapter.dump_python(initial) != self.adapter.dump_python(data)
+        except pydantic.ValidationError:
             return True
-        return self.adapter.dump_json(initial) != self.adapter.dump_json(data)
+
+    def _try_coerce(self, value):
+        if not isinstance(value, (str, bytes)):
+            # The form data may contain python objects for some cases (e.g. using django-constance).
+            value = self.adapter.validate_python(value)
+        elif not isinstance(value, JSONString):
+            # Otherwise, try to parse incoming JSON according to the schema.
+            value = self.adapter.validate_json(value)
+
+        return value
