@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typing as ty
+import typing_extensions as te
 
 import pydantic
 from django.core import checks, exceptions
@@ -19,7 +20,6 @@ from . import forms, types
 if ty.TYPE_CHECKING:
     import json
 
-    import typing_extensions as te
     from django.db.models import Model
 
     class _SchemaFieldKwargs(types.ExportKwargs, total=False):
@@ -109,6 +109,15 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
     def check(self, **kwargs: ty.Any) -> list[checks.CheckMessage]:
         # Remove checks of using mutable datastructure instances as `default` values, since they'll be adapted anyway.
         performed_checks = [check for check in super().check(**kwargs) if check.id != "fields.E010"]
+        if isinstance(self.schema, te._AnnotatedAlias):
+            message = "typing.Annotated[...] is not supported as the SchemaField(schema=...) argument."
+            annot_hint = f"{self.attname}: typing.Annotated[{self.schema.__origin__!r}, ...]"
+            hint = (
+                f"Please consider using field annotation syntax, e.g. `{annot_hint} = SchemaField(...)`; "
+                "or a fallback to `pydantic.RootModel` with annotation instead."
+            )
+            performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.W004"))
+
         try:
             # Test that the schema could be resolved in runtime, even if it contains forward references.
             self.adapter.validate_schema()
@@ -141,7 +150,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
                 except pydantic.ValidationError as exc:
                     message = f"Export arguments may lead to data integrity problems. Pydantic error: \n{str(exc)}"
                     hint = "Please review `import` and `export` arguments."
-                    performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.E003"))
+                    performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.W003"))
 
         return performed_checks
 
