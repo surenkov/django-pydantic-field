@@ -55,5 +55,5 @@ class SampleModelWithRoot(models.Model):
 
 
 class SampleModelAnnotated(models.Model):
-    annotated_field: te.Annotated[t.Union[int, float], pydantic.Field(gt=0)] = SchemaField()
-    arg_field = SchemaField(schema=te.Annotated[t.Union[int, float], pydantic.Field(lt=0)])
+    annotated_field: te.Annotated[t.Union[int, float], pydantic.Field(gt=0, title="Annotated Field")] = SchemaField()
+    annotated_schema = SchemaField(schema=te.Annotated[t.Union[int, float], pydantic.Field(gt=0)])

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import typing as ty
-import typing_extensions as te
 
 import pydantic
+import typing_extensions as te
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.expressions import BaseExpression, Col, Value
@@ -13,7 +13,7 @@ from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
 from django_pydantic_field.compat import deprecation
-from django_pydantic_field.compat.django import GenericContainer
+from django_pydantic_field.compat.django import BaseContainer, GenericContainer
 
 from . import forms, types
 
@@ -70,7 +70,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
     def __init__(
         self,
         *args,
-        schema: type[types.ST] | GenericContainer | ty.ForwardRef | str | None = None,
+        schema: type[types.ST] | BaseContainer | ty.ForwardRef | str | None = None,
         config: pydantic.ConfigDict | None = None,
         **kwargs,
     ):
@@ -78,7 +78,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         self.export_kwargs = export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
         super().__init__(*args, **kwargs)
 
-        self.schema = GenericContainer.unwrap(schema)
+        self.schema = BaseContainer.unwrap(schema)
         self.config = config
         self.adapter = types.SchemaAdapter(schema, config, None, self.get_attname(), self.null, **export_kwargs)
 
@@ -109,15 +109,6 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
     def check(self, **kwargs: ty.Any) -> list[checks.CheckMessage]:
         # Remove checks of using mutable datastructure instances as `default` values, since they'll be adapted anyway.
         performed_checks = [check for check in super().check(**kwargs) if check.id != "fields.E010"]
-        if isinstance(self.schema, te._AnnotatedAlias):
-            message = "typing.Annotated[...] is not supported as the SchemaField(schema=...) argument."
-            annot_hint = f"{self.attname}: typing.Annotated[{self.schema.__origin__!r}, ...]"
-            hint = (
-                f"Please consider using field annotation syntax, e.g. `{annot_hint} = SchemaField(...)`; "
-                "or a fallback to `pydantic.RootModel` with annotation instead."
-            )
-            performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.W004"))
-
         try:
             # Test that the schema could be resolved in runtime, even if it contains forward references.
             self.adapter.validate_schema()
@@ -138,7 +129,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             schema_default = self.get_default()
             if schema_default is None:
                 # If the default value is not set, try to get the default value from the schema.
-                prep_value = self.adapter.type_adapter.get_default_value()
+                prep_value = self.adapter.get_default_value()
                 if prep_value is not None:
                     prep_value = prep_value.value
                 schema_default = prep_value
@@ -230,6 +221,28 @@ class SchemaKeyTransformAdapter:
             col = col.copy()
             col.output_field = super(PydanticSchemaField, col.output_field)  # type: ignore
         return self.transform(col, *args, **kwargs)
+
+
+@ty.overload
+def SchemaField(
+    schema: ty.Annotated[types.ST | None, ...] = ...,
+    config: pydantic.ConfigDict = ...,
+    default: types.SchemaT | ty.Callable[[], types.SchemaT | None] | BaseExpression | None = ...,
+    *args,
+    null: ty.Literal[True],
+    **kwargs: te.Unpack[_SchemaFieldKwargs],
+) -> types.ST | None: ...
+
+
+@ty.overload
+def SchemaField(
+    schema: ty.Annotated[type[types.ST], ...] = ...,
+    config: pydantic.ConfigDict = ...,
+    default: types.SchemaT | ty.Callable[[], types.SchemaT] | BaseExpression = ...,
+    *args,
+    null: ty.Literal[False] = ...,
+    **kwargs: te.Unpack[_SchemaFieldKwargs],
+) -> types.ST: ...
 
 
 @ty.overload
