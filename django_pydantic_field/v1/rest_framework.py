@@ -2,13 +2,13 @@ import typing as t
 
 from django.conf import settings
 from pydantic import BaseModel, ValidationError
-
 from rest_framework import exceptions, parsers, renderers, serializers
 from rest_framework.schemas import openapi
 from rest_framework.schemas.utils import is_list_view
 
-from . import base
 from django_pydantic_field.compat.typing import get_args
+
+from . import base
 
 __all__ = (
     "SchemaField",
@@ -32,10 +32,7 @@ class AnnotatedSchemaT(t.Generic[base.ST]):
             schema = self.get_annotation_schema(ctx)
 
         if self.require_explicit_schema and schema is None:
-            raise ValueError(
-                "Schema should be either explicitly set with annotation "
-                "or passed in the context"
-            )
+            raise ValueError("Schema should be either explicitly set with annotation or passed in the context")
 
         return schema
 
@@ -189,7 +186,7 @@ class AutoSchema(openapi.AutoSchema):
         return response_types
 
     def get_request_body(self, path: str, method: str):
-        if method not in ('PUT', 'PATCH', 'POST'):
+        if method not in ("PUT", "PATCH", "POST"):
             return {}
 
         self.request_media_types = self.map_parsers(path, method)
@@ -201,10 +198,10 @@ class AutoSchema(openapi.AutoSchema):
                 media_type, request_schema = request_type
                 content_schemas[media_type] = {"schema": request_schema}
             else:
-                serializer_ref =  self._get_reference(serializer)
+                serializer_ref = self._get_reference(serializer)
                 content_schemas[request_type] = {"schema": serializer_ref}
 
-        return {'content': content_schemas}
+        return {"content": content_schemas}
 
     def get_responses(self, path: str, method: str):
         if method == "DELETE":

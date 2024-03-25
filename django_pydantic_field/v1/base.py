@@ -95,14 +95,13 @@ def prepare_schema(schema: "ModelType", owner: t.Any = None) -> None:
 
 
 def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
-    """ Extract ``BaseModel.json()`` kwargs from ctx for field deconstruction/reconstruction."""
+    """Extract ``BaseModel.json()`` kwargs from ctx for field deconstruction/reconstruction."""
 
     export_ctx = dict(
         exclude_defaults=extractor(ctx, "exclude_defaults", None),
         exclude_none=extractor(ctx, "exclude_none", None),
         exclude_unset=extractor(ctx, "exclude_unset", None),
         by_alias=extractor(ctx, "by_alias", None),
-
         # extract json.dumps(...) kwargs, see:  https://docs.pydantic.dev/1.10/usage/exporting_models/#modeljson
         skipkeys=extractor(ctx, "skipkeys", None),
         indent=extractor(ctx, "indent", None),

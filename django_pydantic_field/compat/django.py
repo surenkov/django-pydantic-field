@@ -14,6 +14,7 @@ Django Migration serializer helpers
     Moreover, `types.UnionType`, introduced in 3.10, do not allow explicit type construction,
     only with `X | Y` syntax. Both cases require a dedicated serializer for migration writes.
 """
+
 import sys
 import types
 import typing as ty

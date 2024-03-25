@@ -8,8 +8,9 @@ from rest_framework.schemas import openapi
 from rest_framework.schemas import utils as drf_schema_utils
 from rest_framework.test import APIRequestFactory
 
-from . import fields, parsers, renderers
 from django_pydantic_field.v2 import utils
+
+from . import fields, parsers, renderers
 
 if ty.TYPE_CHECKING:
     from collections.abc import Iterable

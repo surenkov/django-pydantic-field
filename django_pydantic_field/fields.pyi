@@ -95,7 +95,10 @@ def SchemaField(
     **kwargs: te.Unpack[_SchemaFieldKwargs],
 ) -> ST: ...
 @ty.overload
-@te.deprecated("Passing `json.dump` kwargs to `SchemaField` is not supported by Pydantic 2 and will be removed in the future versions.")
+@te.deprecated(
+    "Passing `json.dump` kwargs to `SchemaField` is not supported by "
+    "Pydantic 2 and will be removed in the future versions."
+)
 def SchemaField(
     schema: ty.Type[ST] | None | ty.ForwardRef = ...,
     config: ConfigType = ...,
@@ -105,7 +108,10 @@ def SchemaField(
     **kwargs: te.Unpack[_DeprecatedSchemaFieldKwargs],
 ) -> ST | None: ...
 @ty.overload
-@te.deprecated("Passing `json.dump` kwargs to `SchemaField` is not supported by Pydantic 2 and will be removed in the future versions.")
+@te.deprecated(
+    "Passing `json.dump` kwargs to `SchemaField` is not supported by "
+    "Pydantic 2 and will be removed in the future versions."
+)
 def SchemaField(
     schema: ty.Type[ST] | ty.ForwardRef = ...,
     config: ConfigType = ...,

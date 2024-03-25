@@ -1,0 +1,21 @@
+default_language_version:
+    python: python3.12
+
+repos:
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.0
+    hooks:
+      - id: isort
+        args: [ "--settings-path", "./pyproject.toml", "--filter-files" ]
+        files: "^django_pydantic_field/"
+        exclude: ^.*\b(\.pytest_cache|\.venv|venv|tests)\b.*$
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        args: [ "--config", "./pyproject.toml" ]
+        files: "^django_pydantic_field/"
+        exclude: ^.*\b(\.pytest_cache|\.venv|venv|tests)\b.*$

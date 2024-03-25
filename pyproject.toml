@@ -55,6 +55,7 @@ dev = [
     "black",
     "isort",
     "mypy",
+    "pre-commit",
     "pytest~=7.4",
     "djangorestframework>=3.11,<4",
     "django-stubs[compatible-mypy]~=4.2",
