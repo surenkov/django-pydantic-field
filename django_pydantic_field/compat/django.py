@@ -13,6 +13,14 @@ Django Migration serializer helpers
     `typing.Union` and its special forms, like `typing.Optional`, have its own inheritance chain.
     Moreover, `types.UnionType`, introduced in 3.10, do not allow explicit type construction,
     only with `X | Y` syntax. Both cases require a dedicated serializer for migration writes.
+
+[typing.Annotated](https://peps.python.org/pep-0593/)
+    `typing.Annotated` syntax is supported for direct field annotations, though I find it highly discouraged
+    while using in `schema=` attribute.
+    The limitation with `Annotated` types is that supplied metadata could be actually of any type.
+    In case of Pydantic, it is a `FieldInfo` objects, which are not compatible with Django Migrations serializers.
+    This module provides a few containers (`FieldInfoContainer` and `DataclassContainer`),
+    which allow Model serializers to work.
 """
 
 from __future__ import annotations
