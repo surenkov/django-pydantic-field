@@ -87,7 +87,7 @@ def SchemaField(
 ) -> ST | None: ...
 @ty.overload
 def SchemaField(
-    schema: te.Annotated[type[ST | None], ...] = ...,
+    schema: te.Annotated[ty.Type[ST | None], ...] = ...,
     config: ConfigType = ...,
     default: OptSchemaT | ty.Callable[[], OptSchemaT] | BaseExpression = ...,
     *args,
@@ -105,7 +105,7 @@ def SchemaField(
 ) -> ST: ...
 @ty.overload
 def SchemaField(
-    schema: te.Annotated[ST, ...] = ...,
+    schema: te.Annotated[ty.Type[ST], ...] = ...,
     config: ConfigType = ...,
     default: SchemaT | ty.Callable[[], SchemaT] | BaseExpression = ...,
     *args,

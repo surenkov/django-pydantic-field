@@ -225,7 +225,7 @@ class SchemaKeyTransformAdapter:
 
 @ty.overload
 def SchemaField(
-    schema: ty.Annotated[types.ST | None, ...] = ...,
+    schema: ty.Annotated[type[types.ST | None], ...] = ...,
     config: pydantic.ConfigDict = ...,
     default: types.SchemaT | ty.Callable[[], types.SchemaT | None] | BaseExpression | None = ...,
     *args,
