@@ -3,7 +3,10 @@ from __future__ import annotations
 import sys
 import typing as t
 
-from pydantic.config import BaseConfig, inherit_config
+try:
+    from pydantic.v1.config import BaseConfig, inherit_config
+except ImportError:
+    from pydantic.config import BaseConfig, inherit_config
 
 if t.TYPE_CHECKING:
     from pydantic import BaseModel
