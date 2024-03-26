@@ -1,7 +1,12 @@
 import typing as t
 
 from django.conf import settings
-from pydantic import BaseModel, ValidationError
+
+try:
+    from pydantic.v1 import BaseModel, ValidationError
+except ImportError:
+    from pydantic import BaseModel, ValidationError
+
 from rest_framework import exceptions, parsers, renderers, serializers
 from rest_framework.schemas import openapi
 from rest_framework.schemas.utils import is_list_view
