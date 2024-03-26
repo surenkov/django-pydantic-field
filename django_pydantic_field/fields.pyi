@@ -78,7 +78,16 @@ class _DeprecatedSchemaFieldKwargs(_SchemaFieldKwargs, total=False):
 
 @ty.overload
 def SchemaField(
-    schema: ty.Type[ST] | None | ty.ForwardRef = ...,
+    schema: ty.Type[ST | None] | ty.ForwardRef = ...,
+    config: ConfigType = ...,
+    default: OptSchemaT | ty.Callable[[], OptSchemaT] | BaseExpression = ...,
+    *args,
+    null: ty.Literal[True],
+    **kwargs: te.Unpack[_SchemaFieldKwargs],
+) -> ST | None: ...
+@ty.overload
+def SchemaField(
+    schema: te.Annotated[ty.Type[ST | None], ...] = ...,
     config: ConfigType = ...,
     default: OptSchemaT | ty.Callable[[], OptSchemaT] | BaseExpression = ...,
     *args,
@@ -95,12 +104,21 @@ def SchemaField(
     **kwargs: te.Unpack[_SchemaFieldKwargs],
 ) -> ST: ...
 @ty.overload
+def SchemaField(
+    schema: te.Annotated[ty.Type[ST], ...] = ...,
+    config: ConfigType = ...,
+    default: SchemaT | ty.Callable[[], SchemaT] | BaseExpression = ...,
+    *args,
+    null: ty.Literal[False] = ...,
+    **kwargs: te.Unpack[_SchemaFieldKwargs],
+) -> ST: ...
+@ty.overload
 @te.deprecated(
     "Passing `json.dump` kwargs to `SchemaField` is not supported by "
     "Pydantic 2 and will be removed in the future versions."
 )
 def SchemaField(
-    schema: ty.Type[ST] | None | ty.ForwardRef = ...,
+    schema: ty.Type[ST | None] | ty.ForwardRef = ...,
     config: ConfigType = ...,
     default: SchemaT | ty.Callable[[], SchemaT] | BaseExpression = ...,
     *args,

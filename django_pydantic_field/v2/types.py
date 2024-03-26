@@ -6,7 +6,7 @@ from collections import ChainMap
 import pydantic
 import typing_extensions as te
 
-from django_pydantic_field.compat.django import GenericContainer
+from django_pydantic_field.compat.django import BaseContainer, GenericContainer
 from django_pydantic_field.compat.functools import cached_property
 
 from . import utils
@@ -60,7 +60,7 @@ class SchemaAdapter(ty.Generic[ST]):
         allow_null: bool | None = None,
         **export_kwargs: ty.Unpack[ExportKwargs],
     ):
-        self.schema = GenericContainer.unwrap(schema)
+        self.schema = BaseContainer.unwrap(schema)
         self.config = config
         self.parent_type = parent_type
         self.attname = attname
@@ -148,6 +148,12 @@ class SchemaAdapter(ty.Generic[ST]):
         """Return the JSON schema for the field."""
         by_alias = self.export_kwargs.get("by_alias", True)
         return self.type_adapter.json_schema(by_alias=by_alias)
+
+    def get_default_value(self) -> ST | None:
+        wrapped = self.type_adapter.get_default_value()
+        if wrapped is not None:
+            return wrapped.value
+        return None
 
     def _prepare_schema(self) -> type[ST]:
         """Prepare the schema for the adapter.
