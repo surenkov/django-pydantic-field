@@ -90,9 +90,6 @@ include_trailing_comma = true
 force_alphabetical_sort_within_sections = true
 force_grid_wrap = 0
 use_parentheses = true
-skip_glob = [
-    "*/migrations/*",
-]
 
 [tool.black]
 target-version = ["py38", "py39", "py310", "py311", "py312"]
@@ -102,7 +99,6 @@ exclude = '''
     \.pytest_cache
   | \.venv
   | venv
-  | migrations
 )/
 '''
 
@@ -111,7 +107,7 @@ plugins = [
     "mypy_django_plugin.main",
     "mypy_drf_plugin.main"
 ]
-exclude = [".env", "tests"]
+exclude = [".env", ".venv", "tests"]
 enable_incomplete_feature = ["Unpack"]
 
 [tool.django-stubs]

@@ -11,11 +11,11 @@ repos:
       - id: isort
         args: [ "--settings-path", "./pyproject.toml", "--filter-files" ]
         files: "^django_pydantic_field/"
-        exclude: ^.*\b(\.pytest_cache|\.venv|venv|tests)\b.*$
+        exclude: ^.*\b(\.pytest_cache|\.venv|venv).*\b.*$
   - repo: https://github.com/psf/black
     rev: 24.3.0
     hooks:
       - id: black
         args: [ "--config", "./pyproject.toml" ]
         files: "^django_pydantic_field/"
-        exclude: ^.*\b(\.pytest_cache|\.venv|venv|tests)\b.*$
+        exclude: ^.*\b(\.pytest_cache|\.venv|venv).*\b.*$

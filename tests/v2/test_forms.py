@@ -4,6 +4,7 @@ from datetime import date
 import django
 import pydantic
 import pytest
+import typing_extensions as te
 from django.core.exceptions import ValidationError
 from django.forms import Form, modelform_factory
 
@@ -144,5 +145,11 @@ def test_forwardref_model_formfield():
 )
 def test_form_field_export_kwargs(export_kwargs):
     field = forms.SchemaField(InnerSchema, required=False, **export_kwargs)
+    value = InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
+    assert field.prepare_value(value)
+
+
+def test_annotated_acceptance():
+    field = forms.SchemaField(te.Annotated[InnerSchema, pydantic.Field(title="Inner Schema")])
     value = InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
     assert field.prepare_value(value)

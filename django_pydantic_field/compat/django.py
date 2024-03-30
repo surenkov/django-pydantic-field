@@ -83,6 +83,11 @@ class GenericContainer(BaseContainer):
 
     @classmethod
     def wrap(cls, value):
+        # NOTE: due to a bug in typing_extensions for `3.8`, Annotated aliases are handled explicitly
+        if isinstance(value, AnnotatedAlias):
+            args = (value.__origin__, *value.__metadata__)
+            wrapped_args = tuple(map(cls.wrap, args))
+            return cls(te.Annotated, wrapped_args)
         if isinstance(value, GenericTypes):
             wrapped_args = tuple(map(cls.wrap, get_args(value)))
             return cls(get_origin(value), wrapped_args)
@@ -187,7 +192,7 @@ class FieldInfoContainer(BaseContainer):
         try:
             annotated_args = (origin, *metadata)
             annotation = te.Annotated[annotated_args]
-        except AttributeError:
+        except TypeError:
             annotation = None
 
         return FieldInfo(annotation=annotation, **value.kwargs)
@@ -290,6 +295,8 @@ class RepresentationSerializer(BaseSerializer):
         final_args_repr = ", ".join(repr_args)
         return f"{tp_repr}({final_args_repr})"
 
+
+AnnotatedAlias = te._AnnotatedAlias
 
 if sys.version_info >= (3, 9):
     GenericAlias = types.GenericAlias
