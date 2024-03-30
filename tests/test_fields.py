@@ -14,7 +14,7 @@ from django.db.migrations.writer import MigrationWriter
 from django_pydantic_field import fields
 from django_pydantic_field.compat.pydantic import PYDANTIC_V1, PYDANTIC_V2
 
-from .conftest import InnerSchema, SampleDataclass  # noqa
+from .conftest import InnerSchema, SampleDataclass, SchemaWithCustomTypes  # noqa
 from .sample_app.models import Building
 from .test_app.models import SampleForwardRefModel, SampleModel, SampleSchema
 
@@ -113,6 +113,7 @@ def test_resolved_forwardrefs(forward_ref):
         fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], default=[""]),
         fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], null=True, default=None),
         fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], null=True, blank=True),
+        fields.PydanticSchemaField(schema=SchemaWithCustomTypes, default={}),
         pytest.param(
             fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], default=SampleRootModel.parse_obj([])),
             marks=pytest.mark.xfail(

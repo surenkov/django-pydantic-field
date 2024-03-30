@@ -40,8 +40,8 @@ def test_end_to_end_api_view(view, request_factory):
 def test_end_to_end_list_create_api_view(request_factory):
     field_data = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)]).json()
     expected_result = {
-        "sample_field": {"stub_str": "abc", "stub_list": [date(2022, 7, 1)], "stub_int": 1},
-        "sample_list": [{"stub_str": "abc", "stub_list": [date(2022, 7, 1)], "stub_int": 1}],
+        "sample_field": {"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1},
+        "sample_list": [{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}],
         "sample_seq": [],
     }
 

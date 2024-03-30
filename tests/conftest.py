@@ -1,14 +1,14 @@
 import typing as t
 from datetime import date
-from syrupy.extensions.json import JSONSnapshotExtension
 
 import pydantic
 import pytest
-
 from django.conf import settings
 from pydantic.dataclasses import dataclass
-
 from rest_framework.test import APIRequestFactory
+from syrupy.extensions.json import JSONSnapshotExtension
+
+from django_pydantic_field.compat import PYDANTIC_V2
 
 
 class InnerSchema(pydantic.BaseModel):
@@ -26,6 +26,17 @@ class SampleDataclass:
     stub_str: str
     stub_list: t.List[date]
     stub_int: int = 1
+
+
+class SchemaWithCustomTypes(pydantic.BaseModel):
+    url: pydantic.HttpUrl = "http://localhost/"
+    uid: pydantic.UUID4 = "367388a6-9b3b-4ef0-af84-a27d61a05bc7"
+    crd: pydantic.PaymentCardNumber = "4111111111111111"
+
+    if PYDANTIC_V2:
+        b64: pydantic.Base64Str = "YmFzZTY0"
+        model_config = dict(validate_default=True) # type: ignore
+
 
 
 @pytest.fixture
