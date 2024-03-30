@@ -137,7 +137,7 @@ class SchemaAdapter(ty.Generic[ST]):
 
     def dump_python(self, value: ty.Any, **override_kwargs: ty.Unpack[ExportKwargs]) -> ty.Any:
         """Dump the value to a Python object."""
-        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)  # type: ignore
+        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs, {"mode": "json"})  # type: ignore
         return self.type_adapter.dump_python(value, **union_kwargs)
 
     def dump_json(self, value: ty.Any, **override_kwargs: ty.Unpack[ExportKwargs]) -> bytes:

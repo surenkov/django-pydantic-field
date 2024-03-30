@@ -37,7 +37,7 @@ def test_schema_field():
     expected_encoded = {
         "stub_str": "abc",
         "stub_int": 1,
-        "stub_list": [date(2022, 7, 1)],
+        "stub_list": ["2022-07-01"],
     }
 
     assert field.to_representation(existing_instance) == expected_encoded
@@ -53,7 +53,7 @@ def test_schema_field():
 def test_field_schema_with_custom_config():
     field = rest_framework.SchemaField(InnerSchema, allow_null=True, exclude={"stub_int"})
     existing_instance = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])
-    expected_encoded = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
+    expected_encoded = {"stub_str": "abc", "stub_list": ["2022-07-01"]}
 
     assert field.to_representation(existing_instance) == expected_encoded
     assert field.to_internal_value(expected_encoded) == existing_instance
@@ -63,7 +63,7 @@ def test_field_schema_with_custom_config():
 
 def test_serializer_marshalling_with_schema_field():
     existing_instance = {"field": [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])], "annotated_field": []}
-    expected_data = {"field": [{"stub_str": "abc", "stub_int": 1, "stub_list": [date(2022, 7, 1)]}], "annotated": []}
+    expected_data = {"field": [{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}], "annotated": []}
     expected_validated_data = {"field": [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])], "annotated": []}
 
     serializer = SampleSerializer(instance=existing_instance)
@@ -83,9 +83,9 @@ def test_model_serializer_marshalling_with_schema_field():
     serializer = SampleModelSerializer(instance)
 
     expected_data = {
-        "sample_field": {"stub_str": "abc", "stub_int": 1, "stub_list": [date(2022, 7, 1)]},
-        "sample_list": [{"stub_str": "abc", "stub_int": 2, "stub_list": [date(2022, 7, 1)]}] * 2,
-        "sample_seq": [{"stub_str": "abc", "stub_int": 3, "stub_list": [date(2022, 7, 1)]}] * 3,
+        "sample_field": {"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]},
+        "sample_list": [{"stub_str": "abc", "stub_int": 2, "stub_list": ["2022-07-01"]}] * 2,
+        "sample_seq": [{"stub_str": "abc", "stub_int": 3, "stub_list": ["2022-07-01"]}] * 3,
     }
     assert serializer.data == expected_data
 
