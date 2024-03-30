@@ -137,7 +137,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             if schema_default is not None:
                 try:
                     # Perform the full round-trip transformation to test the export ability.
-                    self.adapter.validate_python(self.get_prep_value(self.default))
+                    self.adapter.validate_python(self.get_prep_value(schema_default))
                 except pydantic.ValidationError as exc:
                     message = f"Export arguments may lead to data integrity problems. Pydantic error: \n{str(exc)}"
                     hint = "Please review `import` and `export` arguments."
