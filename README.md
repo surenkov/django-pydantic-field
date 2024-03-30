@@ -82,8 +82,21 @@ class Bar(pydantic.BaseModel):
     slug: str = "foo_bar"
 ```
 
-In this case, exact type resolution will be postponed until initial access to the field.
-Usually this happens on the first instantiation of the model.
+**Pydantic v2 specific**: this behaviour is achieved by the fact that the exact type resolution will be postponed the until initial access to the field. Usually this happens on the first instantiation of the model.
+
+To reduce the number of runtime errors related to the postponed resolution, the field itself performs a few checks against the passed schema during `./manage.py check` command invocation, and consequently, in `runserver` and `makemigrations` commands.
+
+Here's the list of currently implemented checks:
+- `pydantic.E001`: The passed schema could not be resolved. Most likely it does not exist in the scope of the defined field.
+- `pydantic.E002`: `default=` value could not be serialized to the schema.
+- `pydantic.W003`: The default value could not be reconstructed to the schema due to `include`/`exclude` configuration.
+
+
+### `typing.Annotated` support
+As of `v0.3.5`, SchemaField also supports `typing.Annotated[...]` expressions, both through `schema=` attribute or field annotation syntax; though I find the `schema=typing.Annotated[...]` variant highly discouraged.
+
+**The current limitation** is not in the field itself, but in possible `Annotated` metadata -- practically it can contain anything, and Django migrations serializers could refuse to write it to migrations.
+For most relevant types in context of Pydantic, I wrote the specific serializers (particularly for `pydantic.FieldInfo`, `pydantic.Representation` and raw dataclasses), thus it should cover the majority of `Annotated` use cases.
 
 ## Django Forms support
 

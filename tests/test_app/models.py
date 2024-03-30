@@ -1,4 +1,5 @@
 import typing as t
+import typing_extensions as te
 
 import pydantic
 from django.db import models
@@ -51,3 +52,8 @@ else:
 
 class SampleModelWithRoot(models.Model):
     root_field = SchemaField(schema=RootSchema, default=list)
+
+
+class SampleModelAnnotated(models.Model):
+    annotated_field: te.Annotated[t.Union[int, float], pydantic.Field(gt=0, title="Annotated Field")] = SchemaField()
+    annotated_schema = SchemaField(schema=te.Annotated[t.Union[int, float], pydantic.Field(gt=0)])
