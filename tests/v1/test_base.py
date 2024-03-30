@@ -10,7 +10,7 @@ except ImportError:
 
 import pytest
 
-from tests.conftest import InnerSchema, SampleDataclass
+from .schema import InnerSchema, SampleDataclass
 
 base = pytest.importorskip("django_pydantic_field.v1.base")
 
