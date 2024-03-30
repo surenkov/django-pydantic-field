@@ -82,7 +82,7 @@ class Bar(pydantic.BaseModel):
     slug: str = "foo_bar"
 ```
 
-**Pydantic v2 specific**: this behaviour is achieved by the fact that the exact type resolution will be postponed the until initial access to the field. Usually this happens on the first instantiation of the model.
+**Pydantic v2 specific**: this behaviour is achieved by the fact that the exact type resolution will be postponed until the initial access to the field. Usually this happens on the first instantiation of the model.
 
 To reduce the number of runtime errors related to the postponed resolution, the field itself performs a few checks against the passed schema during `./manage.py check` command invocation, and consequently, in `runserver` and `makemigrations` commands.
 
