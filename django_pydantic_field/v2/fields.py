@@ -4,6 +4,7 @@ import typing as ty
 
 import pydantic
 import typing_extensions as te
+from django.apps import apps
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.expressions import BaseExpression, Col, Value
@@ -70,7 +71,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
     def __init__(
         self,
         *args,
-        schema: type[types.ST] | BaseContainer | ty.ForwardRef | str | None = None,
+        schema: type[types.ST] | te.Annotated[type[types.ST], ...] | BaseContainer | ty.ForwardRef | str | None = None,
         config: pydantic.ConfigDict | None = None,
         **kwargs,
     ):
@@ -178,8 +179,16 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         return default_value
 
     def formfield(self, **kwargs):
+        try:
+            if apps.is_installed("django_jsonform"):
+                form_cls = forms.JSONFormSchemaField
+            else:
+                form_cls = forms.SchemaField
+        except AttributeError:
+            form_cls = forms.SchemaField
+
         field_kwargs = dict(
-            form_class=forms.SchemaField,
+            form_class=form_cls,
             # Trying to resolve the schema before passing it to the formfield, since in Django < 4.0,
             # formfield is unbound during form validation and is not able to resolve forward refs defined in the model.
             schema=self.adapter.prepared_schema,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import typing as ty
 
 import pydantic
+import typing_extensions as te
 from django.core.exceptions import ValidationError
 from django.forms.fields import InvalidJSONInput, JSONField, JSONString
 from django.utils.translation import gettext_lazy as _
@@ -15,7 +16,7 @@ __all__ = ("SchemaField",)
 
 
 class SchemaField(JSONField, ty.Generic[types.ST]):
-    adapter: types.SchemaAdapter
+    adapter: types.SchemaAdapter[types.ST]
     default_error_messages = {
         "schema_error": _("Schema didn't match for %(title)s."),
     }
@@ -92,3 +93,38 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
             value = self.adapter.validate_json(value)
 
         return value
+
+
+try:
+    # Add the support of django-jsonform widgets, if installed
+    from django_jsonform.widgets import JSONFormWidget as _JSONFormWidget  # type: ignore[import-untyped]
+except ImportError:
+    pass
+else:
+
+    class JSONFormSchemaWidget(_JSONFormWidget, ty.Generic[types.ST]):
+        def __init__(
+            self,
+            schema: type[types.ST] | ty.ForwardRef | te.Annotated[type[types.ST], ...] | str,
+            config: pydantic.ConfigDict | None = None,
+            allow_null: bool | None = None,
+            export_kwargs: types.ExportKwargs | None = None,
+            **kwargs,
+        ):
+            if export_kwargs is None:
+                export_kwargs = {}
+            adapter = types.SchemaAdapter[types.ST](schema, config, None, None, allow_null, **export_kwargs)
+            super().__init__(adapter.json_schema(), **kwargs)
+
+    class JSONFormSchemaField(SchemaField[types.ST]):
+        def __init__(
+            self,
+            schema: type[types.ST] | ty.ForwardRef | te.Annotated[type[types.ST], ...] | str,
+            config: pydantic.ConfigDict | None = None,
+            allow_null: bool | None = None,
+            *args,
+            **kwargs,
+        ):
+            export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
+            kwargs.setdefault("widget", JSONFormSchemaWidget(schema, config, allow_null, export_kwargs))
+            super().__init__(schema, config, allow_null, *args, **kwargs)
