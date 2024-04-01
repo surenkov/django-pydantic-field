@@ -35,7 +35,6 @@ import typing_extensions as te
 from django.db.migrations.serializer import BaseSerializer, serializer_factory
 from django.db.migrations.writer import MigrationWriter
 from pydantic.fields import FieldInfo
-from pydantic_core import PydanticUndefined
 
 from .pydantic import PYDANTIC_V1
 from .typing import get_args, get_origin
