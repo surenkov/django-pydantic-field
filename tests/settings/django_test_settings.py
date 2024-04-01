@@ -15,10 +15,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.admin",
-    "django_jsonform",
     "tests.sample_app",
     "tests.test_app",
 ]
+
+try:
+    import django_jsonform  # type: ignore[import-untyped]
+except ImportError:
+    pass
+else:
+    INSTALLED_APPS.append("django_jsonform")
+
 
 MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",

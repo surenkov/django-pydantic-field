@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import typing as ty
+import warnings
 
 import pydantic
-import typing_extensions as te
 from django.core.exceptions import ValidationError
 from django.forms.fields import InvalidJSONInput, JSONField, JSONString
 from django.utils.translation import gettext_lazy as _
@@ -12,7 +12,12 @@ from django_pydantic_field.compat import deprecation
 
 from . import types
 
-__all__ = ("SchemaField",)
+if ty.TYPE_CHECKING:
+    import typing_extensions as te
+    from django.forms.widgets import Widget
+
+
+__all__ = ("SchemaField", "JSONFormSchemaWidget")
 
 
 class SchemaField(JSONField, ty.Generic[types.ST]):
@@ -23,7 +28,7 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
 
     def __init__(
         self,
-        schema: type[types.ST] | ty.ForwardRef | str,
+        schema: type[types.ST] | te.Annotated[type[types.ST], ...] | ty.ForwardRef | str,
         config: pydantic.ConfigDict | None = None,
         allow_null: bool | None = None,
         *args,
@@ -35,6 +40,11 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
         self.config = config
         self.export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
         self.adapter = types.SchemaAdapter(schema, config, None, None, allow_null, **self.export_kwargs)
+
+        widget = kwargs.get("widget")
+        if widget is not None:
+            kwargs["widget"] = _prepare_jsonform_widget(widget, self.adapter)
+
         super().__init__(*args, **kwargs)
 
     def get_bound_field(self, form: ty.Any, field_name: str):
@@ -96,16 +106,43 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
 
 
 try:
-    # Add the support of django-jsonform widgets, if installed
     from django_jsonform.widgets import JSONFormWidget as _JSONFormWidget  # type: ignore[import-untyped]
 except ImportError:
-    pass
+    from django.forms.widgets import Textarea
+
+    def _prepare_jsonform_widget(widget, adapter: types.SchemaAdapter[types.ST]) -> Widget | type[Widget]:
+        return widget
+
+    class JSONFormSchemaWidget(Textarea):
+        def __init__(self, *args, **kwargs):
+            warnings.warn(
+                "The 'django_jsonform' package is not installed. Please install it to use the widget.",
+                ImportWarning,
+            )
+            super().__init__(*args, **kwargs)
+
 else:
 
-    class JSONFormSchemaWidget(_JSONFormWidget, ty.Generic[types.ST]):
+    def _prepare_jsonform_widget(widget, adapter: types.SchemaAdapter[types.ST]) -> Widget | type[Widget]:  # type: ignore[no-redef]
+        if not isinstance(widget, type):
+            return widget
+
+        if issubclass(widget, JSONFormSchemaWidget):
+            widget = widget(
+                schema=adapter.prepared_schema,
+                config=adapter.config,
+                export_kwargs=adapter.export_kwargs,
+                allow_null=adapter.allow_null,
+            )
+        elif issubclass(widget, _JSONFormWidget):
+            widget = widget(schema=adapter.json_schema())  # type: ignore[call-arg]
+
+        return widget
+
+    class JSONFormSchemaWidget(_JSONFormWidget, ty.Generic[types.ST]):  # type: ignore[no-redef]
         def __init__(
             self,
-            schema: type[types.ST] | ty.ForwardRef | te.Annotated[type[types.ST], ...] | str,
+            schema: type[types.ST] | te.Annotated[type[types.ST], ...] | ty.ForwardRef | str,
             config: pydantic.ConfigDict | None = None,
             allow_null: bool | None = None,
             export_kwargs: types.ExportKwargs | None = None,
@@ -115,16 +152,3 @@ else:
                 export_kwargs = {}
             adapter = types.SchemaAdapter[types.ST](schema, config, None, None, allow_null, **export_kwargs)
             super().__init__(adapter.json_schema(), **kwargs)
-
-    class JSONFormSchemaField(SchemaField[types.ST]):
-        def __init__(
-            self,
-            schema: type[types.ST] | ty.ForwardRef | te.Annotated[type[types.ST], ...] | str,
-            config: pydantic.ConfigDict | None = None,
-            allow_null: bool | None = None,
-            *args,
-            **kwargs,
-        ):
-            export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
-            kwargs.setdefault("widget", JSONFormSchemaWidget(schema, config, allow_null, export_kwargs))
-            super().__init__(schema, config, allow_null, *args, **kwargs)
