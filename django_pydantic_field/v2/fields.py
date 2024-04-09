@@ -116,13 +116,12 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             message = f"Cannot resolve the schema. Original error: \n{exc.args[0]}"
             performed_checks.append(checks.Error(message, obj=self, id="pydantic.E001"))
 
-        if self.has_default():
-            try:
-                # Test that the default value conforms to the schema.
-                self.get_prep_value(self.get_default())
-            except pydantic.ValidationError as exc:
-                message = f"Default value cannot be adapted to the schema. Pydantic error: \n{str(exc)}"
-                performed_checks.append(checks.Error(message, obj=self, id="pydantic.E002"))
+        try:
+            # Test that the default value conforms to the schema.
+            self.get_prep_value(self.get_default())
+        except pydantic.ValidationError as exc:
+            message = f"Default value cannot be adapted to the schema. Pydantic error: \n{str(exc)}"
+            performed_checks.append(checks.Error(message, obj=self, id="pydantic.E002"))
 
         if {"include", "exclude"} & self.export_kwargs.keys():
             # Try to prepare the default value to test export ability against it.

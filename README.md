@@ -144,6 +144,34 @@ assert form.cleaned_data["field"] == Foo(slug="bar_baz")
 
 Note, that forward references would be resolved until field is being bound to the form instance.
 
+### `django-jsonform` widgets
+[`django-jsonform`](https://django-jsonform.readthedocs.io) offers a dynamic form construction based on the specified JSONSchema.
+`django_pydantic_field.forms.SchemaField` plays nicely with its widgets, but only for Pydantic v2:
+
+``` python
+from django_pydantic_field.forms import SchemaField
+from django_jsonform.widgets import JSONFormWidget
+
+class FooForm(forms.Form):
+    field = SchemaField(Foo, widget=JSONFormWidget)
+```
+
+It is also possible to override the default form widget for Django Admin site, without writing custom admin forms:
+
+``` python
+from django.contrib import admin
+from django_jsonform.widgets import JSONFormWidget
+
+# NOTE: Importing direct field class instead of `SchemaField` wrapper.
+from django_pydantic_field.v2.fields import PydanticSchemaField
+
+@admin.site.register(SchemaModel)
+class SchemaModelAdmin(admin.ModelAdmin):
+    formfield_overrides = {
+        PydanticSchemaField: {"widget": JSONFormWidget},
+    }
+```
+
 ## Django REST Framework support
 
 ``` python
