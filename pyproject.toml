@@ -50,6 +50,7 @@ dependencies = [
 [project.optional-dependencies]
 openapi = ["uritemplate", "inflection"]
 coreapi = ["coreapi"]
+jsonform = ["django_jsonform>=2.0,<3"]
 dev = [
     "build",
     "black",
@@ -63,7 +64,7 @@ dev = [
     "pytest-django>=4.5,<5",
 ]
 test = [
-    "django_pydantic_field[openapi,coreapi]",
+    "django_pydantic_field[openapi,coreapi,jsonform]",
     "dj-database-url~=2.0",
     "djangorestframework>=3,<4",
     "pyyaml",
@@ -108,7 +109,6 @@ plugins = [
     "mypy_drf_plugin.main"
 ]
 exclude = [".env", ".venv", "tests"]
-enable_incomplete_feature = ["Unpack"]
 
 [tool.django-stubs]
 django_settings_module = "tests.settings.django_test_settings"

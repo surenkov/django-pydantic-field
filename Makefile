@@ -1,3 +1,5 @@
+ DJANGO_SETTINGS_MODULE ?= "tests.settings.django_test_settings"
+
 .PHONY: install build test lint upload upload-test clean
 
 install:
@@ -8,7 +10,11 @@ build:
 	python3 -m build
 
 migrations:
-	DJANGO_SETTINGS_MODULE="tests.settings.django_test_settings" python3 -m django makemigrations --noinput
+	python3 -m django makemigrations --noinput
+
+runserver:
+	python3 -m django migrate && \
+	python3 -m django runserver
 
 test: A=
 test:
@@ -16,7 +22,7 @@ test:
 
 lint: A=.
 lint:
-	mypy $(A)
+	python3 -m mypy $(A)
 
 upload:
 	python3 -m twine upload dist/*

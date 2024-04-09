@@ -5,6 +5,7 @@ SECRET_KEY = "1"
 SITE_ID = 1
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_URL = "/static/"
+DEBUG = True
 
 INSTALLED_APPS = [
     "django.contrib.contenttypes",
@@ -18,10 +19,18 @@ INSTALLED_APPS = [
     "tests.test_app",
 ]
 
+try:
+    import django_jsonform  # type: ignore[import-untyped]
+except ImportError:
+    pass
+else:
+    INSTALLED_APPS.append("django_jsonform")
+
+
 MIDDLEWARE = [
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
 ]
 TEMPLATES = [
     {
@@ -56,3 +65,4 @@ DATABASE_ROUTERS = ["tests.sample_app.dbrouters.TestDBRouter"]
 CURRENT_TEST_DB = "default"
 
 REST_FRAMEWORK = {"COMPACT_JSON": True}
+ROOT_URLCONF = "tests.settings.urls"
