@@ -44,7 +44,7 @@ class MyModel(models.Model):
     raw_uids: set[UUID] = SchemaField()
 
 ...
-    
+
 model = MyModel(
     foo_field={"count": "5"},
     bar_list=[{}],
@@ -123,23 +123,23 @@ assert form.cleaned_data["field"] == Foo(slug="asdf")
 `django_pydantic_field` also supports auto-generated fields for `ModelForm` and `modelform_factory`:
 
 ``` python
-class FooModelForm(forms.ModelForm):
+class MyModelForm(forms.ModelForm):
     class Meta:
-        model = Foo
-        fields = ["field"]
+        model = MyModel
+        fields = ["foo_field"]
 
-form = FooModelForm(data={"field": '{"slug": "asdf"}'})
+form = MyModelForm(data={"foo_field": '{"count": 5}'})
 assert form.is_valid()
-assert form.cleaned_data["field"] == Foo(slug="asdf")
+assert form.cleaned_data["foo_field"] == Foo(count=5)
 
 ...
 
 # ModelForm factory support
-AnotherFooModelForm = modelform_factory(Foo, fields=["field"])
-form = AnotherFooModelForm(data={"field": '{"slug": "bar_baz"}'})
+AnotherModelForm = modelform_factory(MyModel, fields=["foo_field"])
+form = AnotherModelForm(data={"foo_field": '{"count": 5}'})
 
 assert form.is_valid()
-assert form.cleaned_data["field"] == Foo(slug="bar_baz")
+assert form.cleaned_data["foo_field"] == Foo(count=5)
 ```
 
 Note, that forward references would be resolved until field is being bound to the form instance.
@@ -165,8 +165,8 @@ from django_jsonform.widgets import JSONFormWidget
 # NOTE: Importing direct field class instead of `SchemaField` wrapper.
 from django_pydantic_field.v2.fields import PydanticSchemaField
 
-@admin.site.register(SchemaModel)
-class SchemaModelAdmin(admin.ModelAdmin):
+@admin.site.register(MyModel)
+class MyModelAdmin(admin.ModelAdmin):
     formfield_overrides = {
         PydanticSchemaField: {"widget": JSONFormWidget},
     }
@@ -241,4 +241,3 @@ To get `django-pydantic-field` up and running in development mode:
 
 * [Churkin Oleg](https://gist.github.com/Bahus/98a9848b1f8e2dcd986bf9f05dbf9c65) for his Gist as a source of inspiration;
 * Boutique Air Flight Operations platform as a test ground;
-
