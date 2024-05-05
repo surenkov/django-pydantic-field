@@ -314,3 +314,10 @@ def test_copy_field():
     assert copied.name == Building.meta.field.name
     assert copied.attname == Building.meta.field.attname
     assert copied.concrete == Building.meta.field.concrete
+
+
+def test_model_init_no_default():
+    try:
+        SampleModel()
+    except Exception:
+        pytest.fail("Model with schema field without a default value should be able to initialize")

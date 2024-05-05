@@ -63,8 +63,14 @@ class SchemaAttribute(DeferredAttribute):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
 
 
+class UninitializedSchemaAttribute(SchemaAttribute):
+    def __set__(self, obj, value):
+        if value is not None:
+            value = self.field.to_python(value)
+        obj.__dict__[self.field.attname] = value
+
+
 class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
-    descriptor_class: type[DeferredAttribute] = SchemaAttribute
     adapter: types.SchemaAdapter
 
     def __init__(
@@ -102,6 +108,12 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         return field_name, import_path, args, kwargs
 
+    @staticmethod
+    def descriptor_class(field: PydanticSchemaField) -> DeferredAttribute:
+        if field.has_default():
+            return SchemaAttribute(field)
+        return UninitializedSchemaAttribute(field)
+
     def contribute_to_class(self, cls: types.DjangoModelType, name: str, private_only: bool = False) -> None:
         self.adapter.bind(cls, name)
         super().contribute_to_class(cls, name, private_only)
@@ -118,7 +130,8 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         try:
             # Test that the default value conforms to the schema.
-            self.get_prep_value(self.get_default())
+            if self.has_default():
+                self.get_prep_value(self.get_default())
         except pydantic.ValidationError as exc:
             message = f"Default value cannot be adapted to the schema. Pydantic error: \n{str(exc)}"
             performed_checks.append(checks.Error(message, obj=self, id="pydantic.E002"))
