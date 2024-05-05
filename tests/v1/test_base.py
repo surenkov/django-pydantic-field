@@ -3,10 +3,14 @@ import typing as t
 from datetime import date
 from uuid import UUID
 
-import pydantic
+try:
+    import pydantic.v1 as pydantic
+except ImportError:
+    import pydantic
+
 import pytest
 
-from tests.conftest import InnerSchema, SampleDataclass
+from .schema import InnerSchema, SampleDataclass
 
 base = pytest.importorskip("django_pydantic_field.v1.base")
 
