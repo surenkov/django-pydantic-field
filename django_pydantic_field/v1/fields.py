@@ -37,8 +37,14 @@ class SchemaAttribute(DeferredAttribute):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
 
 
+class UninitializedSchemaAttribute(SchemaAttribute):
+    def __set__(self, obj, value):
+        if value is not None:
+            value = self.field.to_python(value)
+        obj.__dict__[self.field.attname] = value
+
+
 class PydanticSchemaField(JSONField, t.Generic[base.ST]):
-    descriptor_class = SchemaAttribute
     _is_prepared_schema: bool = False
 
     def __init__(
@@ -61,8 +67,10 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         return copied
 
     def get_default(self):
-        value = super().get_default()
-        return self.to_python(value)
+        default_value = super().get_default()
+        if self.has_default():
+            return self.to_python(default_value)
+        return default_value
 
     def to_python(self, value) -> "base.SchemaT":
         # Attempt to resolve forward referencing schema if it was not succesful
@@ -103,6 +111,12 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         kwargs.pop("encoder")
 
         return name, path, args, kwargs
+
+    @staticmethod
+    def descriptor_class(field: "PydanticSchemaField") -> DeferredAttribute:
+        if field.has_default():
+            return SchemaAttribute(field)
+        return UninitializedSchemaAttribute(field)
 
     def contribute_to_class(self, cls, name, private_only=False):
         if self.schema is None:
@@ -162,8 +176,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
 
     def _deconstruct_default(self, kwargs):
         default = kwargs.get("default", NOT_PROVIDED)
-
-        if not (default is NOT_PROVIDED or callable(default)):
+        if default is not NOT_PROVIDED and not callable(default):
             if self._is_prepared_schema:
                 default = self.get_prep_value(default)
             kwargs.update(default=default)
@@ -202,6 +215,6 @@ def SchemaField(
 ) -> "base.ST": ...
 
 
-def SchemaField(schema=None, config=None, default=None, *args, **kwargs) -> t.Any:
+def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs) -> t.Any:  # type: ignore
     kwargs.update(schema=schema, config=config, default=default)
     return PydanticSchemaField(*args, **kwargs)
