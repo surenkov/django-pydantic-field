@@ -53,8 +53,7 @@ coreapi = ["coreapi"]
 jsonform = ["django_jsonform>=2.0,<3"]
 dev = [
     "build",
-    "black",
-    "isort",
+    "ruff",
     "mypy",
     "pre-commit",
     "pytest~=7.4",
@@ -82,26 +81,8 @@ Documentation = "https://github.com/surenkov/django-pydantic-field"
 Source = "https://github.com/surenkov/django-pydantic-field"
 Changelog = "https://github.com/surenkov/django-pydantic-field/releases"
 
-[tool.isort]
-py_version = 311
-profile = "black"
-line_length = 120
-multi_line_output = 3
-include_trailing_comma = true
-force_alphabetical_sort_within_sections = true
-force_grid_wrap = 0
-use_parentheses = true
-
-[tool.black]
-target-version = ["py38", "py39", "py310", "py311", "py312"]
+[tool.ruff]
 line-length = 120
-exclude = '''
-/(
-    \.pytest_cache
-  | \.venv
-  | venv
-)/
-'''
 
 [tool.mypy]
 plugins = [

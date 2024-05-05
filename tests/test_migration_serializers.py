@@ -9,7 +9,7 @@ import django_pydantic_field
 try:
     from django_pydantic_field.compat.django import GenericContainer
 except ImportError:
-    from django_pydantic_field._migration_serializers import GenericContainer
+    from django_pydantic_field._migration_serializers import GenericContainer  # noqa
 
 if sys.version_info < (3, 9):
     test_types = [

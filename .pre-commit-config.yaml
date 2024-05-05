@@ -5,17 +5,16 @@ repos:
   - repo: meta
     hooks:
       - id: check-hooks-apply
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.13.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.4.3
     hooks:
-      - id: isort
-        args: [ "--settings-path", "./pyproject.toml", "--filter-files" ]
+      # Run the linter.
+      - id: ruff
         files: "^django_pydantic_field/"
         exclude: ^.*\b(\.pytest_cache|\.venv|venv).*\b.*$
-  - repo: https://github.com/psf/black
-    rev: 24.3.0
-    hooks:
-      - id: black
-        args: [ "--config", "./pyproject.toml" ]
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format
         files: "^django_pydantic_field/"
         exclude: ^.*\b(\.pytest_cache|\.venv|venv).*\b.*$

@@ -1,5 +1,6 @@
 import os
 import dj_database_url
+import importlib.util
 
 SECRET_KEY = "1"
 SITE_ID = 1
@@ -19,11 +20,7 @@ INSTALLED_APPS = [
     "tests.test_app",
 ]
 
-try:
-    import django_jsonform  # type: ignore[import-untyped]
-except ImportError:
-    pass
-else:
+if importlib.util.find_spec("django_jsonform") is not None:
     INSTALLED_APPS.append("django_jsonform")
 
 

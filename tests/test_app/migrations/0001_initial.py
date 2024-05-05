@@ -7,7 +7,6 @@ import django_pydantic_field.compat.django
 import django_pydantic_field.fields
 import tests.conftest
 import tests.test_app.models
-import types
 import typing
 from django.db import migrations, models
 
