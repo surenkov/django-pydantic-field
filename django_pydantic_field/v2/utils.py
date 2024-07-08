@@ -51,7 +51,7 @@ def get_origin_type(cls: type):
 if sys.version_info >= (3, 9):
 
     def evaluate_forward_ref(ref: ty.ForwardRef, ns: Mapping[str, ty.Any]) -> ty.Any:
-        return ref._evaluate(dict(ns), {}, frozenset())
+        return ref._evaluate(dict(ns), {}, recursive_guard=frozenset())
 
 else:
 

@@ -23,17 +23,16 @@ class SchemaField(fields.Field, ty.Generic[types.ST]):
         self,
         schema: type[types.ST],
         config: pydantic.ConfigDict | None = None,
-        *args,
-        allow_null: bool = False,
         **kwargs,
     ):
         deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
+        allow_null = kwargs.get("allow_null", False)
 
         self.schema = schema
         self.config = config
         self.export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
         self.adapter = types.SchemaAdapter(schema, config, None, None, allow_null, **self.export_kwargs)
-        super().__init__(*args, **kwargs)
+        super().__init__(**kwargs)
 
     def bind(self, field_name: str, parent: BaseSerializer):
         if not self.adapter.is_bound:
