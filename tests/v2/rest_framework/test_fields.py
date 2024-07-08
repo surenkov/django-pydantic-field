@@ -90,6 +90,27 @@ def test_model_serializer_marshalling_with_schema_field():
     assert serializer.data == expected_data
 
 
+def test_serializer_field_allow_null_passes():
+    class SampleSerializer(serializers.Serializer):
+        foo = rest_framework.SchemaField(InnerSchema, allow_null=True)
+
+    serializer = SampleSerializer(data={"foo": None})
+    try:
+        serializer.is_valid(raise_exception=True)
+    except exceptions.ValidationError:
+        pytest.fail("Null value should be accepted.")
+
+
+def test_serializer_field_disallow_null_fails():
+    class SampleSerializer(serializers.Serializer):
+        foo = rest_framework.SchemaField(InnerSchema, allow_null=False)
+
+    serializer = SampleSerializer(data={"foo": None})
+
+    with pytest.raises(exceptions.ValidationError, match=".*This field may not be null.*"):
+        serializer.is_valid(raise_exception=True)
+
+
 @pytest.mark.parametrize(
     "export_kwargs",
     [
