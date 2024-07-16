@@ -6,16 +6,15 @@ import pydantic
 import typing_extensions as te
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models.expressions import BaseExpression, Col, Value
+from django.db.models.expressions import BaseExpression, Value
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField
-from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
 from django_pydantic_field.compat import deprecation
 from django_pydantic_field.compat.django import BaseContainer, GenericContainer
 
-from . import forms, types
+from . import forms, types, lookups
 
 if ty.TYPE_CHECKING:
     import json
@@ -180,7 +179,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
     def get_transform(self, lookup_name: str):
         transform: ty.Any = super().get_transform(lookup_name)
         if transform is not None:
-            transform = SchemaKeyTransformAdapter(transform)
+            transform = lookups.SchemaKeyTransformAdapter(transform, lookup_name)
         return transform
 
     def get_default(self) -> ty.Any:
@@ -218,21 +217,6 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             value = self.adapter.dump_python(value, **dump_kwargs)
 
         return value
-
-
-class SchemaKeyTransformAdapter:
-    """An adapter for creating key transforms for schema field lookups."""
-
-    def __init__(self, transform: type[Transform]):
-        self.transform = transform
-
-    def __call__(self, col: Col | None = None, *args, **kwargs) -> Transform | None:
-        """All transforms should bypass the SchemaField's adaptaion with `get_prep_value`,
-        and routed to JSONField's `get_prep_value` for further processing."""
-        if isinstance(col, BaseExpression):
-            col = col.copy()
-            col.output_field = super(PydanticSchemaField, col.output_field)  # type: ignore
-        return self.transform(col, *args, **kwargs)
 
 
 @ty.overload
