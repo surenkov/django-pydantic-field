@@ -161,4 +161,4 @@ def test_annotated_acceptance():
 
 def test_form_render_without_default():
     form = NoDefaultForm()
-    form.render()
+    form.as_p()
