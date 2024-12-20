@@ -80,6 +80,9 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
         return value
 
     def prepare_value(self, value):
+        if value is None:
+            return None
+
         if isinstance(value, InvalidJSONInput):
             return value
 

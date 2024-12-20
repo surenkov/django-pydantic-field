@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.forms import Form, modelform_factory
 
 from tests.conftest import InnerSchema
-from tests.test_app.models import SampleForwardRefModel, SampleSchema
+from tests.test_app.models import SampleForwardRefModel, SampleSchema, ExampleSchema
 
 fields = pytest.importorskip("django_pydantic_field.v2.fields")
 forms = pytest.importorskip("django_pydantic_field.v2.forms")
@@ -17,6 +17,10 @@ forms = pytest.importorskip("django_pydantic_field.v2.forms")
 
 class SampleForm(Form):
     field = forms.SchemaField(ty.ForwardRef("SampleSchema"))
+
+
+class NoDefaultForm(Form):
+    field = forms.SchemaField(schema=ExampleSchema)
 
 
 @pytest.mark.parametrize(
@@ -153,3 +157,8 @@ def test_annotated_acceptance():
     field = forms.SchemaField(te.Annotated[InnerSchema, pydantic.Field(title="Inner Schema")])
     value = InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
     assert field.prepare_value(value)
+
+
+def test_form_render_without_default():
+    form = NoDefaultForm()
+    form.as_p()
