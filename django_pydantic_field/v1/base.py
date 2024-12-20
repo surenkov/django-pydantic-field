@@ -1,9 +1,15 @@
 import typing as t
 
-import pydantic
+try:
+    from pydantic import v1 as pydantic
+    from pydantic.v1.json import pydantic_encoder
+    from pydantic.v1.typing import display_as_type
+except ImportError:
+    import pydantic
+    from pydantic.json import pydantic_encoder
+    from pydantic.typing import display_as_type
+
 from django.core.serializers.json import DjangoJSONEncoder
-from pydantic.json import pydantic_encoder
-from pydantic.typing import display_as_type
 
 from .utils import get_local_namespace, inherit_configs
 
