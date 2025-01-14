@@ -8,7 +8,7 @@ from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.expressions import BaseExpression, Col, Value
 from django.db.models.fields import NOT_PROVIDED
-from django.db.models.fields.json import JSONField
+from django.db.models.fields.json import JSONField, KeyTransform
 from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
@@ -172,6 +172,18 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         except pydantic.ValidationError as exc:
             error_params = {"errors": exc.errors(), "field": self}
             raise exceptions.ValidationError(exc.json(), code="invalid", params=error_params) from exc
+
+    def from_db_value(self, value, expression, connection):
+        if value is None:
+            return value
+        # Some backends (SQLite at least) extract non-string values in their SQL datatypes.
+        if isinstance(expression, KeyTransform) and not isinstance(value, str):
+            return value
+
+        try:
+            return self.adapter.validate_json(value)
+        except ValueError:
+            return value
 
     def get_prep_value(self, value: ty.Any):
         value = self._prepare_raw_value(value)
