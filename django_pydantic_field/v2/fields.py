@@ -8,7 +8,7 @@ from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.expressions import BaseExpression, Col, Value
 from django.db.models.fields import NOT_PROVIDED
-from django.db.models.fields.json import JSONField
+from django.db.models.fields.json import JSONField, KeyTransform
 from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
@@ -172,6 +172,18 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         except pydantic.ValidationError as exc:
             raise exceptions.ValidationError(str(exc), code="invalid") from exc
 
+    def from_db_value(self, value, expression, connection):
+        if value is None:
+            return value
+        # Some backends (SQLite at least) extract non-string values in their SQL datatypes.
+        if isinstance(expression, KeyTransform) and not isinstance(value, str):
+            return value
+
+        try:
+            return self.adapter.validate_json(value)
+        except ValueError:
+            return value
+
     def get_prep_value(self, value: ty.Any):
         value = self._prepare_raw_value(value)
         return super().get_prep_value(value)
@@ -188,9 +200,10 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             return self.adapter.validate_python(default_value)
         return default_value
 
-    def formfield(self, **kwargs):
+    def formfield(self, form_class=None, choices_form_class=None, **kwargs):
         field_kwargs = dict(
-            form_class=forms.SchemaField,
+            form_class=form_class or forms.SchemaField,
+            choices_form_class=choices_form_class,
             # Trying to resolve the schema before passing it to the formfield, since in Django < 4.0,
             # formfield is unbound during form validation and is not able to resolve forward refs defined in the model.
             schema=self.adapter.prepared_schema,
