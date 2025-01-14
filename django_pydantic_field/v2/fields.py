@@ -201,9 +201,10 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             return self.adapter.validate_python(default_value)
         return default_value
 
-    def formfield(self, **kwargs):
+    def formfield(self, form_class=None, choices_form_class=None, **kwargs):
         field_kwargs = dict(
-            form_class=forms.SchemaField,
+            form_class=form_class or forms.SchemaField,
+            choices_form_class=choices_form_class,
             # Trying to resolve the schema before passing it to the formfield, since in Django < 4.0,
             # formfield is unbound during form validation and is not able to resolve forward refs defined in the model.
             schema=self.adapter.prepared_schema,
