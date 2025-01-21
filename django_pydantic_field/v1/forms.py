@@ -3,7 +3,11 @@ from __future__ import annotations
 import typing as t
 from functools import partial
 
-import pydantic
+try:
+    import pydantic.v1 as pydantic
+except ImportError:
+    import pydantic
+
 from django.core.exceptions import ValidationError
 from django.forms.fields import InvalidJSONInput, JSONField
 from django.utils.translation import gettext_lazy as _

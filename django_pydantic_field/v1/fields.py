@@ -3,7 +3,11 @@ import json
 import typing as t
 from functools import partial
 
-import pydantic
+try:
+    import pydantic.v1 as pydantic
+except ImportError:
+    import pydantic
+
 from django.core import exceptions as django_exceptions
 from django.db.models.expressions import BaseExpression, Value
 from django.db.models.fields import NOT_PROVIDED
