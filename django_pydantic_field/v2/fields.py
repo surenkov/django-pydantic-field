@@ -182,6 +182,12 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         try:
             return self.adapter.validate_json(value)
         except ValueError:
+            pass
+
+        # if parsing to validated field fails, fallback on normal json parsing
+        try:
+            return json.loads(value, cls=self.decoder)
+        except json.JSONDecodeError:
             return value
 
     def get_prep_value(self, value: ty.Any):
