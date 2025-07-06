@@ -321,3 +321,20 @@ def test_model_init_no_default():
         SampleModel()
     except Exception:
         pytest.fail("Model with schema field without a default value should be able to initialize")
+
+
+@pytest.mark.django_db
+def test_key_lookup_on_schema_field():
+    instance = SampleModel.objects.create(
+        sample_field={"stub_str": "foo", "stub_int": 1, "stub_list": ["1970-01-01"]},
+        sample_list=[],
+    )
+
+    value = SampleModel.objects.values("sample_field__stub_str").get(pk=instance.pk)
+    assert value["sample_field__stub_str"] == "foo"
+
+    value = SampleModel.objects.values("sample_field__stub_int").get(pk=instance.pk)
+    assert value["sample_field__stub_int"] == 1
+
+    value = SampleModel.objects.values("sample_field__stub_list").get(pk=instance.pk)
+    assert value["sample_field__stub_list"] == ["1970-01-01"]

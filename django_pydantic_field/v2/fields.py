@@ -176,20 +176,15 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
     def from_db_value(self, value, expression, connection):
         if value is None:
             return value
+
         # Some backends (SQLite at least) extract non-string values in their SQL datatypes.
-        if isinstance(expression, KeyTransform) and not isinstance(value, str):
-            return value
+        if isinstance(expression, KeyTransform):
+            return super().from_db_value(value, expression, connection)
 
         try:
             return self.adapter.validate_json(value)
         except ValueError:
-            pass
-
-        # if parsing to validated field fails, fallback on normal json parsing
-        try:
-            return json.loads(value, cls=self.decoder)
-        except json.JSONDecodeError:
-            return value
+            return super().from_db_value(value, expression, connection)
 
     def get_prep_value(self, value: ty.Any):
         value = self._prepare_raw_value(value)
