@@ -141,7 +141,6 @@ class SchemaParser(AnnotatedSchemaT[base.ST], parsers.JSONParser):
 
 class AutoSchema(openapi.AutoSchema):
     get_request_serializer: t.Callable
-    _get_reference: t.Callable
 
     def map_field(self, field: serializers.Field):
         if isinstance(field, SchemaField):
@@ -198,7 +197,7 @@ class AutoSchema(openapi.AutoSchema):
                 media_type, request_schema = request_type
                 content_schemas[media_type] = {"schema": request_schema}
             else:
-                serializer_ref = self._get_reference(serializer)
+                serializer_ref = self.get_reference(serializer)
                 content_schemas[request_type] = {"schema": serializer_ref}
 
         return {"content": content_schemas}
@@ -226,6 +225,14 @@ class AutoSchema(openapi.AutoSchema):
             }
         }
 
+    def get_reference(self, serializer):
+        try:
+            get_reference = super().get_reference
+        except AttributeError:
+            get_reference = super()._get_reference  # type: ignore
+
+        return get_reference(serializer)
+
     def _extract_openapi_schema(self, schemable: AnnotatedSchemaT, ctx: "RequestResponseContext"):
         schema_model = schemable.get_schema(ctx)
         if schema_model is not None:
@@ -238,7 +245,7 @@ class AutoSchema(openapi.AutoSchema):
         if not isinstance(serializer, serializers.Serializer):
             item_schema = {}
         else:
-            item_schema = self._get_reference(serializer)
+            item_schema = self.get_reference(serializer)
 
         if is_list_view(path, method, self.view):
             response_schema = {
