@@ -41,6 +41,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 requires-python = ">=3.8"
@@ -61,8 +62,8 @@ dev = [
     "pre-commit",
     "pytest~=7.4",
     "djangorestframework>=3.11,<4",
-    "django-stubs[compatible-mypy]~=4.2",
-    "djangorestframework-stubs[compatible-mypy]~=3.14",
+    "django-stubs[compatible-mypy]~=5.2.3",
+    "djangorestframework-stubs[compatible-mypy]~=3.16.3",
     "pytest-django>=4.5,<6",
 ]
 test = [

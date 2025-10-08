@@ -297,9 +297,12 @@ class RepresentationSerializer(BaseSerializer):
 
 AnnotatedAlias = te._AnnotatedAlias
 
-if sys.version_info >= (3, 9):
+if sys.version_info >= (3, 14):
     GenericAlias = types.GenericAlias
-    GenericTypes: ty.Tuple[ty.Any, ...] = (
+    GenericTypes: ty.Tuple[ty.Any, ...] = (GenericAlias, type(ty.List[int]), type(ty.List), ty.Union)
+elif sys.version_info >= (3, 9):
+    GenericAlias = types.GenericAlias
+    GenericTypes = (
         GenericAlias,
         type(ty.List[int]),
         type(ty.List),
@@ -325,6 +328,7 @@ for type_ in GenericTypes:
 
 MigrationWriter.register_serializer(ty.ForwardRef, TypingSerializer)
 MigrationWriter.register_serializer(type(ty.Union), TypingSerializer)  # type: ignore
+MigrationWriter.register_serializer(ty._SpecialForm, TypingSerializer)  # type: ignore
 
 
 if sys.version_info >= (3, 10):
