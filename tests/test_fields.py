@@ -147,7 +147,6 @@ def test_field_serialization(field):
     _test_field_serialization(field)
 
 
-@pytest.mark.skipif(sys.version_info < (3, 9), reason="Built-in type subscription supports only in 3.9+")
 @pytest.mark.parametrize(
     "field_factory",
     [
@@ -161,30 +160,11 @@ def test_field_builtin_annotations_serialization(field_factory):
     _test_field_serialization(field_factory())
 
 
-@pytest.mark.skipif(sys.version_info < (3, 10), reason="Union type syntax supported only in 3.10+")
 def test_field_union_type_serialization():
     field = fields.PydanticSchemaField(schema=(InnerSchema | None), null=True, default=None)
     _test_field_serialization(field)
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 9), reason="Should test against builtin generic types")
-@pytest.mark.parametrize(
-    "field",
-    [
-        fields.PydanticSchemaField(schema=ty.List[InnerSchema], default=list),
-        fields.PydanticSchemaField(schema=ty.Dict[str, InnerSchema], default=dict),
-        fields.PydanticSchemaField(schema=ty.Sequence[InnerSchema], default=list),
-        fields.PydanticSchemaField(schema=ty.Mapping[str, InnerSchema], default=dict),
-    ],
-)
-def test_field_typing_annotations_serialization(field):
-    _test_field_serialization(field)
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 9),
-    reason="Typing-to-builtin migrations is reasonable only on py >= 3.9",
-)
 @pytest.mark.parametrize(
     "old_field, new_field",
     [

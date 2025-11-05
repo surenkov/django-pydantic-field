@@ -107,7 +107,6 @@ def test_concrete_types(type_, encoded, decoded):
     assert decoder.decode(existing_encoded) == decoded
 
 
-@pytest.mark.skipif(sys.version_info < (3, 9), reason="Should test against builtin generic types")
 @pytest.mark.parametrize(
     "type_factory, encoded, decoded",
     [
