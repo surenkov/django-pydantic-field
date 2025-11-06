@@ -1,4 +1,3 @@
-import sys
 import pydantic
 import pytest
 import typing as ty
@@ -6,24 +5,20 @@ import typing as ty
 from ..conftest import InnerSchema, SampleDataclass
 
 types = pytest.importorskip("django_pydantic_field.v2.types")
-skip_unsupported_builtin_subscription = pytest.mark.skipif(
-    sys.version_info < (3, 9),
-    reason="Built-in type subscription supports only in 3.9+",
-)
 
 
 # fmt: off
 @pytest.mark.parametrize(
     "ctor, args, kwargs",
     [
-        pytest.param(types.SchemaAdapter, ["list[int]", None, None, None], {}, marks=skip_unsupported_builtin_subscription),
-        pytest.param(types.SchemaAdapter, ["list[int]", {"strict": True}, None, None], {}, marks=skip_unsupported_builtin_subscription),
+        pytest.param(types.SchemaAdapter, ["list[int]", None, None, None], {}),
+        pytest.param(types.SchemaAdapter, ["list[int]", {"strict": True}, None, None], {}),
         (types.SchemaAdapter, [ty.List[int], None, None, None], {}),
         (types.SchemaAdapter, [ty.List[int], {"strict": True}, None, None], {}),
         (types.SchemaAdapter, [None, None, InnerSchema, "stub_int"], {}),
         (types.SchemaAdapter, [None, None, SampleDataclass, "stub_int"], {}),
-        pytest.param(types.SchemaAdapter.from_type, ["list[int]"], {}, marks=skip_unsupported_builtin_subscription),
-        pytest.param(types.SchemaAdapter.from_type, ["list[int]", {"strict": True}], {}, marks=skip_unsupported_builtin_subscription),
+        pytest.param(types.SchemaAdapter.from_type, ["list[int]"], {}),
+        pytest.param(types.SchemaAdapter.from_type, ["list[int]", {"strict": True}], {}),
         (types.SchemaAdapter.from_type, [ty.List[int]], {}),
         (types.SchemaAdapter.from_type, [ty.List[int], {"strict": True}], {}),
         (types.SchemaAdapter.from_annotation, [InnerSchema, "stub_int"], {}),

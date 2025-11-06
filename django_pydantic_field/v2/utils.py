@@ -9,13 +9,22 @@ from django_pydantic_field.compat import typing
 if ty.TYPE_CHECKING:
     from collections.abc import Mapping
 
+get_annotations: ty.Callable[[ty.Any], dict[str, ty.Any]]
+
+try:
+    from annotationlib import get_annotations  # Python >= 3.14
+except ImportError:
+
+    def get_annotations(obj: ty.Any) -> dict[str, ty.Any]:
+        if isinstance(obj, type):
+            return obj.__dict__["__annotations__"]
+        else:
+            return obj.__annotations__
+
 
 def get_annotated_type(obj, field, default=None) -> ty.Any:
     try:
-        if isinstance(obj, type):
-            annotations = obj.__dict__["__annotations__"]
-        else:
-            annotations = obj.__annotations__
+        annotations = get_annotations(obj)
 
         return annotations[field]
     except (AttributeError, KeyError):
@@ -48,12 +57,5 @@ def get_origin_type(cls: type):
     return cls
 
 
-if sys.version_info >= (3, 9):
-
-    def evaluate_forward_ref(ref: ty.ForwardRef, ns: Mapping[str, ty.Any]) -> ty.Any:
-        return ref._evaluate(dict(ns), {}, recursive_guard=frozenset())
-
-else:
-
-    def evaluate_forward_ref(ref: ty.ForwardRef, ns: Mapping[str, ty.Any]) -> ty.Any:
-        return ref._evaluate(dict(ns), {})
+def evaluate_forward_ref(ref: ty.ForwardRef, ns: Mapping[str, ty.Any]) -> ty.Any:
+    return ref._evaluate(dict(ns), {}, recursive_guard=frozenset())

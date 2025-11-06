@@ -35,15 +35,14 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "pydantic>=1.10,<3",
     "django>=3.1,<6",
@@ -61,8 +60,8 @@ dev = [
     "pre-commit",
     "pytest~=7.4",
     "djangorestframework>=3.11,<4",
-    "django-stubs[compatible-mypy]~=4.2",
-    "djangorestframework-stubs[compatible-mypy]~=3.14",
+    "django-stubs[compatible-mypy]~=5.2.3",
+    "djangorestframework-stubs[compatible-mypy]~=3.16.3",
     "pytest-django>=4.5,<6",
 ]
 test = [
@@ -73,8 +72,7 @@ test = [
     "syrupy>=3,<5",
 ]
 ci = [
-    'psycopg[binary]>=3.1,<4; python_version>="3.9"',
-    'psycopg2-binary>=2.7,<3; python_version<"3.9"',
+    'psycopg[binary]>=3.1,<4',
     "mysqlclient>=2.1",
 ]
 
