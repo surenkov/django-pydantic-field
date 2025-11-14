@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import typing as ty
 
+import pydantic
+
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Model
@@ -18,6 +20,15 @@ from django_pydantic_field.types import SchemaAdapterResolver
 from . import types
 
 __all__ = ("PydanticSchemaField", "SchemaField")
+
+
+class PydanticDjangoJSONEncoder(DjangoJSONEncoder):
+    """DjangoJSONEncoder subclass that adds support for Pydantic models."""
+
+    def default(self, o):
+        if isinstance(o, pydantic.BaseModel):
+            return o.model_dump(mode="json")
+        return super().default(o)
 
 
 class SchemaAttribute(DeferredAttribute, ty.Generic[types.ST]):
@@ -46,7 +57,7 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
     adapter: types.BaseSchemaAdapter[types.ST]
 
     def __init__(self, schema=None, config=None, *args, **kwargs):
-        kwargs.setdefault("encoder", DjangoJSONEncoder)
+        kwargs.setdefault("encoder", PydanticDjangoJSONEncoder)
 
         SchemaAdapter = self.get_schema_adapter_class()
         self.export_kwargs = export_kwargs = SchemaAdapter.extract_export_kwargs(kwargs)
