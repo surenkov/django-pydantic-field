@@ -54,6 +54,15 @@ if ty.TYPE_CHECKING:
 __all__ = ("SchemaField",)
 
 
+class PydanticDjangoJSONEncoder(DjangoJSONEncoder):
+    """DjangoJSONEncoder subclass that adds support for Pydantic models."""
+
+    def default(self, o):
+        if isinstance(o, pydantic.BaseModel):
+            return o.model_dump(mode='json')
+        return super().default(o)
+
+
 class SchemaAttribute(DeferredAttribute):
     field: PydanticSchemaField
 
@@ -81,7 +90,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         config: pydantic.ConfigDict | None = None,
         **kwargs,
     ):
-        kwargs.setdefault("encoder", DjangoJSONEncoder)
+        kwargs.setdefault("encoder", PydanticDjangoJSONEncoder)
         self.export_kwargs = export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
         super().__init__(*args, **kwargs)
 
