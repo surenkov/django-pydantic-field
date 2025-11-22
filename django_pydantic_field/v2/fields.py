@@ -59,7 +59,7 @@ class PydanticDjangoJSONEncoder(DjangoJSONEncoder):
 
     def default(self, o):
         if isinstance(o, pydantic.BaseModel):
-            return o.model_dump(mode='json')
+            return o.model_dump(mode="json")
         return super().default(o)
 
 
