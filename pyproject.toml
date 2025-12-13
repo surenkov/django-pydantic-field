@@ -29,6 +29,7 @@ classifiers = [
     "Framework :: Django :: 5.0",
     "Framework :: Django :: 5.1",
     "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
     "Framework :: Pydantic",
     "Framework :: Pydantic :: 1",
     "Framework :: Pydantic :: 2",
@@ -45,7 +46,7 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "pydantic>=1.10,<3",
-    "django>=3.1,<6",
+    "django>=3.1",
     "typing_extensions",
 ]
 
