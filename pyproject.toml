@@ -52,7 +52,6 @@ dependencies = [
 
 [project.optional-dependencies]
 openapi = ["uritemplate", "inflection"]
-coreapi = ["coreapi"]
 jsonform = ["django_jsonform>=2.0,<3"]
 
 [dependency-groups]
@@ -62,7 +61,6 @@ dev = [
     "pre-commit",
     "uritemplate",
     "inflection",
-    "coreapi",
     "pytest~=7.4",
     "pytest-django>=4.5,<6",
     "django-stubs~=5.2.3",
