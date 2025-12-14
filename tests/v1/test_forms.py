@@ -36,7 +36,7 @@ def test_prepare_value():
 
 
 def test_prepare_value_export_params():
-    field = forms.SchemaField(InnerSchema, required=False, indent=2, sort_keys=True, separators=('', ' > '))
+    field = forms.SchemaField(InnerSchema, required=False, indent=2, sort_keys=True, separators=("", " > "))
     expected = """{
   "stub_int" > 1
   "stub_list" > [
@@ -69,7 +69,7 @@ def test_invalid_json_raises():
     with pytest.raises(ValidationError) as e:
         field.clean('{"stub_list": "abc}')
 
-    assert e.match('type=value_error.jsondecode')
+    assert e.match("type=value_error.jsondecode")
 
 
 @pytest.mark.xfail(
@@ -97,17 +97,20 @@ def test_forwardref_model_formfield():
     assert cleaned_data["annotated_field"] == SampleSchema(field=2)
 
 
-@pytest.mark.parametrize("export_kwargs", [
-    {"include": {"stub_str", "stub_int"}},
-    {"exclude": {"stub_list"}},
-    {"exclude_unset": True},
-    {"exclude_defaults": True},
-    {"exclude_none": True},
-    {"by_alias": True},
-    {"indent": 4},
-    {"separators": (',', ': ')},
-    {"sort_keys": True},
-])
+@pytest.mark.parametrize(
+    "export_kwargs",
+    [
+        {"include": {"stub_str", "stub_int"}},
+        {"exclude": {"stub_list"}},
+        {"exclude_unset": True},
+        {"exclude_defaults": True},
+        {"exclude_none": True},
+        {"by_alias": True},
+        {"indent": 4},
+        {"separators": (",", ": ")},
+        {"sort_keys": True},
+    ],
+)
 def test_form_field_export_kwargs(export_kwargs):
     field = forms.SchemaField(InnerSchema, required=False, **export_kwargs)
     value = InnerSchema.parse_obj({"stub_str": "abc", "stub_list": ["1970-01-01"]})

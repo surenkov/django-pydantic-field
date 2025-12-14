@@ -37,15 +37,18 @@ class SampleSchema(pydantic.BaseModel):
 class ExampleSchema(pydantic.BaseModel):
     count: int
 
+
 class ExampleModel(models.Model):
     example_field: ExampleSchema = SchemaField(default=ExampleSchema(count=1))
 
 
 if PYDANTIC_V2:
+
     class RootSchema(pydantic.RootModel):
         root: t.List[int]
 
 else:
+
     class RootSchema(pydantic.BaseModel):
         __root__: t.List[int]
 

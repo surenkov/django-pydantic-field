@@ -8,6 +8,7 @@ from .view_fixtures import create_views_urlconf
 
 coreapi = pytest.importorskip("django_pydantic_field.v2.rest_framework.coreapi")
 
+
 @pytest.mark.skipif(sys.version_info >= (3, 12), reason="CoreAPI is not compatible with 3.12")
 @pytest.mark.parametrize(
     "method, path",
