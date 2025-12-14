@@ -60,16 +60,16 @@ dev = [
     "ruff",
     "ty",
     "pre-commit",
+    "uritemplate",
+    "inflection",
+    "coreapi",
     "pytest~=7.4",
-    "djangorestframework>=3.11,<4",
-    "django-stubs~=5.2.3",
-    "djangorestframework-stubs~=3.16.3",
     "pytest-django>=4.5,<6",
-]
-test = [
-    "django_pydantic_field[openapi,coreapi,jsonform]",
-    "dj-database-url~=2.0",
+    "django-stubs~=5.2.3",
     "djangorestframework>=3,<4",
+    "djangorestframework-stubs~=3.16.3",
+    "django_jsonform>=2.0,<3",
+    "dj-database-url~=2.0",
     "pyyaml",
     "syrupy>=3,<5",
     "annotated-types>=0.7.0",
@@ -86,7 +86,7 @@ Source = "https://github.com/surenkov/django-pydantic-field"
 Changelog = "https://github.com/surenkov/django-pydantic-field/releases"
 
 [tool.uv]
-default-groups = ["dev", "test"]
+default-groups = ["dev"]
 
 [tool.uv.build-backend]
 module-name = "django_pydantic_field"

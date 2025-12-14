@@ -266,22 +266,22 @@ ci = [
     { name = "psycopg", extra = ["binary"] },
 ]
 dev = [
+    { name = "annotated-types" },
+    { name = "coreapi" },
+    { name = "dj-database-url" },
+    { name = "django-jsonform" },
     { name = "django-stubs" },
     { name = "djangorestframework" },
     { name = "djangorestframework-stubs" },
+    { name = "inflection" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-django" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-test = [
-    { name = "annotated-types" },
-    { name = "dj-database-url" },
-    { name = "django-pydantic-field", extra = ["coreapi", "jsonform", "openapi"] },
-    { name = "djangorestframework" },
     { name = "pyyaml" },
+    { name = "ruff" },
     { name = "syrupy" },
+    { name = "ty" },
+    { name = "uritemplate" },
 ]
 
 [package.metadata]
@@ -302,22 +302,22 @@ ci = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.1,<4" },
 ]
 dev = [
+    { name = "annotated-types", specifier = ">=0.7.0" },
+    { name = "coreapi" },
+    { name = "dj-database-url", specifier = "~=2.0" },
+    { name = "django-jsonform", specifier = ">=2.0,<3" },
     { name = "django-stubs", specifier = "~=5.2.3" },
-    { name = "djangorestframework", specifier = ">=3.11,<4" },
+    { name = "djangorestframework", specifier = ">=3,<4" },
     { name = "djangorestframework-stubs", specifier = "~=3.16.3" },
+    { name = "inflection" },
     { name = "pre-commit" },
     { name = "pytest", specifier = "~=7.4" },
     { name = "pytest-django", specifier = ">=4.5,<6" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-test = [
-    { name = "annotated-types", specifier = ">=0.7.0" },
-    { name = "dj-database-url", specifier = "~=2.0" },
-    { name = "django-pydantic-field", extras = ["openapi", "coreapi", "jsonform"] },
-    { name = "djangorestframework", specifier = ">=3,<4" },
     { name = "pyyaml" },
+    { name = "ruff" },
     { name = "syrupy", specifier = ">=3,<5" },
+    { name = "ty" },
+    { name = "uritemplate" },
 ]
 
 [[package]]
