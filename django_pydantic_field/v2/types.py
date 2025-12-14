@@ -58,7 +58,7 @@ class SchemaAdapter(ty.Generic[ST]):
         parent_type: type | None,
         attname: str | None,
         allow_null: bool | None = None,
-        **export_kwargs: ty.Unpack[ExportKwargs],
+        **export_kwargs: te.Unpack[ExportKwargs],
     ):
         self.schema = BaseContainer.unwrap(schema)
         self.config = config
@@ -72,7 +72,7 @@ class SchemaAdapter(ty.Generic[ST]):
         cls,
         schema: ty.Any,
         config: pydantic.ConfigDict | None = None,
-        **kwargs: ty.Unpack[ExportKwargs],
+        **kwargs: te.Unpack[ExportKwargs],
     ) -> SchemaAdapter[ST]:
         """Create an adapter from a type."""
         return cls(schema, config, None, None, **kwargs)
@@ -83,7 +83,7 @@ class SchemaAdapter(ty.Generic[ST]):
         parent_type: type,
         attname: str,
         config: pydantic.ConfigDict | None = None,
-        **kwargs: ty.Unpack[ExportKwargs],
+        **kwargs: te.Unpack[ExportKwargs],
     ) -> SchemaAdapter[ST]:
         """Create an adapter from a type annotation."""
         return cls(None, config, parent_type, attname, **kwargs)
@@ -135,12 +135,12 @@ class SchemaAdapter(ty.Generic[ST]):
             strict = self.export_kwargs.get("strict", None)
         return self.type_adapter.validate_json(value, strict=strict)
 
-    def dump_python(self, value: ty.Any, **override_kwargs: ty.Unpack[ExportKwargs]) -> ty.Any:
+    def dump_python(self, value: ty.Any, **override_kwargs: te.Unpack[ExportKwargs]) -> ty.Any:
         """Dump the value to a Python object."""
         union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs, {"mode": "json"})  # type: ignore
         return self.type_adapter.dump_python(value, **union_kwargs)
 
-    def dump_json(self, value: ty.Any, **override_kwargs: ty.Unpack[ExportKwargs]) -> bytes:
+    def dump_json(self, value: ty.Any, **override_kwargs: te.Unpack[ExportKwargs]) -> bytes:
         union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)  # type: ignore
         return self.type_adapter.dump_json(value, **union_kwargs)
 

@@ -25,14 +25,6 @@ from django_pydantic_field.compat import PYDANTIC_V1, PYDANTIC_V2
                 reason="`.rest_framework.openapi` module is only appearing in v2 layer",
             ),
         ),
-        pytest.param(
-            rest_framework,
-            "coreapi",
-            marks=pytest.mark.skipif(
-                not PYDANTIC_V2,
-                reason="`.rest_framework.coreapi` module is only appearing in v2 layer",
-            ),
-        ),
     ],
 )
 def test_module_imports(module, exported_primitive_name):

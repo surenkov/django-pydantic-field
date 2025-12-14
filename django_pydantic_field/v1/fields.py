@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import json
 import typing as t
@@ -6,13 +8,19 @@ from functools import partial
 import pydantic
 from django.core import exceptions as django_exceptions
 from django.db.models.expressions import BaseExpression, Value
-from django.db.models.fields import NOT_PROVIDED
+from django.db.models.fields import NOT_PROVIDED, Field
 from django.db.models.fields.json import JSONField
 from django.db.models.query_utils import DeferredAttribute
 
 from django_pydantic_field.compat.django import BaseContainer, GenericContainer
 
-from . import base, forms, utils
+from django_pydantic_field.v1 import base, forms, utils
+from django_pydantic_field.v1.base import ST
+
+if t.TYPE_CHECKING:
+    from django_pydantic_field.v1.base import SchemaT, ConfigType
+
+    OptSchemaT = t.Optional[SchemaT]
 
 __all__ = ("SchemaField",)
 
@@ -44,14 +52,14 @@ class UninitializedSchemaAttribute(SchemaAttribute):
         obj.__dict__[self.field.attname] = value
 
 
-class PydanticSchemaField(JSONField, t.Generic[base.ST]):
+class PydanticSchemaField(JSONField, t.Generic[ST]):
     _is_prepared_schema: bool = False
 
     def __init__(
         self,
         *args,
-        schema: t.Union[t.Type["base.ST"], "BaseContainer", "t.ForwardRef", str, None] = None,
-        config: t.Optional["base.ConfigType"] = None,
+        schema: t.Union[t.Type[ST], BaseContainer, t.ForwardRef, str, None] = None,
+        config: t.Optional[ConfigType] = None,
         **kwargs,
     ):
         self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
@@ -72,7 +80,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
             return self.to_python(default_value)
         return default_value
 
-    def to_python(self, value) -> "base.SchemaT":
+    def to_python(self, value) -> SchemaT:
         # Attempt to resolve forward referencing schema if it was not succesful
         # during `.contribute_to_class` call
         if not self._is_prepared_schema:
@@ -94,6 +102,8 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
             # Prepare the value if it is not a query expression.
             with contextlib.suppress(Exception):
                 value = self.to_python(value)
+
+            assert self.encoder is not None
             value = json.loads(self.encoder().encode(value))
 
         return super().get_prep_value(value)
@@ -131,7 +141,8 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
 
         super().contribute_to_class(cls, name, private_only)
 
-    def formfield(self, **kwargs):
+    def formfield(self, **kwargs):  # type: ignore[invalid-method-override]
+        Field.formfield
         if self.schema is None:
             self._resolve_schema_from_type_hints(self.model, self.attname)
 
@@ -151,7 +162,7 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         return self.get_prep_value(value)
 
     def _resolve_schema(self, schema):
-        schema = t.cast(t.Type["base.ST"], BaseContainer.unwrap(schema))
+        schema = t.cast(t.Type[ST], BaseContainer.unwrap(schema))
 
         self.schema = schema
         if schema is not None:
@@ -189,30 +200,26 @@ class PydanticSchemaField(JSONField, t.Generic[base.ST]):
         kwargs.update(config=self.config)
 
 
-if t.TYPE_CHECKING:
-    OptSchemaT = t.Optional[base.SchemaT]
+@t.overload
+def SchemaField(
+    schema: t.Union[t.Type[t.Optional[ST]], t.ForwardRef] = ...,
+    config: ConfigType = ...,
+    default: t.Union[OptSchemaT, t.Callable[[], OptSchemaT]] = ...,
+    *args,
+    null: t.Literal[True],
+    **kwargs,
+) -> t.Optional[ST]: ...
 
 
 @t.overload
 def SchemaField(
-    schema: "t.Union[t.Type[t.Optional[base.ST]], t.ForwardRef]" = ...,
-    config: "base.ConfigType" = ...,
-    default: "t.Union[OptSchemaT, t.Callable[[], OptSchemaT]]" = ...,
+    schema: t.Union[t.Type[ST], t.ForwardRef] = ...,
+    config: ConfigType = ...,
+    default: t.Union[SchemaT, t.Callable[[], SchemaT]] = ...,
     *args,
-    null: "t.Literal[True]",
+    null: t.Literal[False] = ...,
     **kwargs,
-) -> "t.Optional[base.ST]": ...
-
-
-@t.overload
-def SchemaField(
-    schema: "t.Union[t.Type[base.ST], t.ForwardRef]" = ...,
-    config: "base.ConfigType" = ...,
-    default: "t.Union[base.SchemaT, t.Callable[[], base.SchemaT]]" = ...,
-    *args,
-    null: "t.Literal[False]" = ...,
-    **kwargs,
-) -> "base.ST": ...
+) -> ST: ...
 
 
 def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs) -> t.Any:  # type: ignore

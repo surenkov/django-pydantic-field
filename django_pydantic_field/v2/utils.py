@@ -12,7 +12,7 @@ if ty.TYPE_CHECKING:
 get_annotations: ty.Callable[[ty.Any], dict[str, ty.Any]]
 
 try:
-    from annotationlib import get_annotations  # Python >= 3.14
+    from annotationlib import get_annotations  # type: ignore[unresolved-import] # Python >= 3.14
 except ImportError:
 
     def get_annotations(obj: ty.Any) -> dict[str, ty.Any]:

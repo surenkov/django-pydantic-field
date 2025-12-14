@@ -11,13 +11,16 @@ if t.TYPE_CHECKING:
 
 def get_annotated_type(obj, field, default=None) -> t.Any:
     try:
-        if isinstance(obj, type):
-            annotations = obj.__dict__["__annotations__"]
-        else:
+        try:
             annotations = obj.__annotations__
+        except AttributeError:
+            annotations = obj.__dict__["__annotations__"]
+    except KeyError:
+        annotations = {}
 
+    try:
         return annotations[field]
-    except (AttributeError, KeyError):
+    except KeyError:
         return default
 
 

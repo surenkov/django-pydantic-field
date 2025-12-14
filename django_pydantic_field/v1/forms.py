@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import typing as t
+import typing as ty
 from functools import partial
 
 import pydantic
@@ -8,23 +8,27 @@ from django.core.exceptions import ValidationError
 from django.forms.fields import InvalidJSONInput, JSONField
 from django.utils.translation import gettext_lazy as _
 
-from . import base
+from django_pydantic_field.v1 import base
+from django_pydantic_field.v1.base import ST
+
+if ty.TYPE_CHECKING:
+    from django_pydantic_field.v1.base import SchemaDecoder, SchemaEncoder, ConfigType
 
 __all__ = ("SchemaField",)
 
 
-class SchemaField(JSONField, t.Generic[base.ST]):
+class SchemaField(JSONField, ty.Generic[ST]):
     default_error_messages = {
         "schema_error": _("Schema didn't match. Detail: %(detail)s"),
     }
-    decoder: partial[base.SchemaDecoder]
-    encoder: partial[base.SchemaEncoder]
+    decoder: partial[SchemaDecoder]
+    encoder: partial[SchemaEncoder]
 
     def __init__(
         self,
-        schema: t.Union[t.Type["base.ST"], t.ForwardRef],
-        config: t.Optional["base.ConfigType"] = None,
-        __module__: t.Optional[str] = None,
+        schema: ty.Union[ty.Type[ST], ty.ForwardRef],
+        config: ty.Optional[ConfigType] = None,
+        __module__: ty.Optional[str] = None,
         **kwargs,
     ):
         self.schema = base.wrap_schema(
@@ -34,8 +38,8 @@ class SchemaField(JSONField, t.Generic[base.ST]):
             __module__=__module__,
         )
         export_params = base.extract_export_kwargs(kwargs, dict.pop)
-        decoder: partial[base.SchemaDecoder] = partial(base.SchemaDecoder, self.schema)
-        encoder: partial[base.SchemaEncoder] = partial(
+        decoder: partial[SchemaDecoder] = partial(base.SchemaDecoder, self.schema)
+        encoder: partial[SchemaEncoder] = partial(
             base.SchemaEncoder,
             schema=self.schema,
             export=export_params,

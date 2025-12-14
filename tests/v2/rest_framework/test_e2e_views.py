@@ -12,7 +12,6 @@ from .view_fixtures import (
 )
 
 rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework")
-coreapi = pytest.importorskip("django_pydantic_field.v2.rest_framework.coreapi")
 
 
 @pytest.mark.parametrize(

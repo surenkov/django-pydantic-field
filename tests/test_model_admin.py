@@ -16,7 +16,7 @@ all_admins = {
     #
     models.SampleForwardRefModel: admin.SampleForwardRefModelAdmin,
     models.SampleModelWithRoot: admin.SampleModelWithRootAdmin,
-    models.ExampleModel: admin.ExampleModelAdmin
+    models.ExampleModel: admin.ExampleModelAdmin,
 }
 
 

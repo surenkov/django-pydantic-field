@@ -30,9 +30,10 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: |
-        python -m pip install -e .[dev,test]
-    - name: Lint package
-      run: python -m mypy .
+        pip install uv
+        uv sync
+    - name: Lint and Check Types
+      run: uv run ty check
 
   pre-commit:
     runs-on: ubuntu-latest
@@ -44,9 +45,11 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: |
-        python -m pip install -e .[dev]
+        pip install uv
+        uv sync
+        uv run pre-commit install
     - name: Run pre-commit
-      run: pre-commit run --show-diff-on-failure --color=always --all-files
+      run: uv run pre-commit run --show-diff-on-failure --color=always --all-files
 
   test:
     runs-on: ubuntu-latest
@@ -88,9 +91,9 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update && sudo apt install -qy python3-dev default-libmysqlclient-dev build-essential
-        python -m pip install --upgrade pip
-        python -m pip install -e .[dev,test,ci]
+        pip install uv
+        uv sync --group ci
     - name: Install Pydantic ${{ matrix.pydantic-version }}
-      run: python -m pip install "pydantic==${{ matrix.pydantic-version }}"
+      run: uv add "pydantic==${{ matrix.pydantic-version }}"
     - name: Test package
-      run: pytest
+      run: uv run pytest

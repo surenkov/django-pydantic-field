@@ -1,10 +1,11 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.9.17,<0.10.0"]
+build-backend = "uv_build"
 
 [project]
 name = "django-pydantic-field"
 version = "0.4.1"
+requires-python = ">=3.10"
 description = "Django JSONField with Pydantic models as a Schema"
 readme = "README.md"
 license = "MIT"
@@ -43,7 +44,6 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 
-requires-python = ">=3.10"
 dependencies = [
     "pydantic>=1.10,<3",
     "django>=3.1",
@@ -52,28 +52,28 @@ dependencies = [
 
 [project.optional-dependencies]
 openapi = ["uritemplate", "inflection"]
-coreapi = ["coreapi"]
 jsonform = ["django_jsonform>=2.0,<3"]
+
+[dependency-groups]
 dev = [
-    "build",
     "ruff",
-    "mypy",
+    "ty",
     "pre-commit",
+    "uritemplate",
+    "inflection",
     "pytest~=7.4",
-    "djangorestframework>=3.11,<4",
-    "django-stubs[compatible-mypy]~=5.2.3",
-    "djangorestframework-stubs[compatible-mypy]~=3.16.3",
     "pytest-django>=4.5,<6",
-]
-test = [
-    "django_pydantic_field[openapi,coreapi,jsonform]",
-    "dj-database-url~=2.0",
+    "django-stubs~=5.2.3",
     "djangorestframework>=3,<4",
+    "djangorestframework-stubs~=3.16.3",
+    "django_jsonform>=2.0,<3",
+    "dj-database-url~=2.0",
     "pyyaml",
     "syrupy>=3,<5",
+    "annotated-types>=0.7.0",
 ]
 ci = [
-    'psycopg[binary]>=3.1,<4',
+    "psycopg[binary]>=3.1,<4",
     "mysqlclient>=2.1",
 ]
 
@@ -83,15 +83,29 @@ Documentation = "https://github.com/surenkov/django-pydantic-field"
 Source = "https://github.com/surenkov/django-pydantic-field"
 Changelog = "https://github.com/surenkov/django-pydantic-field/releases"
 
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.uv.build-backend]
+module-name = "django_pydantic_field"
+module-root = ""
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
+
 [tool.ruff]
 line-length = 120
 
-[tool.mypy]
-plugins = [
-    "mypy_django_plugin.main",
-    "mypy_drf_plugin.main"
-]
-exclude = [".env", ".venv", "tests"]
+[tool.ty.src]
+include = ["django_pydantic_field"]
+exclude = ["tests"]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "ignore"
+possibly-missing-attribute = "ignore"
 
 [tool.django-stubs]
 django_settings_module = "tests.settings.django_test_settings"
@@ -104,6 +118,3 @@ pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_tests.py"]
 norecursedirs = [".*", "venv"]
-
-[tool.pyright]
-include = ["pydantic"]

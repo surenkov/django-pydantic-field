@@ -35,8 +35,7 @@ class SchemaWithCustomTypes(pydantic.BaseModel):
 
     if PYDANTIC_V2:
         b64: pydantic.Base64Str = "YmFzZTY0"
-        model_config = dict(validate_default=True) # type: ignore
-
+        model_config = dict(validate_default=True)  # type: ignore
 
 
 @pytest.fixture
