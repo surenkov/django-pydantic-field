@@ -1,36 +1,30 @@
-import typing as t
+import typing as ty
 
 import pydantic
 from django.core.serializers.json import DjangoJSONEncoder
 from pydantic.json import pydantic_encoder
 from pydantic.typing import display_as_type
 
-from .utils import get_local_namespace, inherit_configs
+from django_pydantic_field.v1.utils import get_local_namespace, inherit_configs
+from pydantic.dataclasses import DataclassClassOrWrapper
 
-__all__ = (
-    "SchemaEncoder",
-    "SchemaDecoder",
-    "wrap_schema",
-    "prepare_schema",
-    "extract_export_kwargs",
-)
+ST = ty.TypeVar("ST", bound="SchemaT")
 
-ST = t.TypeVar("ST", bound="SchemaT")
 
-if t.TYPE_CHECKING:
+if ty.TYPE_CHECKING:
     from pydantic.dataclasses import DataclassClassOrWrapper
 
-    SchemaT = t.Union[
+    SchemaT = ty.Union[
         pydantic.BaseModel,
         DataclassClassOrWrapper,
-        t.Sequence[t.Any],
-        t.Mapping[str, t.Any],
-        t.Set[t.Any],
-        t.FrozenSet[t.Any],
+        ty.Sequence[ty.Any],
+        ty.Mapping[str, ty.Any],
+        ty.Set[ty.Any],
+        ty.FrozenSet[ty.Any],
     ]
 
-    ModelType = t.Type[pydantic.BaseModel]
-    ConfigType = t.Union[pydantic.ConfigDict, t.Type[pydantic.BaseConfig], t.Type]
+    ModelType = ty.Type[pydantic.BaseModel]
+    ConfigType = ty.Union[pydantic.ConfigDict, ty.Type[pydantic.BaseConfig], ty.Type]
 
 
 class SchemaEncoder(DjangoJSONEncoder):
@@ -47,9 +41,9 @@ class SchemaEncoder(DjangoJSONEncoder):
         self.export_params = export or {}
         self.raise_errors = raise_errors
 
-    def encode(self, obj):
+    def encode(self, o):
         try:
-            data = self.schema(__root__=obj).json(**self.export_params)
+            data = self.schema(__root__=o).json(**self.export_params)
         except pydantic.ValidationError:
             if self.raise_errors:
                 raise
@@ -59,18 +53,18 @@ class SchemaEncoder(DjangoJSONEncoder):
             try:
                 # Attempting to encode with pydantic encoder first, to make sure
                 # the output conform with pydantic's built-in serialization
-                data = pydantic_encoder(obj)
+                data = pydantic_encoder(o)
             except TypeError:
-                data = super().encode(obj)
+                data = super().encode(o)
 
         return data
 
 
-class SchemaDecoder(t.Generic[ST]):
+class SchemaDecoder(ty.Generic[ST]):
     def __init__(self, schema: "ModelType"):
         self.schema = schema
 
-    def decode(self, obj: t.Any) -> "ST":
+    def decode(self, obj: ty.Any) -> "ST":
         if isinstance(obj, (str, bytes)):
             value = self.schema.parse_raw(obj).__root__  # type: ignore
         else:
@@ -79,8 +73,8 @@ class SchemaDecoder(t.Generic[ST]):
 
 
 def wrap_schema(
-    schema: t.Union[t.Type["ST"], t.ForwardRef],
-    config: t.Optional["ConfigType"] = None,
+    schema: ty.Union[ty.Type["ST"], ty.ForwardRef],
+    config: ty.Optional["ConfigType"] = None,
     allow_null: bool = False,
     **kwargs,
 ) -> "ModelType":
@@ -89,12 +83,12 @@ def wrap_schema(
     return pydantic.create_model(type_name, **params)
 
 
-def prepare_schema(schema: "ModelType", owner: t.Any = None) -> None:
+def prepare_schema(schema: "ModelType", owner: ty.Any = None) -> None:
     namespace = get_local_namespace(owner)
     schema.update_forward_refs(**namespace)
 
 
-def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
+def extract_export_kwargs(ctx: dict, extractor=dict.get) -> ty.Dict[str, ty.Any]:
     """Extract ``BaseModel.json()`` kwargs from ctx for field deconstruction/reconstruction."""
 
     export_ctx = dict(
@@ -120,7 +114,7 @@ def extract_export_kwargs(ctx: dict, extractor=dict.get) -> t.Dict[str, t.Any]:
     return {k: v for k, v in export_ctx.items() if v is not None}
 
 
-def deconstruct_export_kwargs(ctx: t.Dict[str, t.Any]) -> t.Dict[str, t.Any]:
+def deconstruct_export_kwargs(ctx: ty.Dict[str, ty.Any]) -> ty.Dict[str, ty.Any]:
     # We want to invert the work that was done in extract_export_kwargs
     export_ctx = dict(ctx)
 
@@ -140,8 +134,8 @@ def _get_field_schema_name(schema) -> str:
 
 
 def _get_field_schema_params(schema, config=None, allow_null=False, **kwargs) -> dict:
-    root_model = t.Optional[schema] if allow_null else schema
-    params: t.Dict[str, t.Any] = dict(
+    root_model = ty.Optional[schema] if allow_null else schema
+    params: ty.Dict[str, ty.Any] = dict(
         kwargs,
         __root__=(root_model, ...),
         __config__=inherit_configs(schema, config),

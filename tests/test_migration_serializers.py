@@ -1,5 +1,4 @@
-import sys
-import typing as t
+import typing as ty
 import typing_extensions as te
 
 from django.db.migrations.writer import MigrationWriter
@@ -13,7 +12,7 @@ except ImportError:
     from django_pydantic_field._migration_serializers import GenericContainer  # noqa
 
 try:
-    import annotationlib
+    import annotationlib  # type: ignore[unresolved-import]
 except ImportError:
     annotationlib = None
 
@@ -21,11 +20,11 @@ test_types = [
     str,
     list,
     list[str],
-    t.Literal["foo"],
-    t.Union[t.Literal["foo"], list[str]],
-    list[t.Union[int, bool]],
-    tuple[list[t.Literal[1]], t.Union[str, t.Literal["foo"]]],
-    t.ForwardRef("str"),
+    ty.Literal["foo"],
+    ty.Union[ty.Literal["foo"], list[str]],
+    list[ty.Union[int, bool]],
+    tuple[list[ty.Literal[1]], ty.Union[str, ty.Literal["foo"]]],
+    ty.ForwardRef("str"),
 ]
 
 
@@ -40,6 +39,6 @@ def test_serialize_eval_idempotent(raw_type):
     raw_type = GenericContainer.wrap(raw_type)
     expression, _ = MigrationWriter.serialize(raw_type)
     imports = dict(
-        typing=t, typing_extensions=te, django_pydantic_field=django_pydantic_field, annotationlib=annotationlib
+        typing=ty, typing_extensions=te, django_pydantic_field=django_pydantic_field, annotationlib=annotationlib
     )
     assert eval(expression, imports) == raw_type

@@ -1,4 +1,3 @@
-import sys
 import typing as t
 from datetime import date
 from uuid import UUID
@@ -115,7 +114,11 @@ def test_concrete_types(type_, encoded, decoded):
             '[{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}]',
             [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])],
         ),
-        (lambda: list[SampleDataclass], '[{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}]', [SampleDataclass(stub_str="abc", stub_list=[date(2022, 7, 1)])]),  # type: ignore
+        (
+            lambda: list[SampleDataclass],
+            '[{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}]',
+            [SampleDataclass(stub_str="abc", stub_list=[date(2022, 7, 1)])],
+        ),
         (lambda: list[int], "[1, 2, 3]", [1, 2, 3]),
         (lambda: dict[int, date], '{"1": "1970-01-01"}', {1: date(1970, 1, 1)}),
         (lambda: set[UUID], '["ba6eb330-4f7f-11eb-a2fb-67c34e9ac07c"]', {UUID("ba6eb330-4f7f-11eb-a2fb-67c34e9ac07c")}),

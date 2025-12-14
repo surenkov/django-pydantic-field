@@ -231,10 +231,8 @@ class FooClassBasedView(views.APIView):
 
 ## Contributing
 To get `django-pydantic-field` up and running in development mode:
-1. Clone this repo;
-1. Create a virtual environment: `python -m venv .venv`;
-1. Activate `.venv`: `. .venv/bin/activate`;
-1. Install the project and its dependencies: `pip install -e .[dev,test]`;
+1. [Install `uv`](https://docs.astral.sh/uv/getting-started/installation/);
+1. Install the project and its dependencies: `make install`;
 1. Setup `pre-commit`: `pre-commit install`.
 
 ## Acknowledgement

@@ -190,7 +190,7 @@ class FieldInfoContainer(BaseContainer):
         metadata = tuple(map(BaseContainer.unwrap, value.metadata))
         try:
             annotated_args = (origin, *metadata)  # noqa: F841
-            annotation = te.Annotated[annotated_args]
+            annotation = te.Annotated[annotated_args]  # type: ignore[invalid-type-form]
         except TypeError:
             annotation = None
 

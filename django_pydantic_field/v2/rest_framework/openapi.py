@@ -24,7 +24,7 @@ class AutoSchema(openapi.AutoSchema):
     REF_TEMPLATE_PREFIX = "#/components/schemas/{model}"
 
     def __init__(self, tags=None, operation_id_base=None, component_name=None) -> None:
-        super().__init__(tags, operation_id_base, component_name)
+        super().__init__(tags, operation_id_base, component_name)  # type: ignore[invalid-argument-type]  # typeshed is not correct
         self.collected_schema_defs: dict[str, ty.Any] = {}
         self.collected_adapter_schema_refs: dict[str, ty.Any] = {}
         self.adapter_mode: JsonSchemaMode = "validation"
