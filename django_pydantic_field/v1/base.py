@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing as ty
 
 import pydantic
@@ -6,7 +8,6 @@ from pydantic.json import pydantic_encoder
 from pydantic.typing import display_as_type
 
 from django_pydantic_field.v1.utils import get_local_namespace, inherit_configs
-from pydantic.dataclasses import DataclassClassOrWrapper
 
 ST = ty.TypeVar("ST", bound="SchemaT")
 
