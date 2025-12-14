@@ -94,6 +94,6 @@ jobs:
         pip install uv
         uv sync --group ci
     - name: Install Pydantic ${{ matrix.pydantic-version }}
-      run: uv pip install "pydantic==${{ matrix.pydantic-version }}"
+      run: uv add "pydantic==${{ matrix.pydantic-version }}"
     - name: Test package
       run: uv run pytest
