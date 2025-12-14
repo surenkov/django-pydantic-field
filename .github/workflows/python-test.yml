@@ -31,7 +31,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
-        uv sync --extra dev --extra test --extra ci
+        uv sync
     - name: Lint and Check Types
       run: uv run ty check
 
@@ -46,7 +46,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
-        uv sync --extra dev
+        uv sync
         uv run pre-commit install
     - name: Run pre-commit
       run: uv run pre-commit run --show-diff-on-failure --color=always --all-files
@@ -92,7 +92,7 @@ jobs:
       run: |
         sudo apt update && sudo apt install -qy python3-dev default-libmysqlclient-dev build-essential
         pip install uv
-        uv sync --extra dev --extra test --extra ci
+        uv sync --group ci
     - name: Install Pydantic ${{ matrix.pydantic-version }}
       run: uv pip install "pydantic==${{ matrix.pydantic-version }}"
     - name: Test package

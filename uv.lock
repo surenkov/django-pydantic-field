@@ -249,12 +249,21 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+coreapi = [
+    { name = "coreapi" },
+]
+jsonform = [
+    { name = "django-jsonform" },
+]
+openapi = [
+    { name = "inflection" },
+    { name = "uritemplate" },
+]
+
+[package.dev-dependencies]
 ci = [
     { name = "mysqlclient" },
     { name = "psycopg", extra = ["binary"] },
-]
-coreapi = [
-    { name = "coreapi" },
 ]
 dev = [
     { name = "django-stubs" },
@@ -266,50 +275,48 @@ dev = [
     { name = "ruff" },
     { name = "ty" },
 ]
-jsonform = [
-    { name = "django-jsonform" },
-]
-openapi = [
-    { name = "inflection" },
-    { name = "uritemplate" },
-]
 test = [
-    { name = "coreapi" },
     { name = "dj-database-url" },
-    { name = "django-jsonform" },
+    { name = "django-pydantic-field", extra = ["coreapi", "jsonform", "openapi"] },
     { name = "djangorestframework" },
-    { name = "inflection" },
     { name = "pyyaml" },
     { name = "syrupy" },
-    { name = "uritemplate" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "coreapi", marker = "extra == 'coreapi'" },
-    { name = "dj-database-url", marker = "extra == 'test'", specifier = "~=2.0" },
     { name = "django", specifier = ">=3.1" },
     { name = "django-jsonform", marker = "extra == 'jsonform'", specifier = ">=2.0,<3" },
-    { name = "django-pydantic-field", extras = ["openapi", "coreapi", "jsonform"], marker = "extra == 'test'" },
-    { name = "django-stubs", marker = "extra == 'dev'", specifier = "~=5.2.3" },
-    { name = "djangorestframework", marker = "extra == 'dev'", specifier = ">=3.11,<4" },
-    { name = "djangorestframework", marker = "extra == 'test'", specifier = ">=3,<4" },
-    { name = "djangorestframework-stubs", marker = "extra == 'dev'", specifier = "~=3.16.3" },
     { name = "inflection", marker = "extra == 'openapi'" },
-    { name = "mysqlclient", marker = "extra == 'ci'", specifier = ">=2.1" },
-    { name = "pre-commit", marker = "extra == 'dev'" },
-    { name = "psycopg", extras = ["binary"], marker = "extra == 'ci'", specifier = ">=3.1,<4" },
     { name = "pydantic", specifier = ">=1.10,<3" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = "~=7.4" },
-    { name = "pytest-django", marker = "extra == 'dev'", specifier = ">=4.5,<6" },
-    { name = "pyyaml", marker = "extra == 'test'" },
-    { name = "ruff", marker = "extra == 'dev'" },
-    { name = "syrupy", marker = "extra == 'test'", specifier = ">=3,<5" },
-    { name = "ty", marker = "extra == 'dev'" },
     { name = "typing-extensions" },
     { name = "uritemplate", marker = "extra == 'openapi'" },
 ]
-provides-extras = ["openapi", "coreapi", "jsonform", "dev", "test", "ci"]
+provides-extras = ["openapi", "coreapi", "jsonform"]
+
+[package.metadata.requires-dev]
+ci = [
+    { name = "mysqlclient", specifier = ">=2.1" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.1,<4" },
+]
+dev = [
+    { name = "django-stubs", specifier = "~=5.2.3" },
+    { name = "djangorestframework", specifier = ">=3.11,<4" },
+    { name = "djangorestframework-stubs", specifier = "~=3.16.3" },
+    { name = "pre-commit" },
+    { name = "pytest", specifier = "~=7.4" },
+    { name = "pytest-django", specifier = ">=4.5,<6" },
+    { name = "ruff" },
+    { name = "ty" },
+]
+test = [
+    { name = "dj-database-url", specifier = "~=2.0" },
+    { name = "django-pydantic-field", extras = ["openapi", "coreapi", "jsonform"] },
+    { name = "djangorestframework", specifier = ">=3,<4" },
+    { name = "pyyaml" },
+    { name = "syrupy", specifier = ">=3,<5" },
+]
 
 [[package]]
 name = "django-stubs"
