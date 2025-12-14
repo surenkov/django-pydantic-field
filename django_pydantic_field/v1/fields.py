@@ -14,10 +14,13 @@ from django.db.models.query_utils import DeferredAttribute
 
 from django_pydantic_field.compat.django import BaseContainer, GenericContainer
 
-from . import base, forms, utils
+from django_pydantic_field.v1 import base, forms, utils
+from django_pydantic_field.v1.base import ST
 
 if t.TYPE_CHECKING:
-    from django_pydantic_field.v1.base import ST, SchemaT, ConfigType
+    from django_pydantic_field.v1.base import SchemaT, ConfigType
+
+    OptSchemaT = t.Optional[SchemaT]
 
 __all__ = ("SchemaField",)
 
@@ -195,10 +198,6 @@ class PydanticSchemaField(JSONField, t.Generic[ST]):
     def _deconstruct_config(self, kwargs):
         kwargs.update(base.deconstruct_export_kwargs(self.export_params))
         kwargs.update(config=self.config)
-
-
-if t.TYPE_CHECKING:
-    OptSchemaT = t.Optional[SchemaT]
 
 
 @t.overload

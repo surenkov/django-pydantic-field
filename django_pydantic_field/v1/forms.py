@@ -9,9 +9,10 @@ from django.forms.fields import InvalidJSONInput, JSONField
 from django.utils.translation import gettext_lazy as _
 
 from django_pydantic_field.v1 import base
+from django_pydantic_field.v1.base import ST
 
 if ty.TYPE_CHECKING:
-    from django_pydantic_field.v1.base import ST, SchemaDecoder, SchemaEncoder, ConfigType
+    from django_pydantic_field.v1.base import SchemaDecoder, SchemaEncoder, ConfigType
 
 __all__ = ("SchemaField",)
 

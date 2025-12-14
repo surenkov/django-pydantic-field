@@ -12,10 +12,11 @@ from rest_framework.schemas.utils import is_list_view
 
 from django_pydantic_field.compat.typing import get_args
 
-from . import base
+from django_pydantic_field.v1 import base
+from django_pydantic_field.v1.base import ST
 
 if ty.TYPE_CHECKING:
-    from django_pydantic_field.v1.base import ST, SchemaDecoder, ConfigType
+    from django_pydantic_field.v1.base import SchemaDecoder, ConfigType
 
     RequestResponseContext = ty.Mapping[str, ty.Any]
 

@@ -276,6 +276,7 @@ dev = [
     { name = "ty" },
 ]
 test = [
+    { name = "annotated-types" },
     { name = "dj-database-url" },
     { name = "django-pydantic-field", extra = ["coreapi", "jsonform", "openapi"] },
     { name = "djangorestframework" },
@@ -311,6 +312,7 @@ dev = [
     { name = "ty" },
 ]
 test = [
+    { name = "annotated-types", specifier = ">=0.7.0" },
     { name = "dj-database-url", specifier = "~=2.0" },
     { name = "django-pydantic-field", extras = ["openapi", "coreapi", "jsonform"] },
     { name = "djangorestframework", specifier = ">=3,<4" },
