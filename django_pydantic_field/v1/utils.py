@@ -38,4 +38,4 @@ def inherit_configs(parent: t.Type[BaseModel], config: t.Type | dict | None = No
         return parent_config
     if isinstance(config, dict):
         config = type("Config", (BaseConfig,), config)
-    return inherit_config(config, parent_config)
+    return inherit_config(t.cast(t.Type[BaseConfig], config), parent_config)

@@ -7,7 +7,7 @@ from rest_framework.fields import _DefaultInitial, Field
 from rest_framework.schemas.openapi import AutoSchema as _OpenAPIAutoSchema
 from rest_framework.validators import Validator
 
-from .fields import _ExportKwargs, ConfigType, ST
+from .types import ExportKwargs, ConfigType, ST
 
 __all__ = ("SchemaField", "SchemaParser", "SchemaRenderer", "AutoSchema")
 
@@ -25,7 +25,7 @@ class _FieldKwargs(te.TypedDict, ty.Generic[ST], total=False):
     validators: ty.Sequence[Validator[ST]]
     allow_null: bool
 
-class _SchemaFieldKwargs(_FieldKwargs[ST], _ExportKwargs, total=False):
+class _SchemaFieldKwargs(_FieldKwargs[ST], ExportKwargs, total=False):
     pass
 
 class _DeprecatedSchemaFieldKwargs(_SchemaFieldKwargs[ST], total=False):

@@ -2,7 +2,8 @@ import pydantic
 import pytest
 import typing as ty
 
-from ..conftest import InnerSchema, SampleDataclass
+from tests.conftest import InnerSchema, SampleDataclass
+from django_pydantic_field.types import ImproperlyConfiguredSchema
 
 types = pytest.importorskip("django_pydantic_field.v2.types")
 
@@ -36,7 +37,7 @@ def test_schema_adapter_constructors(ctor, args, kwargs):
 
 def test_schema_adapter_is_bound():
     adapter = types.SchemaAdapter(None, None, None, None)
-    with pytest.raises(types.ImproperlyConfiguredSchema):
+    with pytest.raises(ImproperlyConfiguredSchema):
         adapter.validate_schema()  # Schema cannot be resolved for fully unbound adapter
 
     adapter = types.SchemaAdapter(ty.List[int], None, None, None)

@@ -107,8 +107,8 @@ def test_invalid_json_raises():
     with pytest.raises(ValidationError) as e:
         field.clean('{"stub_list": "abc}')
 
-    assert e.match("Schema didn't match for")
-    assert '"type":"json_invalid"' in e.value.params["detail"]  # type: ignore
+    assert e.match(r"['Schema didn't match for.*]")
+    assert '"type":"json_invalid"' in e.value.params["json"]  # type: ignore
 
 
 @pytest.mark.xfail(

@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import typing as ty
 
-import pydantic
-from django.core.serializers.json import DjangoJSONEncoder
-from pydantic.json import pydantic_encoder
-from pydantic.typing import display_as_type
-
+from django_pydantic_field.compat.pydantic import ConfigType
 from django_pydantic_field.v1.utils import get_local_namespace, inherit_configs
+
+import pydantic
+from pydantic.typing import display_as_type
 
 ST = ty.TypeVar("ST", bound="SchemaT")
 
@@ -25,52 +24,6 @@ if ty.TYPE_CHECKING:
     ]
 
     ModelType = ty.Type[pydantic.BaseModel]
-    ConfigType = ty.Union[pydantic.ConfigDict, ty.Type[pydantic.BaseConfig], ty.Type]
-
-
-class SchemaEncoder(DjangoJSONEncoder):
-    def __init__(
-        self,
-        *args,
-        schema: "ModelType",
-        export=None,
-        raise_errors: bool = False,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.schema = schema
-        self.export_params = export or {}
-        self.raise_errors = raise_errors
-
-    def encode(self, o):
-        try:
-            data = self.schema(__root__=o).json(**self.export_params)
-        except pydantic.ValidationError:
-            if self.raise_errors:
-                raise
-
-            # This branch used for expressions like .filter(data__contains={}).
-            # We don't want that lookup expression to be parsed as a schema
-            try:
-                # Attempting to encode with pydantic encoder first, to make sure
-                # the output conform with pydantic's built-in serialization
-                data = pydantic_encoder(o)
-            except TypeError:
-                data = super().encode(o)
-
-        return data
-
-
-class SchemaDecoder(ty.Generic[ST]):
-    def __init__(self, schema: "ModelType"):
-        self.schema = schema
-
-    def decode(self, obj: ty.Any) -> "ST":
-        if isinstance(obj, (str, bytes)):
-            value = self.schema.parse_raw(obj).__root__  # type: ignore
-        else:
-            value = self.schema.parse_obj(obj).__root__  # type: ignore
-        return value
 
 
 def wrap_schema(
@@ -86,7 +39,7 @@ def wrap_schema(
 
 def prepare_schema(schema: "ModelType", owner: ty.Any = None) -> None:
     namespace = get_local_namespace(owner)
-    schema.update_forward_refs(**namespace)
+    schema.update_forward_refs(**namespace)  # type: ignore[deprecated]
 
 
 def extract_export_kwargs(ctx: dict, extractor=dict.get) -> ty.Dict[str, ty.Any]:
