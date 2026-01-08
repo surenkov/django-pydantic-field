@@ -59,7 +59,7 @@ class SchemaAttribute(DeferredAttribute):
     field: PydanticSchemaField
 
     def __set_name__(self, owner, name):
-        self.field.adapter.bind(owner, name, self.field)
+        self.field.adapter.bind(owner, name)
 
     def __set__(self, obj, value):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
@@ -73,7 +73,7 @@ class UninitializedSchemaAttribute(SchemaAttribute):
 
 
 class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
-    adapter: types.SchemaAdapter
+    adapter: types.BaseSchemaAdapter[types.ST]
 
     def __init__(
         self,
@@ -120,7 +120,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
     def contribute_to_class(self, cls: types.DjangoModelType, name: str, private_only: bool = False) -> None:
         try:
-            self.adapter.bind(cls, name, self)
+            self.adapter.bind(cls, name)
         except types.ImproperlyConfiguredSchema as exc:
             raise exceptions.FieldError(exc.args[0]) from exc
         super().contribute_to_class(cls, name, private_only)

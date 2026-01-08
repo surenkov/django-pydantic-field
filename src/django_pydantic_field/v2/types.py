@@ -48,7 +48,7 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
             schema = ty.Optional[schema]
         return pydantic.TypeAdapter(schema, config=self.config)  # type: ignore
 
-    def bind(self, parent_type: type | None, attname: str | None, instance: ty.Any = None) -> te.Self:
+    def bind(self, parent_type: type | None, attname: str | None) -> te.Self:
         """Bind the adapter to specific attribute of a `parent_type`."""
         super().bind(parent_type, attname)
         self.__dict__.pop("type_adapter", None)

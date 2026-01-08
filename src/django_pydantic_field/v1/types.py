@@ -35,11 +35,10 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         export_kwargs = {key: kwargs.pop(key) for key in common_keys}
         return ty.cast(ExportKwargs, export_kwargs)
 
-    def bind(self, parent_type: type | None, attname: str | None, instance: ty.Any | None = None) -> te.Self:
+    def bind(self, parent_type: type | None, attname: str | None) -> te.Self:
+        """Bind the adapter to specific attribute of a `parent_type`."""
         super().bind(parent_type, attname)
         self.__dict__.pop("wrapper_model", None)
-        if instance is not None:
-            instance.schema = self.prepared_schema
         return self
 
     def validate_python(self, value: ty.Any, **kwargs: ty.Any) -> ST:

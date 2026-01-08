@@ -37,8 +37,6 @@ class AnnotatedAdapterMixin(ty.Generic[types.ST]):
             config = ctx.get("config")
             export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
             adapter = types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
-            if parent:
-                adapter.bind(type(parent), None).validate_schema()
             return adapter
 
         try:
@@ -53,8 +51,6 @@ class AnnotatedAdapterMixin(ty.Generic[types.ST]):
             config = ctx.get("config")
             export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
             adapter = types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
-            if parent:
-                adapter.bind(type(parent), None).validate_schema()
             return adapter
 
         return None

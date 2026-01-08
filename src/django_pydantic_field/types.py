@@ -122,7 +122,7 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
         """Check if the adapter is bound to a specific model attribute."""
         return self.parent_type is not None and self.attname is not None
 
-    def bind(self, parent_type: type | None, attname: str | None, instance: ty.Any = None) -> te.Self:
+    def bind(self, parent_type: type | None, attname: str | None) -> te.Self:
         """Bind the adapter to a specific attribute of a parent type."""
         self.parent_type = parent_type
         self.attname = attname
