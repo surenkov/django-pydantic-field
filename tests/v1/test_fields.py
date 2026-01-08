@@ -1,5 +1,4 @@
 import pytest
-import typing as t
 from datetime import date
 
 from django.db import models
@@ -15,10 +14,10 @@ def test_simple_model_field():
     assert sample_field.adapter.prepared_schema == InnerSchema
 
     sample_list_field = SampleModel._meta.get_field("sample_list")
-    assert sample_list_field.adapter.prepared_schema == t.List[InnerSchema]
+    assert sample_list_field.adapter.prepared_schema == list[InnerSchema]
 
     sample_seq_field = SampleModel._meta.get_field("sample_seq")
-    assert sample_seq_field.adapter.prepared_schema == t.List[InnerSchema]
+    assert sample_seq_field.adapter.prepared_schema == list[InnerSchema]
 
     existing_raw_field = {"stub_str": "abc", "stub_list": [date(2022, 7, 1)]}
     existing_raw_list = [{"stub_str": "abc", "stub_list": []}]

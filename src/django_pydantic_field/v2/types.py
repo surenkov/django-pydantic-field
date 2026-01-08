@@ -6,11 +6,9 @@ from collections import ChainMap
 import pydantic
 import typing_extensions as te
 
-from django_pydantic_field.compat.django import GenericContainer
 from django_pydantic_field.compat.functools import cached_property
 
 from django_pydantic_field.types import BaseSchemaAdapter, ST
-from . import utils
 
 if ty.TYPE_CHECKING:
     from pydantic.type_adapter import IncEx
@@ -92,25 +90,6 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         if wrapped is not None:
             return wrapped.value
         return None
-
-    def guess_schema_from_annotations(self) -> type[ST] | str | ty.ForwardRef | None:
-        return utils.get_annotated_type(self.parent_type, self.attname)
-
-    def resolve_schema_forward_ref(self, schema: ty.Any) -> ty.Any:
-        if schema is None:
-            return None
-
-        if isinstance(schema, ty.ForwardRef):
-            globalns = utils.get_namespace(self.parent_type)
-            return utils.evaluate_forward_ref(schema, globalns)
-
-        wrapped_schema = GenericContainer.wrap(schema)
-        if not isinstance(wrapped_schema, GenericContainer):
-            return schema
-
-        origin = self.resolve_schema_forward_ref(wrapped_schema.origin)
-        args = map(self.resolve_schema_forward_ref, wrapped_schema.args)
-        return GenericContainer.unwrap(GenericContainer(origin, tuple(args)))
 
     @cached_property
     def _dump_python_kwargs(self) -> dict[str, ty.Any]:

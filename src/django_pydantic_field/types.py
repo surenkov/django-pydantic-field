@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import abc
-import typing as ty
 import operator as op
+import typing as ty
 
 import typing_extensions as te
 
+from django_pydantic_field._internal._annotation_utils import evaluate_forward_ref, get_annotated_type, get_namespace
+from django_pydantic_field._migration_serializers import GenericContainer
 from django_pydantic_field.compat.django import BaseContainer
 from django_pydantic_field.compat.functools import cached_property
 from django_pydantic_field.compat.pydantic import PYDANTIC_V2, ConfigType
@@ -107,16 +109,6 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
         """Retrieve the default value from the schema if one is defined."""
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def guess_schema_from_annotations(self) -> ty.Any:
-        """Attempt to infer the schema from the parent type's annotations."""
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def resolve_schema_forward_ref(self, schema: ty.Any) -> ty.Any:
-        """Resolve any forward references within the schema."""
-        raise NotImplementedError
-
     @property
     def is_bound(self) -> bool:
         """Check if the adapter is bound to a specific model attribute."""
@@ -138,17 +130,20 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
                 raise ImproperlyConfiguredSchema(*exc.args) from exc
             raise
 
+    prepared_schema = cached_property(op.methodcaller("_prepare_schema"))
+    """The prepared and resolved schema."""
+
     def _prepare_schema(self) -> ty.Any:
         """Internal method to prepare the schema by guessing it from annotations if needed,
         resolving forward references, and wrapping it if necessary.
         """
         schema = self.schema
         if schema is None and self.is_bound:
-            schema = self.guess_schema_from_annotations()
+            schema = get_annotated_type(self.parent_type, self.attname)
         if isinstance(schema, str):
             schema = ty.ForwardRef(schema)
 
-        schema = self.resolve_schema_forward_ref(schema)
+        schema = self._resolve_schema_forward_ref(schema)
         if schema is None:
             if self.is_bound:
                 error_msg = f"Annotation is not provided for {self.parent_type.__name__}.{self.attname}"
@@ -158,8 +153,21 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
 
         return schema
 
-    prepared_schema = cached_property(op.methodcaller("_prepare_schema"))
-    """The prepared and resolved schema."""
+    def _resolve_schema_forward_ref(self, schema: ty.Any) -> ty.Any:
+        if schema is None:
+            return None
+
+        if isinstance(schema, ty.ForwardRef):
+            globalns = get_namespace(self.parent_type)
+            return evaluate_forward_ref(schema, globalns)
+
+        wrapped_schema = GenericContainer.wrap(schema)
+        if not isinstance(wrapped_schema, GenericContainer):
+            return schema
+
+        origin = self._resolve_schema_forward_ref(wrapped_schema.origin)
+        args = map(self._resolve_schema_forward_ref, wrapped_schema.args)
+        return GenericContainer.unwrap(GenericContainer(origin, tuple(args)))
 
     def __copy__(self):
         instance = self.__class__(
