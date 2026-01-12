@@ -6,9 +6,10 @@ from collections import ChainMap
 import pydantic
 import typing_extensions as te
 
-from django_pydantic_field.compat.functools import cached_property
+from functools import cached_property
 
 from django_pydantic_field.types import BaseSchemaAdapter, ST
+from django_pydantic_field.compat import deprecation
 
 if ty.TYPE_CHECKING:
     from pydantic.type_adapter import IncEx
@@ -35,6 +36,7 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
     def extract_export_kwargs(kwargs: dict[str, ty.Any]) -> ExportKwargs:
         """Extract the export kwargs from the kwargs passed to the field.
         This method mutates passed kwargs by removing those that are used by the adapter."""
+        deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
         common_keys = kwargs.keys() & ExportKwargs.__annotations__.keys()
         export_kwargs = {key: kwargs.pop(key) for key in common_keys}
         return ty.cast(ExportKwargs, export_kwargs)
@@ -44,7 +46,7 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         schema = self.prepared_schema
         if self.allow_null:
             schema = ty.Optional[schema]
-        return pydantic.TypeAdapter(schema, config=self.config)  # type: ignore
+        return pydantic.TypeAdapter(schema, config=self.config)
 
     def bind(self, parent_type: type | None, attname: str | None) -> te.Self:
         """Bind the adapter to specific attribute of a `parent_type`."""
@@ -73,11 +75,11 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
 
     def dump_python(self, value: ty.Any, **override_kwargs: te.Unpack[ExportKwargs]) -> ty.Any:
         """Dump the value to a Python object."""
-        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs, {"mode": "json"})  # type: ignore
+        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs, {"mode": "json"})
         return self.type_adapter.dump_python(value, **union_kwargs)
 
     def dump_json(self, value: ty.Any, **override_kwargs: te.Unpack[ExportKwargs]) -> bytes:
-        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)  # type: ignore
+        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)
         return self.type_adapter.dump_json(value, **union_kwargs)
 
     def json_schema(self) -> dict[str, ty.Any]:

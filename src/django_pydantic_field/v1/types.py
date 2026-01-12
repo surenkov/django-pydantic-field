@@ -3,27 +3,13 @@ from __future__ import annotations
 import json
 import typing as ty
 from collections import ChainMap
+from functools import cached_property
 
-import pydantic
+from django_pydantic_field.compat.pydantic import pydantic_v1
 import typing_extensions as te
 
-from django_pydantic_field.compat.functools import cached_property
-from django_pydantic_field.types import ST, BaseSchemaAdapter
+from django_pydantic_field.types import ST, BaseSchemaAdapter, SchemaAdapterResolver
 from django_pydantic_field.v1 import schema_utils
-
-if ty.TYPE_CHECKING:
-    from pydantic.dataclasses import DataclassClassOrWrapper
-
-    SchemaT = ty.Union[
-        pydantic.BaseModel,
-        DataclassClassOrWrapper,
-        ty.Sequence[ty.Any],
-        ty.Mapping[str, ty.Any],
-        ty.Set[ty.Any],
-        ty.FrozenSet[ty.Any],
-    ]
-
-    ModelType = ty.Type[pydantic.BaseModel]
 
 
 class ExportKwargs(te.TypedDict, total=False):
@@ -81,7 +67,7 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         if exclude_fields is not None:
             dict_kwargs["exclude"] = {"__root__": dict_kwargs["exclude"]}
 
-        model_instance: pydantic.BaseModel = self.wrapped_schema.parse_obj(value)
+        model_instance = self.wrapped_schema.parse_obj(value)
         if mode == "json":
             return json.loads(model_instance.json(**dict_kwargs))
 
@@ -122,5 +108,11 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         return None
 
     @cached_property
-    def wrapped_schema(self) -> ty.Type[pydantic.BaseModel]:
+    def wrapped_schema(self) -> ty.Type[pydantic_v1.BaseModel]:
         return schema_utils.prepare_schema(self.prepared_schema, self.config, self.allow_null, owner=self.parent_type)
+
+
+class V1SchemaAdapterResolver(SchemaAdapterResolver):
+    @classmethod
+    def get_schema_adapter_class(cls):
+        return SchemaAdapter

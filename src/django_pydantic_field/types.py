@@ -3,14 +3,14 @@ from __future__ import annotations
 import abc
 import operator as op
 import typing as ty
+from functools import cached_property
 
 import typing_extensions as te
 
 from django_pydantic_field._internal._annotation_utils import evaluate_forward_ref, get_annotated_type, get_namespace
 from django_pydantic_field._migration_serializers import GenericContainer
 from django_pydantic_field.compat.django import BaseContainer
-from django_pydantic_field.compat.functools import cached_property
-from django_pydantic_field.compat.pydantic import PYDANTIC_V2, ConfigType
+from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ConfigType
 
 if ty.TYPE_CHECKING:
     import pydantic
@@ -203,10 +203,16 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
         return self_fields == other_fields
 
 
-if PYDANTIC_V2:
-    from .v2.types import ExportKwargs, SchemaAdapter
-else:
-    from .v1.types import ExportKwargs, SchemaAdapter
+class SchemaAdapterResolver(ty.Generic[ST]):
+    @classmethod
+    def get_schema_adapter_class(cls) -> type[BaseSchemaAdapter[ST]]:
+        if PYDANTIC_V1:
+            from django_pydantic_field.v1.types import SchemaAdapter
+        else:
+            from django_pydantic_field.v2.types import SchemaAdapter
+
+        return SchemaAdapter
+
 
 __all__ = (
     "ST",
@@ -215,6 +221,4 @@ __all__ = (
     "ImproperlyConfiguredSchema",
     "ConfigType",
     "BaseSchemaAdapter",
-    "SchemaAdapter",
-    "ExportKwargs",
 )

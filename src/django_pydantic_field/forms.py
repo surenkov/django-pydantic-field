@@ -8,9 +8,8 @@ from django.core.exceptions import ValidationError
 from django.forms.fields import InvalidJSONInput, JSONField, JSONString
 from django.utils.translation import gettext_lazy as _
 
-from django_pydantic_field.compat import deprecation
-
-from . import types
+from django_pydantic_field import types
+from django_pydantic_field.compat.pydantic import pydantic_v1
 
 if ty.TYPE_CHECKING:
     import typing_extensions as te
@@ -20,8 +19,8 @@ if ty.TYPE_CHECKING:
 __all__ = ("SchemaField", "JSONFormSchemaWidget")
 
 
-class SchemaField(JSONField, ty.Generic[types.ST]):
-    adapter: types.SchemaAdapter[types.ST]
+class SchemaField(JSONField, types.SchemaAdapterResolver, ty.Generic[types.ST]):
+    adapter: types.BaseSchemaAdapter[types.ST]
     default_error_messages = {
         "schema_error": _("Schema didn't match for %(title)s. Detail: %(detail)s"),
     }
@@ -34,18 +33,22 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
         *args,
         **kwargs,
     ):
-        deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
+        SchemaAdapter = self.get_schema_adapter_class()
 
         self.schema = schema
         self.config = config
-        self.export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
-        self.adapter = types.SchemaAdapter(schema, config, None, None, allow_null, **self.export_kwargs)
+        self.export_kwargs = SchemaAdapter.extract_export_kwargs(kwargs)
+        self.adapter = SchemaAdapter(schema, config, None, None, allow_null, **self.export_kwargs)
 
         widget = kwargs.get("widget")
         if widget is not None:
-            kwargs["widget"] = _prepare_jsonform_widget(widget, self.adapter)
+            kwargs.update(widget=self.prepare_schema_widget_class(widget, self.adapter))
 
         super().__init__(*args, **kwargs)
+
+    @classmethod
+    def prepare_schema_widget_class(cls, widget, adapter: types.BaseSchemaAdapter[types.ST]):
+        return _prepare_jsonform_widget(widget, adapter)
 
     def get_bound_field(self, form: ty.Any, field_name: str):
         if not self.adapter.is_bound:
@@ -59,7 +62,7 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
             return None
         try:
             return self.adapter.validate_json(data)
-        except pydantic.ValidationError:
+        except (pydantic.ValidationError, pydantic_v1.ValidationError):
             return InvalidJSONInput(data)
 
     def to_python(self, value: ty.Any) -> ty.Any:
@@ -70,7 +73,7 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
 
         try:
             value = self._try_coerce(value)
-        except pydantic.ValidationError as exc:
+        except (pydantic.ValidationError, pydantic_v1.ValidationError) as exc:
             title = getattr(exc, "title", "Invalid value")
             error_params = {
                 "value": value,
@@ -101,7 +104,7 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
             initial = self._try_coerce(initial)
             data = self._try_coerce(data)
             return self.adapter.dump_python(initial) != self.adapter.dump_python(data)
-        except pydantic.ValidationError:
+        except (pydantic.ValidationError, pydantic_v1.ValidationError):
             return True
 
     def _try_coerce(self, value):
@@ -114,14 +117,14 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
 
 
 try:
-    from django_jsonform.widgets import JSONFormWidget as _JSONFormWidget  # type: ignore[import-untyped]
+    from django_jsonform.widgets import JSONFormWidget as _JSONFormWidget
 except ImportError:
     from django.forms.widgets import Textarea
 
-    def _prepare_jsonform_widget(widget, adapter: types.SchemaAdapter[types.ST]) -> Widget | type[Widget]:
+    def _prepare_jsonform_widget(widget, adapter: types.BaseSchemaAdapter[types.ST]) -> Widget | type[Widget]:
         return widget
 
-    class JSONFormSchemaWidget(Textarea):
+    class JSONFormSchemaWidget(Textarea, types.SchemaAdapterResolver):
         def __init__(self, *args, **kwargs):
             warnings.warn(
                 "The 'django_jsonform' package is not installed. Please install it to use the widget.",
@@ -131,7 +134,7 @@ except ImportError:
 
 else:
 
-    def _prepare_jsonform_widget(widget, adapter: types.SchemaAdapter[types.ST]) -> Widget | type[Widget]:  # type: ignore[no-redef]
+    def _prepare_jsonform_widget(widget, adapter: types.BaseSchemaAdapter[types.ST]) -> Widget | type[Widget]:
         if not isinstance(widget, type):
             return widget
 
@@ -143,11 +146,11 @@ else:
                 allow_null=adapter.allow_null,
             )
         elif issubclass(widget, _JSONFormWidget):
-            widget = widget(schema=adapter.json_schema())  # type: ignore[call-arg]
+            widget = widget(schema=adapter.json_schema())
 
         return widget
 
-    class JSONFormSchemaWidget(_JSONFormWidget, ty.Generic[types.ST]):  # type: ignore[no-redef]
+    class JSONFormSchemaWidget(_JSONFormWidget, types.SchemaAdapterResolver, ty.Generic[types.ST]):
         def __init__(
             self,
             schema: type[types.ST] | te.Annotated[type[types.ST], ...] | ty.ForwardRef | str,
@@ -158,5 +161,7 @@ else:
         ):
             if export_kwargs is None:
                 export_kwargs = {}
-            adapter = types.SchemaAdapter[types.ST](schema, config, None, None, allow_null, **export_kwargs)
+
+            SchemaAdapter = self.get_schema_adapter_class()
+            adapter = SchemaAdapter(schema, config, None, None, allow_null, **export_kwargs)
             super().__init__(adapter.json_schema(), **kwargs)
