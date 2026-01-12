@@ -88,7 +88,7 @@ default-groups = ["dev"]
 
 [tool.uv.build-backend]
 module-name = "django_pydantic_field"
-module-root = ""
+module-root = "src"
 
 [[tool.uv.index]]
 name = "testpypi"
@@ -100,8 +100,7 @@ explicit = true
 line-length = 120
 
 [tool.ty.src]
-include = ["django_pydantic_field"]
-exclude = ["tests"]
+include = ["src", "tests/test_app", "tests/sample_app"]
 
 [tool.ty.rules]
 possibly-unresolved-reference = "ignore"
@@ -111,10 +110,10 @@ possibly-missing-attribute = "ignore"
 django_settings_module = "tests.settings.django_test_settings"
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "tests.settings.django_test_settings"
-
-addopts = "--capture=no"
+strict = true
+addopts = "--import-mode=importlib --capture=no"
 pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_tests.py"]
 norecursedirs = [".*", "venv"]
+DJANGO_SETTINGS_MODULE = "tests.settings.django_test_settings"

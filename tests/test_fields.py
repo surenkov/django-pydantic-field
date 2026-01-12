@@ -261,22 +261,11 @@ def _test_field_serialization(field):
     reconstructed_field = fields.PydanticSchemaField(*args, **kwargs)
     assert field.get_default() == reconstructed_field.get_default()
 
-    if PYDANTIC_V2:
-        assert reconstructed_field.deconstruct() == field_data
-    elif PYDANTIC_V1:
-        assert reconstructed_field.schema == field.schema
-    else:
-        pytest.fail("Unsupported Pydantic version")
+    assert reconstructed_field.deconstruct() == field_data
 
     deserialized_field = reconstruct_field(serialize_field(field))
     assert deserialized_field.get_default() == field.get_default()
-
-    if PYDANTIC_V2:
-        assert deserialized_field.deconstruct() == field_data
-    elif PYDANTIC_V1:
-        assert deserialized_field.schema == field.schema
-    else:
-        pytest.fail("Unsupported Pydantic version")
+    assert deserialized_field.deconstruct() == field_data
 
 
 def serialize_field(field: fields.PydanticSchemaField) -> str:

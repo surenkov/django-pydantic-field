@@ -23,13 +23,13 @@ __all__ = ("SchemaField", "JSONFormSchemaWidget")
 class SchemaField(JSONField, ty.Generic[types.ST]):
     adapter: types.SchemaAdapter[types.ST]
     default_error_messages = {
-        "schema_error": _("Schema didn't match for %(title)s."),
+        "schema_error": _("Schema didn't match for %(title)s. Detail: %(detail)s"),
     }
 
     def __init__(
         self,
         schema: type[types.ST] | te.Annotated[type[types.ST], ...] | ty.ForwardRef | str,
-        config: pydantic.ConfigDict | None = None,
+        config: types.ConfigType | None = None,
         allow_null: bool | None = None,
         *args,
         **kwargs,
@@ -71,7 +71,14 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
         try:
             value = self._try_coerce(value)
         except pydantic.ValidationError as exc:
-            error_params = {"value": value, "title": exc.title, "detail": exc.json(), "errors": exc.errors()}
+            title = getattr(exc, "title", "Invalid value")
+            error_params = {
+                "value": value,
+                "title": title,
+                "detail": str(exc),
+                "errors": exc.errors(),
+                "json": exc.json(),
+            }
             raise ValidationError(self.error_messages["schema_error"], code="invalid", params=error_params) from exc
 
         if isinstance(value, str):
@@ -99,10 +106,8 @@ class SchemaField(JSONField, ty.Generic[types.ST]):
 
     def _try_coerce(self, value):
         if not isinstance(value, (str, bytes)):
-            # The form data may contain python objects for some cases (e.g. using django-constance).
             value = self.adapter.validate_python(value)
         elif not isinstance(value, JSONString):
-            # Otherwise, try to parse incoming JSON according to the schema.
             value = self.adapter.validate_json(value)
 
         return value
@@ -146,7 +151,7 @@ else:
         def __init__(
             self,
             schema: type[types.ST] | te.Annotated[type[types.ST], ...] | ty.ForwardRef | str,
-            config: pydantic.ConfigDict | None = None,
+            config: types.ConfigType | None = None,
             allow_null: bool | None = None,
             export_kwargs: types.ExportKwargs | None = None,
             **kwargs,

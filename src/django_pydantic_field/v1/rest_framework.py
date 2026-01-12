@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-
 import typing as ty
 
-from django.conf import settings
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from rest_framework import exceptions, parsers, renderers, serializers
 from rest_framework.pagination import BasePagination
 from rest_framework.schemas import openapi
@@ -12,11 +10,10 @@ from rest_framework.schemas.utils import is_list_view
 
 from django_pydantic_field.compat.typing import get_args
 
-from django_pydantic_field.v1 import base
-from django_pydantic_field.v1.base import ST
+from django_pydantic_field.v1 import types
 
 if ty.TYPE_CHECKING:
-    from django_pydantic_field.v1.base import SchemaDecoder, ConfigType
+    from django_pydantic_field.compat.pydantic import ConfigType
 
     RequestResponseContext = ty.Mapping[str, ty.Any]
 
@@ -28,81 +25,68 @@ __all__ = (
 )
 
 
-class AnnotatedSchemaT(ty.Generic[ST]):
+class AnnotatedAdapterMixin(ty.Generic[types.ST]):
     schema_ctx_attr: ty.ClassVar[str] = "schema"
     require_explicit_schema: ty.ClassVar[bool] = False
-    _cached_annotation_schema: ty.Type[BaseModel]
 
-    def get_schema(self, ctx: RequestResponseContext) -> ty.Optional[ty.Type[BaseModel]]:
-        schema = self.get_context_schema(ctx)
-        if schema is None:
-            schema = self.get_annotation_schema(ctx)
+    def get_adapter(self, ctx: RequestResponseContext) -> ty.Optional[types.SchemaAdapter[types.ST]]:
+        schema = ctx.get(self.schema_ctx_attr)
+        parent = ctx.get("view")
+
+        if schema is not None:
+            config = ctx.get("config")
+            export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
+            adapter = types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
+            return adapter
+
+        try:
+            schema = get_args(self.__orig_class__)[0]  # type: ignore
+        except (AttributeError, IndexError):
+            schema = None
 
         if self.require_explicit_schema and schema is None:
             raise ValueError("Schema should be either explicitly set with annotation or passed in the context")
 
-        return schema
-
-    def get_context_schema(self, ctx: RequestResponseContext):
-        schema = ctx.get(self.schema_ctx_attr)
         if schema is not None:
-            schema = base.wrap_schema(schema)
-            base.prepare_schema(schema, ctx.get("view"))
+            config = ctx.get("config")
+            export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
+            adapter = types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
+            return adapter
 
-        return schema
-
-    def get_annotation_schema(self, ctx: RequestResponseContext):
-        try:
-            schema = self._cached_annotation_schema
-        except AttributeError:
-            try:
-                schema = get_args(self.__orig_class__)[0]  # type: ignore
-            except (AttributeError, IndexError):
-                return None
-
-            self._cached_annotation_schema = schema = base.wrap_schema(schema)
-            base.prepare_schema(schema, ctx.get("view"))
-
-        return schema
+        return None
 
 
-class SchemaField(serializers.Field, ty.Generic[ST]):
-    decoder: SchemaDecoder[ST]
-    _is_prepared_schema: bool = False
+class SchemaField(serializers.Field, ty.Generic[types.ST]):
+    adapter: types.SchemaAdapter[types.ST]
 
     def __init__(
         self,
-        schema: ty.Type[ST],
+        schema: ty.Type[types.ST],
         config: ty.Optional[ConfigType] = None,
         **kwargs,
     ):
-        nullable = kwargs.get("allow_null", False)
-
-        self.schema = field_schema = base.wrap_schema(schema, config, nullable)
-        self.export_params = base.extract_export_kwargs(kwargs, dict.pop)
-        self.decoder = base.SchemaDecoder(field_schema)
+        self.export_params = types.SchemaAdapter.extract_export_kwargs(kwargs)
         super().__init__(**kwargs)
+        self.adapter = types.SchemaAdapter(schema, config, None, None, allow_null=self.allow_null, **self.export_params)
 
     def bind(self, field_name, parent):
-        if not self._is_prepared_schema:
-            base.prepare_schema(self.schema, parent)
-            self._is_prepared_schema = True
-
+        if not self.adapter.is_bound:
+            self.adapter.bind(type(parent), field_name)
         super().bind(field_name, parent)
 
-    def to_internal_value(self, data: ty.Any) -> ty.Optional[ST]:
+    def to_internal_value(self, data: ty.Any) -> ty.Optional[types.ST]:
         try:
-            return self.decoder.decode(data)
+            if isinstance(data, (str, bytes)):
+                return self.adapter.validate_json(data)
+            return self.adapter.validate_python(data)
         except ValidationError as e:
-            raise serializers.ValidationError(e.errors(), self.field_name)  # type: ignore[arg-type]
+            raise serializers.ValidationError(e.errors())
 
-    def to_representation(self, value: ty.Optional[ST]) -> ty.Any:
-        obj = self.schema.parse_obj(value)
-        raw_obj = obj.dict(**self.export_params)
-        return raw_obj["__root__"]
+    def to_representation(self, value: ty.Optional[types.ST]) -> ty.Any:
+        return self.adapter.dump_python(value)
 
 
-class SchemaRenderer(AnnotatedSchemaT[ST], renderers.JSONRenderer):
+class SchemaRenderer(AnnotatedAdapterMixin[types.ST], renderers.JSONRenderer):
     schema_ctx_attr = "render_schema"
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
@@ -121,27 +105,23 @@ class SchemaRenderer(AnnotatedSchemaT[ST], renderers.JSONRenderer):
         return json_str
 
     def render_data(self, data, renderer_ctx) -> bytes:
-        schema = self.get_schema(renderer_ctx or {})
-        if schema is not None:
-            data = schema(__root__=data)
-
-        export_kw = base.extract_export_kwargs(renderer_ctx)
-        json_str = data.json(**export_kw, ensure_ascii=self.ensure_ascii)
-        return json_str.encode()
+        adapter = self.get_adapter(renderer_ctx or {})
+        if adapter is None:
+            adapter = types.SchemaAdapter(ty.Any, None, None, None)
+        return adapter.dump_json(data, ensure_ascii=self.ensure_ascii)
 
 
-class SchemaParser(AnnotatedSchemaT[ST], parsers.JSONParser):
+class SchemaParser(AnnotatedAdapterMixin[types.ST], parsers.JSONParser):
     schema_ctx_attr = "parser_schema"
     renderer_class = SchemaRenderer
     require_explicit_schema = True
 
     def parse(self, stream, media_type=None, parser_context=None):
         parser_context = parser_context or {}
-        encoding = parser_context.get("encoding", settings.DEFAULT_CHARSET)
-        schema = ty.cast(BaseModel, self.get_schema(parser_context))
+        adapter = self.get_adapter(parser_context)
 
         try:
-            return schema.parse_raw(stream.read(), encoding=encoding).__root__  # type: ignore[unresolved-attribute]
+            return adapter.validate_json(stream.read())
         except ValidationError as e:
             raise exceptions.ParseError(e.errors())
 
@@ -151,7 +131,7 @@ class AutoSchema(openapi.AutoSchema):
 
     def map_field(self, field: serializers.Field):
         if isinstance(field, SchemaField):
-            return field.schema.schema()  # type: ignore[unresolved-attribute]
+            return field.adapter.json_schema()
         return super().map_field(field)
 
     def map_parsers(self, path: str, method: str):
@@ -162,9 +142,9 @@ class AutoSchema(openapi.AutoSchema):
             parser = parser_type()
 
             if isinstance(parser, SchemaParser):
-                schema = self._extract_openapi_schema(parser, parser_ctx)
-                if schema is not None:
-                    request_types.append((parser.media_type, schema))
+                adapter = parser.get_adapter(parser_ctx)
+                if adapter is not None:
+                    request_types.append((parser.media_type, adapter.json_schema()))
                 else:
                     request_types.append(parser.media_type)
             else:
@@ -180,9 +160,9 @@ class AutoSchema(openapi.AutoSchema):
             renderer = renderer_type()
 
             if isinstance(renderer, SchemaRenderer):
-                schema = self._extract_openapi_schema(renderer, renderer_ctx)
-                if schema is not None:
-                    response_types.append((renderer.media_type, schema))
+                adapter = renderer.get_adapter(renderer_ctx)
+                if adapter is not None:
+                    response_types.append((renderer.media_type, adapter.json_schema()))
                 else:
                     response_types.append(renderer.media_type)
 
@@ -239,12 +219,6 @@ class AutoSchema(openapi.AutoSchema):
             get_reference = super()._get_reference  # type: ignore
 
         return get_reference(serializer)
-
-    def _extract_openapi_schema(self, schemable: AnnotatedSchemaT, ctx: RequestResponseContext):
-        schema_model = schemable.get_schema(ctx)
-        if schema_model is not None:
-            return schema_model.schema()  # type: ignore[unresolved-attribute]
-        return None
 
     def _get_serializer_response_schema(self, path, method):
         serializer = self.get_response_serializer(path, method)

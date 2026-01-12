@@ -45,8 +45,8 @@ try:
     from pydantic_core import PydanticUndefined
 except ImportError:
     # Assuming this is a Pydantic v1
-    from pydantic.fields import Undefined as PydanticUndefined  # type: ignore[attr-defined, no-redef]
-    from pydantic.utils import Representation  # type: ignore[no-redef]
+    from pydantic.fields import Undefined as PydanticUndefined  # type: ignore[unresolved-import]
+    from pydantic.utils import Representation  # type: ignore[unresolved-import]
 
     FieldInfoDefaultValues = FieldInfo.__field_constraints__  # type: ignore[attr-defined]
 

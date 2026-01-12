@@ -230,7 +230,7 @@ def test_openapi_serializer_schema_generation(request_factory):
 
     results = yaml.load(response.rendered_content, yaml.Loader)
     assert results["components"]["schemas"]["Sample"]["properties"]["field"] == {
-        "title": "FieldSchema[List[tests.conftest.InnerSchema]]",
+        "title": "FieldSchema[list[tests.conftest.InnerSchema]]",
         "type": "array",
         "items": {"$ref": "#/definitions/InnerSchema"},
         "definitions": {
@@ -302,7 +302,7 @@ def test_openapi_parser_renderer_schema_generation(request_factory):
         "content": {
             "application/json": {
                 "schema": {
-                    "title": "FieldSchema[List[tests.conftest.InnerSchema]]",
+                    "title": "FieldSchema[list[tests.conftest.InnerSchema]]",
                     "type": "array",
                     "items": {"$ref": "#/definitions/InnerSchema"},
                     "definitions": {
