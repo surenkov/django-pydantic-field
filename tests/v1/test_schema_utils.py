@@ -1,3 +1,4 @@
+import sys
 import typing as t
 from datetime import date
 
@@ -5,6 +6,11 @@ import pytest
 
 from django_pydantic_field.compat.pydantic import pydantic_v1
 from django_pydantic_field.v1 import schema_utils
+
+pytestmark = pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Pydantic V1 is incompatible with Python 3.14+",
+)
 
 
 class InnerSchema(pydantic_v1.BaseModel):

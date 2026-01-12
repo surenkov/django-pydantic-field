@@ -1,4 +1,5 @@
 import io
+import sys
 import typing as t
 from datetime import date
 
@@ -11,6 +12,11 @@ from rest_framework.response import Response
 
 from tests.test_app.models import InnerSchemaV1, SampleModelV1
 from django_pydantic_field.v1 import rest_framework
+
+pytestmark = pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Pydantic V1 is incompatible with Python 3.14+",
+)
 
 
 class SampleSerializer(serializers.Serializer):
