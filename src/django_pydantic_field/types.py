@@ -3,18 +3,21 @@ from __future__ import annotations
 import abc
 import operator as op
 import typing as ty
+from functools import cached_property
 
 import typing_extensions as te
 
 from django_pydantic_field._internal._annotation_utils import evaluate_forward_ref, get_annotated_type, get_namespace
 from django_pydantic_field._migration_serializers import GenericContainer
 from django_pydantic_field.compat.django import BaseContainer
-from django_pydantic_field.compat.functools import cached_property
-from django_pydantic_field.compat.pydantic import PYDANTIC_V2, ConfigType
+from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ConfigType
 
 if ty.TYPE_CHECKING:
     import pydantic
     from django.db.models import Model
+
+    from django_pydantic_field.v1.types import ExportKwargs as ExportKwargsV1
+    from django_pydantic_field.v2.types import ExportKwargs as ExportKwargsV2
 
     DjangoModelType = ty.Type[Model]
     try:
@@ -22,13 +25,20 @@ if ty.TYPE_CHECKING:
     except ImportError:
         DataclassClassOrWrapper: te.TypeAlias = ty.Any
 
-    SchemaT = ty.Union[
+    ExportKwargsT: te.TypeAlias = ty.Mapping[str, ty.Any]
+    SchemaT: te.TypeAlias = ty.Union[
         pydantic.BaseModel,
         DataclassClassOrWrapper,
         ty.Sequence[ty.Any],
         ty.Mapping[str, ty.Any],
         ty.AbstractSet[ty.Any],
     ]
+
+    class ExportKwargs(ExportKwargsV2):
+        pass
+
+    class DeprecatedExportKwargs(ExportKwargsV1):
+        pass
 
 
 ST = ty.TypeVar("ST", bound="SchemaT")
@@ -72,7 +82,7 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
 
     @staticmethod
     @abc.abstractmethod
-    def extract_export_kwargs(kwargs: dict[str, ty.Any]) -> ty.Any:
+    def extract_export_kwargs(kwargs: dict[str, ty.Any]) -> ExportKwargs | DeprecatedExportKwargs:
         """Extract the export-related arguments from the field's kwargs.
         This method should mutate the passed dictionary by removing the extracted keys."""
         raise NotImplementedError
@@ -203,10 +213,16 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
         return self_fields == other_fields
 
 
-if PYDANTIC_V2:
-    from .v2.types import ExportKwargs, SchemaAdapter
-else:
-    from .v1.types import ExportKwargs, SchemaAdapter
+class SchemaAdapterResolver(ty.Generic[ST]):
+    @classmethod
+    def get_schema_adapter_class(cls) -> type[BaseSchemaAdapter[ST]]:
+        if PYDANTIC_V1:
+            from django_pydantic_field.v1.types import SchemaAdapter
+        else:
+            from django_pydantic_field.v2.types import SchemaAdapter
+
+        return SchemaAdapter
+
 
 __all__ = (
     "ST",
@@ -215,6 +231,4 @@ __all__ = (
     "ImproperlyConfiguredSchema",
     "ConfigType",
     "BaseSchemaAdapter",
-    "SchemaAdapter",
-    "ExportKwargs",
 )

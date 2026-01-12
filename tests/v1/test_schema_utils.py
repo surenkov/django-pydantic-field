@@ -1,15 +1,29 @@
+import sys
 import typing as t
 from datetime import date
 
-import pydantic
 import pytest
 
-from tests.conftest import InnerSchema
+from django_pydantic_field.compat.pydantic import pydantic_v1
+from django_pydantic_field.v1 import schema_utils
 
-schema_utils = pytest.importorskip("django_pydantic_field.v1.schema_utils")
+pytestmark = pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Pydantic V1 is incompatible with Python 3.14+",
+)
 
 
-class SampleSchema(pydantic.BaseModel):
+class InnerSchema(pydantic_v1.BaseModel):
+    stub_str: str
+    stub_int: int = 1
+    stub_list: t.List[date]
+
+    class Config:
+        allow_mutation = True
+        frozen = False
+
+
+class SampleSchema(pydantic_v1.BaseModel):
     __root__: InnerSchema
 
 
@@ -48,5 +62,5 @@ def test_forward_refs_preparation(forward_ref, sample_data):
     assert schema.parse_raw(sample_data).json() == sample_data
 
 
-class PostponedSchema(pydantic.BaseModel):
+class PostponedSchema(pydantic_v1.BaseModel):
     __root__: InnerSchema

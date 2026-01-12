@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import json
 import typing as ty
 
-import pydantic
-import typing_extensions as te
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.expressions import BaseExpression, Col, Value
@@ -13,50 +10,20 @@ from django.db.models.fields.json import JSONField, KeyTransform
 from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
-from django_pydantic_field.compat import deprecation
 from django_pydantic_field.compat.django import BaseContainer, GenericContainer
+from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ValidationErrorsTuple
+from django_pydantic_field.types import SchemaAdapterResolver
 
-from . import forms, types
+from . import types
 
 if ty.TYPE_CHECKING:
-    import json
-
     from django.db.models import Model
-
-    @ty.type_check_only
-    class _SchemaFieldKwargs(types.ExportKwargs, total=False):
-        # django.db.models.fields.Field kwargs
-        name: str | None
-        verbose_name: str | None
-        primary_key: bool
-        max_length: int | None
-        unique: bool
-        blank: bool
-        db_index: bool
-        rel: ty.Any
-        editable: bool
-        serialize: bool
-        unique_for_date: str | None
-        unique_for_month: str | None
-        unique_for_year: str | None
-        choices: ty.Sequence[ty.Tuple[str, str]] | None
-        help_text: str | None
-        db_column: str | None
-        db_tablespace: str | None
-        auto_created: bool
-        validators: ty.Sequence[ty.Callable] | None
-        error_messages: ty.Mapping[str, str] | None
-        db_comment: str | None
-        # django.db.models.fields.json.JSONField kwargs
-        encoder: ty.Callable[[], json.JSONEncoder]
-        decoder: ty.Callable[[], json.JSONDecoder]
-
 
 __all__ = ("SchemaField", "PydanticSchemaField")
 
 
-class SchemaAttribute(DeferredAttribute):
-    field: PydanticSchemaField
+class SchemaAttribute(DeferredAttribute, ty.Generic[types.ST]):
+    field: PydanticSchemaField[types.ST]
 
     def __set_name__(self, owner, name):
         self.field.adapter.bind(owner, name)
@@ -72,23 +39,19 @@ class UninitializedSchemaAttribute(SchemaAttribute):
         obj.__dict__[self.field.attname] = value
 
 
-class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
+class PydanticSchemaField(JSONField, SchemaAdapterResolver, ty.Generic[types.ST]):
     adapter: types.BaseSchemaAdapter[types.ST]
 
-    def __init__(
-        self,
-        *args,
-        schema: type[types.ST] | te.Annotated[type[types.ST], ...] | BaseContainer | ty.ForwardRef | str | None = None,
-        config: types.ConfigType | None = None,
-        **kwargs,
-    ):
+    def __init__(self, schema=None, config=None, *args, **kwargs):
         kwargs.setdefault("encoder", DjangoJSONEncoder)
-        self.export_kwargs = export_kwargs = types.SchemaAdapter.extract_export_kwargs(kwargs)
+
+        SchemaAdapter = self.get_schema_adapter_class()
+        self.export_kwargs = export_kwargs = SchemaAdapter.extract_export_kwargs(kwargs)
         super().__init__(*args, **kwargs)
 
         self.schema = BaseContainer.unwrap(schema)
         self.config = config
-        self.adapter = types.SchemaAdapter(schema, config, None, self.get_attname(), self.null, **export_kwargs)
+        self.adapter = SchemaAdapter(schema, config, None, self.get_attname(), self.null, **export_kwargs)
 
     def __copy__(self):
         _, _, args, kwargs = self.deconstruct()
@@ -100,8 +63,6 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         field_name, import_path, args, kwargs = super().deconstruct()
         if import_path.startswith("django_pydantic_field.v2."):
             import_path = import_path.replace("django_pydantic_field.v2", "django_pydantic_field", 1)
-        elif import_path.startswith("django_pydantic_field.v1."):
-            import_path = import_path.replace("django_pydantic_field.v1", "django_pydantic_field", 1)
 
         default = kwargs.get("default", NOT_PROVIDED)
         if default is not NOT_PROVIDED and not callable(default):
@@ -136,7 +97,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         try:
             if self.has_default():
                 self.get_prep_value(self.get_default())
-        except pydantic.ValidationError as exc:
+        except ValidationErrorsTuple as exc:
             message = f"Default value cannot be adapted to the schema. Pydantic error: \n{str(exc)}"
             performed_checks.append(checks.Error(message, obj=self, id="pydantic.E002"))
 
@@ -150,7 +111,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
             if schema_default is not None:
                 try:
                     self.adapter.validate_python(self.get_prep_value(schema_default))
-                except pydantic.ValidationError as exc:
+                except ValidationErrorsTuple as exc:
                     message = f"Export arguments may lead to data integrity problems. Pydantic error: \n{str(exc)}"
                     hint = "Please review `import` and `export` arguments."
                     performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.W003"))
@@ -169,7 +130,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
         try:
             return self.adapter.validate_python(value)
-        except pydantic.ValidationError as exc:
+        except ValidationErrorsTuple as exc:
             raise exceptions.ValidationError(str(exc), code="invalid") from exc
 
     def from_db_value(self, value, expression, connection):
@@ -188,6 +149,10 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         value = self._prepare_raw_value(value)
         return super().get_prep_value(value)
 
+    def value_to_string(self, obj: Model):
+        value = super().value_from_object(obj)
+        return self._prepare_raw_value(value)
+
     def get_transform(self, lookup_name: str):
         transform: ty.Any = super().get_transform(lookup_name)
         if transform is not None:
@@ -202,7 +167,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
 
     def formfield(self, form_class=None, choices_form_class=None, **kwargs):
         field_kwargs = dict(
-            form_class=form_class or forms.SchemaField,
+            form_class=form_class or self.get_default_form_class(),
             choices_form_class=choices_form_class,
             schema=self.adapter.prepared_schema,
             config=self.config,
@@ -211,9 +176,14 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         field_kwargs.update(kwargs)
         return super().formfield(**field_kwargs)
 
-    def value_to_string(self, obj: Model):
-        value = super().value_from_object(obj)
-        return self._prepare_raw_value(value)
+    @classmethod
+    def get_default_form_class(cls):
+        if PYDANTIC_V1:
+            from django_pydantic_field.v1.forms import SchemaField
+        else:
+            from django_pydantic_field.v2.forms import SchemaField
+
+        return SchemaField
 
     def _prepare_raw_value(self, value: ty.Any, **dump_kwargs):
         if isinstance(value, Value) and isinstance(value.output_field, self.__class__):
@@ -221,7 +191,7 @@ class PydanticSchemaField(JSONField, ty.Generic[types.ST]):
         elif not isinstance(value, BaseExpression):
             try:
                 value = self.adapter.validate_python(value)
-            except pydantic.ValidationError:
+            except ValidationErrorsTuple:
                 pass
             value = self.adapter.dump_python(value, mode="json", **dump_kwargs)
 
@@ -239,50 +209,5 @@ class SchemaKeyTransformAdapter:
         return self.transform(col, *args, **kwargs)
 
 
-@ty.overload
-def SchemaField(
-    schema: ty.Annotated[type[types.ST | None], ...] = ...,
-    config: types.ConfigType = ...,
-    default: types.SchemaT | ty.Callable[[], types.SchemaT | None] | BaseExpression | None = ...,
-    *args,
-    null: ty.Literal[True],
-    **kwargs: te.Unpack[_SchemaFieldKwargs],
-) -> types.ST | None: ...
-
-
-@ty.overload
-def SchemaField(
-    schema: ty.Annotated[type[types.ST], ...] = ...,
-    config: types.ConfigType = ...,
-    default: types.SchemaT | ty.Callable[[], types.SchemaT] | BaseExpression = ...,
-    *args,
-    null: ty.Literal[False] = ...,
-    **kwargs: te.Unpack[_SchemaFieldKwargs],
-) -> types.ST: ...
-
-
-@ty.overload
-def SchemaField(
-    schema: type[types.ST | None] | ty.ForwardRef = ...,
-    config: types.ConfigType = ...,
-    default: types.SchemaT | ty.Callable[[], types.SchemaT | None] | BaseExpression | None = ...,
-    *args,
-    null: ty.Literal[True],
-    **kwargs: te.Unpack[_SchemaFieldKwargs],
-) -> types.ST | None: ...
-
-
-@ty.overload
-def SchemaField(
-    schema: type[types.ST] | ty.ForwardRef = ...,
-    config: types.ConfigType = ...,
-    default: types.SchemaT | ty.Callable[[], types.SchemaT] | BaseExpression = ...,
-    *args,
-    null: ty.Literal[False] = ...,
-    **kwargs: te.Unpack[_SchemaFieldKwargs],
-) -> types.ST: ...
-
-
 def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs):
-    deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
-    return PydanticSchemaField(*args, schema=schema, config=config, default=default, **kwargs)
+    return PydanticSchemaField(schema, config, default=default, *args, **kwargs)

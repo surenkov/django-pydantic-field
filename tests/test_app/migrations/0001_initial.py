@@ -144,4 +144,39 @@ class Migration(migrations.Migration):
                 ),
             ],
         ),
+        migrations.CreateModel(
+            name="SampleModelV1",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "sample_field",
+                    django_pydantic_field.v1.fields.PydanticSchemaField(
+                        config=None,
+                        encoder=django.core.serializers.json.DjangoJSONEncoder,
+                        schema=tests.conftest.InnerSchemaV1,
+                    ),
+                ),
+                (
+                    "sample_list",
+                    django_pydantic_field.v1.fields.PydanticSchemaField(
+                        config=None,
+                        encoder=django.core.serializers.json.DjangoJSONEncoder,
+                        schema=django_pydantic_field.compat.django.GenericContainer(
+                            list, (tests.conftest.InnerSchemaV1,)
+                        ),
+                    ),
+                ),
+                (
+                    "sample_seq",
+                    django_pydantic_field.v1.fields.PydanticSchemaField(
+                        config=None,
+                        default=list,
+                        encoder=django.core.serializers.json.DjangoJSONEncoder,
+                        schema=django_pydantic_field.compat.django.GenericContainer(
+                            list, (tests.conftest.InnerSchemaV1,)
+                        ),
+                    ),
+                ),
+            ],
+        ),
     ]

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import typing as ty
 
-from pydantic import ValidationError
 from rest_framework import exceptions, parsers, renderers, serializers
 from rest_framework.pagination import BasePagination
 from rest_framework.schemas import openapi
 from rest_framework.schemas.utils import is_list_view
 
+from django_pydantic_field.compat.pydantic import pydantic_v1
 from django_pydantic_field.compat.typing import get_args
-
 from django_pydantic_field.v1 import types
 
 if ty.TYPE_CHECKING:
@@ -79,7 +78,7 @@ class SchemaField(serializers.Field, ty.Generic[types.ST]):
             if isinstance(data, (str, bytes)):
                 return self.adapter.validate_json(data)
             return self.adapter.validate_python(data)
-        except ValidationError as e:
+        except pydantic_v1.ValidationError as e:
             raise serializers.ValidationError(e.errors())
 
     def to_representation(self, value: ty.Optional[types.ST]) -> ty.Any:
@@ -97,7 +96,7 @@ class SchemaRenderer(AnnotatedAdapterMixin[types.ST], renderers.JSONRenderer):
 
         try:
             json_str = self.render_data(data, renderer_context)
-        except ValidationError as e:
+        except pydantic_v1.ValidationError as e:
             json_str = e.json().encode()
         except AttributeError:
             json_str = super().render(data, accepted_media_type, renderer_context)
@@ -122,7 +121,7 @@ class SchemaParser(AnnotatedAdapterMixin[types.ST], parsers.JSONParser):
 
         try:
             return adapter.validate_json(stream.read())
-        except ValidationError as e:
+        except pydantic_v1.ValidationError as e:
             raise exceptions.ParseError(e.errors())
 
 

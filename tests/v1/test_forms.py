@@ -1,15 +1,35 @@
+import sys
 import typing as t
+from datetime import date
 
 import django
 import pytest
 from django.core.exceptions import ValidationError
 from django.forms import Form, modelform_factory
 
-from tests.conftest import InnerSchema
-from tests.test_app.models import SampleForwardRefModel, SampleSchema
+from django_pydantic_field.compat.pydantic import pydantic_v1
+from django_pydantic_field.v1 import fields, forms
+from tests.test_app.models import SampleForwardRefModel
+from tests.test_app.models import SampleSchema as V2SampleSchema
 
-fields = pytest.importorskip("django_pydantic_field.v1.fields")
-forms = pytest.importorskip("django_pydantic_field.v1.forms")
+pytestmark = pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Pydantic V1 is incompatible with Python 3.14+",
+)
+
+
+class InnerSchema(pydantic_v1.BaseModel):
+    stub_str: str
+    stub_int: int = 1
+    stub_list: t.List[date]
+
+    class Config:
+        allow_mutation = True
+        frozen = False
+
+
+class SampleSchema(pydantic_v1.BaseModel):
+    field: int = 1
 
 
 class SampleForm(Form):
@@ -94,7 +114,8 @@ def test_forwardref_model_formfield():
     cleaned_data = form.cleaned_data
 
     assert cleaned_data is not None
-    assert cleaned_data["annotated_field"] == SampleSchema(field=2)
+    # SampleForwardRefModel uses the default SchemaField, which is v2 on Pydantic v2.
+    assert cleaned_data["annotated_field"] == V2SampleSchema(field=2)
 
 
 @pytest.mark.parametrize(

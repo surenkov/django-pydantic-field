@@ -1,12 +1,17 @@
-import pytest
+import sys
 from datetime import date
 
+import pytest
 from django.db import models
 
+from django_pydantic_field.v1 import fields
 from tests.conftest import InnerSchema
 from tests.test_app.models import SampleModel
 
-fields = pytest.importorskip("django_pydantic_field.v1.fields")
+pytestmark = pytest.mark.skipif(
+    sys.version_info >= (3, 14),
+    reason="Pydantic V1 is incompatible with Python 3.14+",
+)
 
 
 def test_simple_model_field():
