@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import typing as ty
 
-import typing_extensions as te
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.expressions import BaseExpression, Col, Value
@@ -19,7 +18,6 @@ from . import types
 
 if ty.TYPE_CHECKING:
     from django.db.models import Model
-
 
 __all__ = ("SchemaField", "PydanticSchemaField")
 
@@ -44,13 +42,7 @@ class UninitializedSchemaAttribute(SchemaAttribute):
 class PydanticSchemaField(JSONField, SchemaAdapterResolver, ty.Generic[types.ST]):
     adapter: types.BaseSchemaAdapter[types.ST]
 
-    def __init__(
-        self,
-        *args,
-        schema: type[types.ST] | te.Annotated[type[types.ST], ...] | BaseContainer | ty.ForwardRef | str | None = None,
-        config: types.ConfigType | None = None,
-        **kwargs,
-    ):
+    def __init__(self, schema=None, config=None, *args, **kwargs):
         kwargs.setdefault("encoder", DjangoJSONEncoder)
 
         SchemaAdapter = self.get_schema_adapter_class()
@@ -217,5 +209,5 @@ class SchemaKeyTransformAdapter:
         return self.transform(col, *args, **kwargs)
 
 
-def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs) -> ty.Any:
-    return PydanticSchemaField(*args, schema=schema, config=config, default=default, **kwargs)
+def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs):
+    return PydanticSchemaField(schema, config, default=default, *args, **kwargs)

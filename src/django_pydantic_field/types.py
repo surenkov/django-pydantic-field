@@ -16,19 +16,29 @@ if ty.TYPE_CHECKING:
     import pydantic
     from django.db.models import Model
 
+    from django_pydantic_field.v1.types import ExportKwargs as ExportKwargsV1
+    from django_pydantic_field.v2.types import ExportKwargs as ExportKwargsV2
+
     DjangoModelType = ty.Type[Model]
     try:
         from pydantic.dataclasses import DataclassClassOrWrapper
     except ImportError:
         DataclassClassOrWrapper: te.TypeAlias = ty.Any
 
-    SchemaT = ty.Union[
+    ExportKwargsT: te.TypeAlias = ty.Mapping[str, ty.Any]
+    SchemaT: te.TypeAlias = ty.Union[
         pydantic.BaseModel,
         DataclassClassOrWrapper,
         ty.Sequence[ty.Any],
         ty.Mapping[str, ty.Any],
         ty.AbstractSet[ty.Any],
     ]
+
+    class ExportKwargs(ExportKwargsV2):
+        pass
+
+    class DeprecatedExportKwargs(ExportKwargsV1):
+        pass
 
 
 ST = ty.TypeVar("ST", bound="SchemaT")
@@ -72,7 +82,7 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
 
     @staticmethod
     @abc.abstractmethod
-    def extract_export_kwargs(kwargs: dict[str, ty.Any]) -> ty.Any:
+    def extract_export_kwargs(kwargs: dict[str, ty.Any]) -> ExportKwargs | DeprecatedExportKwargs:
         """Extract the export-related arguments from the field's kwargs.
         This method should mutate the passed dictionary by removing the extracted keys."""
         raise NotImplementedError

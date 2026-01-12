@@ -39,7 +39,7 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
         common_keys = kwargs.keys() & ExportKwargs.__annotations__.keys()
         export_kwargs = {key: kwargs.pop(key) for key in common_keys}
-        return ty.cast(ExportKwargs, export_kwargs)
+        return ty.cast("ExportKwargs", export_kwargs)
 
     @cached_property
     def type_adapter(self) -> pydantic.TypeAdapter:

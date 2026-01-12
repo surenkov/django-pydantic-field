@@ -7,10 +7,11 @@ from rest_framework.fields import _DefaultInitial, Field
 from rest_framework.schemas.openapi import AutoSchema as _OpenAPIAutoSchema
 from rest_framework.validators import Validator
 
-from .types import ExportKwargs, ConfigType, ST
+from django_pydantic_field.types import ConfigType, ST, ExportKwargs, DeprecatedExportKwargs
 
 __all__ = ("SchemaField", "SchemaParser", "SchemaRenderer", "AutoSchema")
 
+@ty.type_check_only
 class _FieldKwargs(te.TypedDict, ty.Generic[ST], total=False):
     read_only: bool
     write_only: bool
@@ -25,15 +26,13 @@ class _FieldKwargs(te.TypedDict, ty.Generic[ST], total=False):
     validators: ty.Sequence[Validator[ST]]
     allow_null: bool
 
+@ty.type_check_only
 class _SchemaFieldKwargs(_FieldKwargs[ST], ExportKwargs, total=False):
     pass
 
-class _DeprecatedSchemaFieldKwargs(_SchemaFieldKwargs[ST], total=False):
-    allow_nan: ty.Any
-    indent: ty.Any
-    separators: ty.Any
-    skipkeys: ty.Any
-    sort_keys: ty.Any
+@ty.type_check_only
+class _DeprecatedSchemaFieldKwargs(_SchemaFieldKwargs[ST], DeprecatedExportKwargs, total=False):
+    pass
 
 class SchemaField(Field, ty.Generic[ST]):
     @ty.overload
@@ -46,7 +45,7 @@ class SchemaField(Field, ty.Generic[ST]):
     ) -> None: ...
     @ty.overload
     @te.deprecated(
-        "Passing `json.dump` kwargs to `SchemaField` is not supported by Pydantic 2 and will be removed in the future versions."
+        "Passing Pydantic V1 kwargs to `SchemaField` is not supported by Pydantic 2 and will be removed in future."
     )
     def __init__(
         self,

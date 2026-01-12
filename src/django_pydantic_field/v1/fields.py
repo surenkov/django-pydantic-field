@@ -1,6 +1,6 @@
 from django.db.models.fields import NOT_PROVIDED
 
-from django_pydantic_field.fields import PydanticSchemaField as _PydanticSchemaField
+from django_pydantic_field.fields import PydanticSchemaField as _PydanticSchemaField  # type: ignore[unresolved-import]
 from django_pydantic_field.v1 import forms
 from django_pydantic_field.v1.types import V1SchemaAdapterResolver
 
@@ -14,4 +14,4 @@ class PydanticSchemaField(V1SchemaAdapterResolver, _PydanticSchemaField):
 
 
 def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs):
-    return PydanticSchemaField(*args, schema=schema, config=config, default=default, **kwargs)
+    return PydanticSchemaField(schema, config, default=default, *args, **kwargs)
