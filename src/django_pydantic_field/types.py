@@ -13,26 +13,13 @@ from django_pydantic_field.compat.django import BaseContainer
 from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ConfigType
 
 if ty.TYPE_CHECKING:
-    import pydantic
     from django.db.models import Model
 
     from django_pydantic_field.v1.types import ExportKwargs as ExportKwargsV1
     from django_pydantic_field.v2.types import ExportKwargs as ExportKwargsV2
 
-    DjangoModelType = ty.Type[Model]
-    try:
-        from pydantic.dataclasses import DataclassClassOrWrapper
-    except ImportError:
-        DataclassClassOrWrapper: te.TypeAlias = ty.Any
-
+    DjangoModelType = type[Model]
     ExportKwargsT: te.TypeAlias = ty.Mapping[str, ty.Any]
-    SchemaT: te.TypeAlias = ty.Union[
-        pydantic.BaseModel,
-        DataclassClassOrWrapper,
-        ty.Sequence[ty.Any],
-        ty.Mapping[str, ty.Any],
-        ty.AbstractSet[ty.Any],
-    ]
 
     class ExportKwargs(ExportKwargsV2):
         pass
@@ -41,7 +28,7 @@ if ty.TYPE_CHECKING:
         pass
 
 
-ST = ty.TypeVar("ST", bound="SchemaT")
+ST = ty.TypeVar("ST")
 
 
 class ImproperlyConfiguredSchema(ValueError):
@@ -226,7 +213,6 @@ class SchemaAdapterResolver(ty.Generic[ST]):
 
 __all__ = (
     "ST",
-    "SchemaT",
     "DjangoModelType",
     "ImproperlyConfiguredSchema",
     "ConfigType",

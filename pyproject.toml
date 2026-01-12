@@ -100,7 +100,12 @@ explicit = true
 line-length = 120
 
 [tool.ty.src]
-include = ["src", "tests/test_app", "tests/sample_app"]
+include = [
+    "src",
+    "tests/test_app",
+    "tests/sample_app",
+    "tests/linter_assertions.py",
+]
 
 [tool.ty.rules]
 possibly-unresolved-reference = "ignore"

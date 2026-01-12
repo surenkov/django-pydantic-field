@@ -17,6 +17,7 @@ from django_pydantic_field.types import SchemaAdapterResolver
 from . import types
 
 if ty.TYPE_CHECKING:
+    import typing_extensions as te
     from django.db.models import Model
 
 __all__ = ("SchemaField", "PydanticSchemaField")
@@ -32,7 +33,7 @@ class SchemaAttribute(DeferredAttribute, ty.Generic[types.ST]):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
 
 
-class UninitializedSchemaAttribute(SchemaAttribute):
+class UninitializedSchemaAttribute(SchemaAttribute[types.ST]):
     def __set__(self, obj, value):
         if value is not None:
             value = self.field.to_python(value)
@@ -41,6 +42,14 @@ class UninitializedSchemaAttribute(SchemaAttribute):
 
 class PydanticSchemaField(JSONField, SchemaAdapterResolver, ty.Generic[types.ST]):
     adapter: types.BaseSchemaAdapter[types.ST]
+
+    if ty.TYPE_CHECKING:
+
+        @ty.overload
+        def __get__(self, instance: None, owner: ty.Any) -> te.Self: ...
+        @ty.overload
+        def __get__(self, instance: Model, owner: ty.Any) -> types.ST: ...  # type: ignore[invalid-method-override]
+        def __set__(self, instance: Model, value: types.ST) -> None: ...
 
     def __init__(self, schema=None, config=None, *args, **kwargs):
         kwargs.setdefault("encoder", DjangoJSONEncoder)
@@ -74,7 +83,7 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver, ty.Generic[types.ST]
         return field_name, import_path, args, kwargs
 
     @staticmethod
-    def descriptor_class(field: PydanticSchemaField) -> DeferredAttribute:
+    def descriptor_class(field: PydanticSchemaField[types.ST]) -> SchemaAttribute[types.ST]:
         if field.has_default():
             return SchemaAttribute(field)
         return UninitializedSchemaAttribute(field)
@@ -207,6 +216,45 @@ class SchemaKeyTransformAdapter:
             col = col.copy()
             col.output_field = super(PydanticSchemaField, col.output_field)
         return self.transform(col, *args, **kwargs)
+
+
+if ty.TYPE_CHECKING:
+
+    @ty.overload
+    def SchemaField(
+        schema: ty.ForwardRef | str,
+        config: types.ConfigType = ...,
+        default: ty.Any = ...,
+        *args: ty.Any,
+        **kwargs: ty.Any,
+    ) -> ty.Any: ...
+
+    @ty.overload
+    def SchemaField(
+        schema: None = None,
+        config: types.ConfigType = ...,
+        default: ty.Any = ...,
+        *args: ty.Any,
+        **kwargs: ty.Any,
+    ) -> ty.Any: ...
+
+    @ty.overload
+    def SchemaField(
+        schema: type[types.ST],
+        config: types.ConfigType = ...,
+        default: ty.Any = ...,
+        *args: ty.Any,
+        **kwargs: ty.Any,
+    ) -> PydanticSchemaField[types.ST]: ...
+
+    @ty.overload
+    def SchemaField(
+        schema: te._AnnotatedAlias,
+        config: types.ConfigType = ...,
+        default: ty.Any = ...,
+        *args: ty.Any,
+        **kwargs: ty.Any,
+    ) -> ty.Any: ...
 
 
 def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs):
