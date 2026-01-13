@@ -1,5 +1,3 @@
-import typing as ty
-
 from django.db.models.fields import NOT_PROVIDED
 
 from django_pydantic_field.fields import PydanticSchemaField as _PydanticSchemaField
@@ -16,5 +14,5 @@ class PydanticSchemaField(V1SchemaAdapterResolver, _PydanticSchemaField[types.ST
         return forms.SchemaField
 
 
-def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs) -> ty.Any:
+def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs):
     return PydanticSchemaField(schema, config, default=default, *args, **kwargs)
