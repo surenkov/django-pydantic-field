@@ -45,6 +45,12 @@ class LinterTestModel(models.Model):
     v1_field_no_annotation = SchemaFieldV1(SimpleSchema)
     v2_field_no_annotation = SchemaFieldV2(SimpleSchema)
 
+    # Nullable fields without explicit annotation
+    nullable_no_annotation = SchemaField(SimpleSchema, null=True)
+    nullable_v1_no_annotation = SchemaFieldV1(SimpleSchema, null=True)
+    nullable_v2_no_annotation = SchemaFieldV2(SimpleSchema, null=True)
+    non_nullable_no_annotation = SchemaField(SimpleSchema, null=False)
+
     # More complex cases from samples
     nested_generics: t.Union[t.List[te.Literal["foo"]], te.Literal["bar"]] = SchemaField()
     untyped_list = SchemaField(schema=t.List[t.Any], default=list)
@@ -53,6 +59,10 @@ class LinterTestModel(models.Model):
     # Annotated support
     annotated_field: te.Annotated[t.Union[int, float], pydantic.Field(gt=0)] = SchemaField()
     annotated_schema = SchemaField(te.Annotated[t.Union[int, float], pydantic.Field(gt=0)])
+
+    # Default value support
+    default_val: SimpleSchema = SchemaField(default=SimpleSchema(count=42))
+    default_callable: SimpleSchema = SchemaField(default=lambda: SimpleSchema(count=42))
 
 
 def linter_test_model_assertions(model: LinterTestModel):
@@ -71,3 +81,9 @@ def linter_test_model_assertions(model: LinterTestModel):
     te.assert_type(model.untyped_builtin_list, t.List[Unknown] | Unknown)  # TODO: wait for ty to resolve this
     te.assert_type(model.annotated_field, t.Union[int, float])
     te.assert_type(model.annotated_schema, Unknown)  # TODO: wait for ty to resolve this
+    te.assert_type(model.default_val, SimpleSchema)
+    te.assert_type(model.default_callable, SimpleSchema)
+    te.assert_type(model.nullable_no_annotation, SimpleSchema | None | Unknown)
+    te.assert_type(model.nullable_v1_no_annotation, SimpleSchema | None | Unknown)
+    te.assert_type(model.nullable_v2_no_annotation, SimpleSchema | None | Unknown)
+    te.assert_type(model.non_nullable_no_annotation, SimpleSchema | Unknown)
