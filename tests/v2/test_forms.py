@@ -11,8 +11,8 @@ from django.forms import Form, modelform_factory
 from tests.conftest import InnerSchema
 from tests.test_app.models import ExampleSchema, SampleForwardRefModel, SampleSchema
 
-fields = pytest.importorskip("django_pydantic_field.v2.fields")
-forms = pytest.importorskip("django_pydantic_field.v2.forms")
+fields = pytest.importorskip("django_pydantic_field.v2.fields", exc_type=ImportError)
+forms = pytest.importorskip("django_pydantic_field.v2.forms", exc_type=ImportError)
 
 
 class SampleForm(Form):

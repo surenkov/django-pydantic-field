@@ -2,7 +2,7 @@ import pytest
 
 from ..test_app.models import SampleModel
 
-_ = pytest.importorskip("django_pydantic_field.v2.fields")
+_ = pytest.importorskip("django_pydantic_field.v2.fields", exc_type=ImportError)
 
 
 @pytest.mark.django_db

@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from tests.conftest import InnerSchema
 from tests.test_app.models import SampleModel
 
-rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework")
+rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework", exc_type=ImportError)
 
 
 class SampleSerializer(serializers.Serializer):

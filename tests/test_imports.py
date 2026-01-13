@@ -16,7 +16,11 @@ from django_pydantic_field.compat import PYDANTIC_V1, PYDANTIC_V2
         (rest_framework, "SchemaParser"),
         (rest_framework, "SchemaRenderer"),
         (rest_framework, "SchemaField"),
-        (rest_framework, "AutoSchema"),
+        pytest.param(
+            rest_framework,
+            "AutoSchema",
+            marks=pytest.mark.filterwarnings("ignore::DeprecationWarning"),
+        ),
         pytest.param(
             rest_framework,
             "openapi",

@@ -5,7 +5,7 @@ import pytest
 
 from tests.conftest import InnerSchema
 
-rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework")
+rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework", exc_type=ImportError)
 
 
 @pytest.mark.parametrize(

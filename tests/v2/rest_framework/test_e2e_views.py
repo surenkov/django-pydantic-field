@@ -11,7 +11,7 @@ from .view_fixtures import (
     sample_view,
 )
 
-rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework")
+rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework", exc_type=ImportError)
 
 
 @pytest.mark.parametrize(
@@ -37,7 +37,7 @@ def test_end_to_end_api_view(view, request_factory):
 
 @pytest.mark.django_db
 def test_end_to_end_list_create_api_view(request_factory):
-    field_data = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)]).json()
+    field_data = InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)]).model_dump_json()
     expected_result = {
         "sample_field": {"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1},
         "sample_list": [{"stub_str": "abc", "stub_list": ["2022-07-01"], "stub_int": 1}],

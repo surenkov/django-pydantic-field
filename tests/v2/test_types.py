@@ -117,14 +117,16 @@ def test_schema_adapter_dump_python():
 
     adapter = types.SchemaAdapter.from_type(ty.List[int], {})
     assert adapter.dump_python([1, 2, 3]) == [1, 2, 3]
-    assert sorted(adapter.dump_python({1, 2, 3})) == [1, 2, 3]
+
     with pytest.warns(UserWarning):
+        assert sorted(adapter.dump_python({1, 2, 3})) == [1, 2, 3]
         assert adapter.dump_python(["1", "2", "3"]) == ["1", "2", "3"]
 
     adapter = types.SchemaAdapter.from_type(ty.List[int], {})
     assert adapter.dump_python([1, 2, 3]) == [1, 2, 3]
-    assert sorted(adapter.dump_python({1, 2, 3})) == [1, 2, 3]
-    with pytest.warns(UserWarning):
+
+    with pytest.warns(UserWarning, match="Pydantic serializer warnings"):
+        assert sorted(adapter.dump_python({1, 2, 3})) == [1, 2, 3]
         assert adapter.dump_python(["1", "2", "3"]) == ["1", "2", "3"]
 
 
@@ -134,12 +136,14 @@ def test_schema_adapter_dump_json():
 
     adapter = types.SchemaAdapter.from_type(ty.List[int], {})
     assert adapter.dump_json([1, 2, 3]) == b"[1,2,3]"
-    assert adapter.dump_json({1, 2, 3}) == b"[1,2,3]"
-    with pytest.warns(UserWarning):
+
+    with pytest.warns(UserWarning, match="Pydantic serializer warnings"):
+        assert adapter.dump_json({1, 2, 3}) == b"[1,2,3]"
         assert adapter.dump_json(["1", "2", "3"]) == b'["1","2","3"]'
 
     adapter = types.SchemaAdapter.from_type(ty.List[int], {})
     assert adapter.dump_json([1, 2, 3]) == b"[1,2,3]"
-    assert adapter.dump_json({1, 2, 3}) == b"[1,2,3]"
-    with pytest.warns(UserWarning):
+
+    with pytest.warns(UserWarning, match="Pydantic serializer warnings"):
+        assert adapter.dump_json({1, 2, 3}) == b"[1,2,3]"
         assert adapter.dump_json(["1", "2", "3"]) == b'["1","2","3"]'
