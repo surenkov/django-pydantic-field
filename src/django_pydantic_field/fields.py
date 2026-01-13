@@ -4,6 +4,7 @@ import typing as ty
 
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Model
 from django.db.models.expressions import BaseExpression, Col, Value
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.json import JSONField, KeyTransform
@@ -15,9 +16,6 @@ from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ValidationErrorsT
 from django_pydantic_field.types import SchemaAdapterResolver
 
 from . import types
-
-if ty.TYPE_CHECKING:
-    from django.db.models import Model
 
 __all__ = ("SchemaField", "PydanticSchemaField")
 
@@ -32,14 +30,14 @@ class SchemaAttribute(DeferredAttribute, ty.Generic[types.ST]):
         obj.__dict__[self.field.attname] = self.field.to_python(value)
 
 
-class UninitializedSchemaAttribute(SchemaAttribute):
+class UninitializedSchemaAttribute(SchemaAttribute[types.ST]):
     def __set__(self, obj, value):
         if value is not None:
             value = self.field.to_python(value)
         obj.__dict__[self.field.attname] = value
 
 
-class PydanticSchemaField(JSONField, SchemaAdapterResolver, ty.Generic[types.ST]):
+class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
     adapter: types.BaseSchemaAdapter[types.ST]
 
     def __init__(self, schema=None, config=None, *args, **kwargs):
@@ -74,7 +72,7 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver, ty.Generic[types.ST]
         return field_name, import_path, args, kwargs
 
     @staticmethod
-    def descriptor_class(field: PydanticSchemaField) -> DeferredAttribute:
+    def descriptor_class(field: PydanticSchemaField[types.ST]) -> SchemaAttribute[types.ST]:
         if field.has_default():
             return SchemaAttribute(field)
         return UninitializedSchemaAttribute(field)

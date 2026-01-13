@@ -17,7 +17,7 @@ class FrozenInnerSchema(InnerSchema):
 class SampleModel(models.Model):
     sample_field: InnerSchema = SchemaField()
     sample_list: t.List[InnerSchema] = SchemaField()
-    sample_seq: t.Sequence[InnerSchema] = SchemaField(schema=t.List[InnerSchema], default=list)
+    sample_seq = SchemaField(t.List[InnerSchema], default=list)
 
     class Meta:
         app_label = "test_app"
@@ -26,7 +26,7 @@ class SampleModel(models.Model):
 class SampleModelV1(models.Model):
     sample_field: InnerSchemaV1 = SchemaFieldV1()
     sample_list: t.List[InnerSchemaV1] = SchemaFieldV1()
-    sample_seq: t.Sequence[InnerSchemaV1] = SchemaFieldV1(schema=t.List[InnerSchemaV1], default=list)
+    sample_seq = SchemaFieldV1(t.List[InnerSchemaV1], default=list)
 
     class Meta:
         app_label = "test_app"
