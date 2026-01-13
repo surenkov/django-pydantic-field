@@ -1,3 +1,3 @@
-from django_pydantic_field.forms import SchemaField, JSONFormSchemaWidget
+from django_pydantic_field.forms import JSONFormSchemaWidget, SchemaField
 
-__all__ = ["SchemaField", "JSONFormSchemaWidget"]
+__all__ = ("JSONFormSchemaWidget", "SchemaField")

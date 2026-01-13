@@ -1,7 +1,8 @@
-from django_pydantic_field.forms import SchemaField as _SchemaField, JSONFormSchemaWidget as _JSONFormSchemaWidget
-from django_pydantic_field.v1.types import V1SchemaAdapterResolver, SchemaAdapter, ST
+from django_pydantic_field.forms import JSONFormSchemaWidget as _JSONFormSchemaWidget
+from django_pydantic_field.forms import SchemaField as _SchemaField
+from django_pydantic_field.v1.types import ST, SchemaAdapter, V1SchemaAdapterResolver
 
-__all__ = ("SchemaField", "JSONFormSchemaWidget")
+__all__ = ("JSONFormSchemaWidget", "SchemaField")
 
 
 class SchemaField(V1SchemaAdapterResolver, _SchemaField):

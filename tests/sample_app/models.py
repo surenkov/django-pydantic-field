@@ -1,9 +1,10 @@
 import enum
 import typing as t
-import typing_extensions as te
 
 import pydantic
+import typing_extensions as te
 from django.db import models
+
 from django_pydantic_field import SchemaField
 
 

@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 from django.core import serializers
-from django.db.models import F, Q, JSONField, Value
+from django.db.models import F, JSONField, Q, Value
 
 from tests.conftest import InnerSchema
 from tests.test_app.models import ExampleModel, SampleModel

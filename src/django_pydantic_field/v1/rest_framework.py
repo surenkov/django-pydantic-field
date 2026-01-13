@@ -17,10 +17,10 @@ if ty.TYPE_CHECKING:
     RequestResponseContext = ty.Mapping[str, ty.Any]
 
 __all__ = (
-    "SchemaField",
-    "SchemaRenderer",
-    "SchemaParser",
     "AutoSchema",
+    "SchemaField",
+    "SchemaParser",
+    "SchemaRenderer",
 )
 
 

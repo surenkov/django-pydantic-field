@@ -1,11 +1,11 @@
 from django.db.models.fields import NOT_PROVIDED
 
+from django_pydantic_field import types
 from django_pydantic_field.fields import PydanticSchemaField as _PydanticSchemaField
 from django_pydantic_field.v1 import forms
 from django_pydantic_field.v1.types import V1SchemaAdapterResolver
-from django_pydantic_field import types
 
-__all__ = ("SchemaField", "PydanticSchemaField")
+__all__ = ("PydanticSchemaField", "SchemaField")
 
 
 class PydanticSchemaField(V1SchemaAdapterResolver, _PydanticSchemaField[types.ST]):

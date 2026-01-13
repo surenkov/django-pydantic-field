@@ -10,8 +10,8 @@ from rest_framework import exceptions, generics, schemas, serializers, views
 from rest_framework.decorators import api_view, parser_classes, renderer_classes, schema
 from rest_framework.response import Response
 
-from tests.test_app.models import InnerSchemaV1, SampleModelV1
 from django_pydantic_field.v1 import rest_framework
+from tests.test_app.models import InnerSchemaV1, SampleModelV1
 
 pytestmark = pytest.mark.skipif(
     sys.version_info >= (3, 14),

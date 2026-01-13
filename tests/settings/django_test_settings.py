@@ -1,6 +1,7 @@
-import os
-import dj_database_url
 import importlib.util
+import os
+
+import dj_database_url
 
 SECRET_KEY = "1"
 SITE_ID = 1

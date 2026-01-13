@@ -1,8 +1,8 @@
 import typing as ty
-import typing_extensions as te
 
-from django.db.migrations.writer import MigrationWriter
 import pytest
+import typing_extensions as te
+from django.db.migrations.writer import MigrationWriter
 
 import django_pydantic_field
 

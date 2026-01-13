@@ -3,13 +3,13 @@ import typing as ty
 import typing_extensions as te
 from django.utils.functional import _StrOrPromise
 from rest_framework import parsers, renderers
-from rest_framework.fields import _DefaultInitial, Field
+from rest_framework.fields import Field, _DefaultInitial
 from rest_framework.schemas.openapi import AutoSchema as _OpenAPIAutoSchema
 from rest_framework.validators import Validator
 
-from django_pydantic_field.types import ConfigType, ST, ExportKwargs, DeprecatedExportKwargs
+from django_pydantic_field.types import ST, ConfigType, DeprecatedExportKwargs, ExportKwargs
 
-__all__ = ("SchemaField", "SchemaParser", "SchemaRenderer", "AutoSchema")
+__all__ = ("AutoSchema", "SchemaField", "SchemaParser", "SchemaRenderer")
 
 @ty.type_check_only
 class _FieldKwargs(te.TypedDict, ty.Generic[ST], total=False):

@@ -8,5 +8,8 @@ repos:
     - id: ruff-check
       types_or: [ python, pyi ]
       args: [ --fix ]
+    - id: ruff-check
+      types_or: [ python, pyi ]
+      args: [ "--select", "I,RUF022", "--fix" ]
     - id: ruff-format
       types_or: [ python, pyi ]

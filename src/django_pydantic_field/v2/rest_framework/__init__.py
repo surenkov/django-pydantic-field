@@ -11,11 +11,11 @@ _DEPRECATED_MESSAGE = (
 )
 
 __all__ = (
-    "openapi",
+    "AutoSchema",  # type: ignore
     "SchemaField",
     "SchemaParser",
     "SchemaRenderer",
-    "AutoSchema",  # type: ignore
+    "openapi",
 )
 
 

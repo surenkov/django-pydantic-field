@@ -1,6 +1,6 @@
 import pytest
-from rest_framework.schemas.openapi import SchemaGenerator
 from rest_framework.request import Request
+from rest_framework.schemas.openapi import SchemaGenerator
 
 from .view_fixtures import create_views_urlconf
 

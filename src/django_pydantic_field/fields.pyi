@@ -1,7 +1,7 @@
 import typing as ty
 
 import typing_extensions as te
-from django.db.models import Model, JSONField
+from django.db.models import JSONField, Model
 from django.db.models.expressions import BaseExpression
 
 from django_pydantic_field import types

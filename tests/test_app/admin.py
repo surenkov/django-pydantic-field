@@ -2,6 +2,7 @@ from django.contrib import admin
 
 try:
     from django_jsonform.widgets import JSONFormWidget
+
     from django_pydantic_field.v2.fields import PydanticSchemaField
     from django_pydantic_field.v2.forms import JSONFormSchemaWidget
 

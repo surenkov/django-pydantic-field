@@ -4,7 +4,7 @@ import types
 
 from .pydantic import PYDANTIC_V1, PYDANTIC_V2, PYDANTIC_VERSION
 
-__all__ = ("compat_getattr", "compat_dir")
+__all__ = ("compat_dir", "compat_getattr")
 
 
 def compat_getattr(module_name: str):

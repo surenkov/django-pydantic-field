@@ -1,9 +1,10 @@
-import pydantic
-import pytest
 import typing as ty
 
-from tests.conftest import InnerSchema, SampleDataclass
+import pydantic
+import pytest
+
 from django_pydantic_field.types import ImproperlyConfiguredSchema
+from tests.conftest import InnerSchema, SampleDataclass
 
 types = pytest.importorskip("django_pydantic_field.v2.types")
 

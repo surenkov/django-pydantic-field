@@ -1,7 +1,7 @@
 import typing as ty
 
-from django_pydantic_field.fields import PydanticSchemaField as _PydanticSchemaField
 from django_pydantic_field import types
+from django_pydantic_field.fields import PydanticSchemaField as _PydanticSchemaField
 
 class PydanticSchemaField(_PydanticSchemaField[types.ST]): ...
 

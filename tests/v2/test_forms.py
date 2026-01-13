@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.forms import Form, modelform_factory
 
 from tests.conftest import InnerSchema
-from tests.test_app.models import SampleForwardRefModel, SampleSchema, ExampleSchema
+from tests.test_app.models import ExampleSchema, SampleForwardRefModel, SampleSchema
 
 fields = pytest.importorskip("django_pydantic_field.v2.fields")
 forms = pytest.importorskip("django_pydantic_field.v2.forms")

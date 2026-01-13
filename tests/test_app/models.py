@@ -1,11 +1,12 @@
 import typing as t
-import typing_extensions as te
 
 import pydantic
+import typing_extensions as te
 from django.db import models
+
 from django_pydantic_field import SchemaField
-from django_pydantic_field.v1.fields import SchemaField as SchemaFieldV1
 from django_pydantic_field.compat import PYDANTIC_V2
+from django_pydantic_field.v1.fields import SchemaField as SchemaFieldV1
 
 from ..conftest import InnerSchema, InnerSchemaV1
 

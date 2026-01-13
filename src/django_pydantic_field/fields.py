@@ -17,7 +17,7 @@ from django_pydantic_field.types import SchemaAdapterResolver
 
 from . import types
 
-__all__ = ("SchemaField", "PydanticSchemaField")
+__all__ = ("PydanticSchemaField", "SchemaField")
 
 
 class SchemaAttribute(DeferredAttribute, ty.Generic[types.ST]):

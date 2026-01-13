@@ -1,8 +1,7 @@
-from django.middleware.csrf import CsrfViewMiddleware
 import pytest
-
-from django.contrib.auth.models import AnonymousUser
 from django.contrib.admin import site
+from django.contrib.auth.models import AnonymousUser
+from django.middleware.csrf import CsrfViewMiddleware
 
 from .test_app import admin, models
 

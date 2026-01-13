@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing as ty
 
 from django_pydantic_field._internal._annotation_utils import get_namespace
-from django_pydantic_field.compat.pydantic import pydantic_v1, ConfigType, inherit_config, display_as_type
+from django_pydantic_field.compat.pydantic import ConfigType, display_as_type, inherit_config, pydantic_v1
 
 
 def inherit_configs(parent: ty.Type[pydantic_v1.BaseModel], config: ConfigType | None = None):

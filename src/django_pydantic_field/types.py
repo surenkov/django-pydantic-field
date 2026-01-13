@@ -213,8 +213,8 @@ class SchemaAdapterResolver(ty.Generic[ST]):
 
 __all__ = (
     "ST",
+    "BaseSchemaAdapter",
+    "ConfigType",
     "DjangoModelType",
     "ImproperlyConfiguredSchema",
-    "ConfigType",
-    "BaseSchemaAdapter",
 )

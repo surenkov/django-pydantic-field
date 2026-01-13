@@ -18,7 +18,6 @@ from .conftest import InnerSchema, SampleDataclass, SchemaWithCustomTypes  # noq
 from .sample_app.models import Building
 from .test_app.models import SampleForwardRefModel, SampleModel, SampleSchema
 
-
 if PYDANTIC_V2:
 
     class SampleRootModel(pydantic.RootModel):
