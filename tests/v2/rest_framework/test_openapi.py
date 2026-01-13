@@ -4,7 +4,7 @@ from rest_framework.schemas.openapi import SchemaGenerator
 
 from .view_fixtures import create_views_urlconf
 
-openapi = pytest.importorskip("django_pydantic_field.v2.rest_framework.openapi")
+openapi = pytest.importorskip("django_pydantic_field.v2.rest_framework.openapi", exc_type=ImportError)
 
 
 @pytest.mark.parametrize(

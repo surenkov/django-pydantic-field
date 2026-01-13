@@ -10,9 +10,10 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection, models
 from django.db.migrations.writer import MigrationWriter
+from django.test.utils import isolate_apps
 
 from django_pydantic_field import fields
-from django_pydantic_field.compat.pydantic import PYDANTIC_V1, PYDANTIC_V2
+from django_pydantic_field.compat.pydantic import PYDANTIC_V2
 
 from .conftest import InnerSchema, SampleDataclass, SchemaWithCustomTypes  # noqa
 from .sample_app.models import Building
@@ -84,11 +85,13 @@ def test_forwardrefs_deferred_resolution():
     ],
 )
 def test_resolved_forwardrefs(forward_ref):
-    class ModelWithForwardRefs(models.Model):
-        field: forward_ref = fields.SchemaField()
+    with isolate_apps("tests.test_app"):
 
-        class Meta:
-            app_label = "test_app"
+        class ModelWithForwardRefs(models.Model):
+            field = fields.SchemaField(forward_ref)
+
+            class Meta:
+                app_label = "test_app"
 
 
 @pytest.mark.parametrize(
@@ -114,19 +117,15 @@ def test_resolved_forwardrefs(forward_ref):
         fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], null=True, blank=True),
         fields.PydanticSchemaField(schema=SchemaWithCustomTypes, default={}),
         pytest.param(
-            fields.PydanticSchemaField(schema=ty.Optional[SampleRootModel], default=SampleRootModel.parse_obj([])),
-            marks=pytest.mark.xfail(
-                PYDANTIC_V1,
-                reason="Prepared root-model based defaults are not supported with Pydantic v1",
-                raises=ValidationError,
+            fields.PydanticSchemaField(
+                schema=ty.Optional[SampleRootModel],
+                default=(SampleRootModel.model_validate([]) if PYDANTIC_V2 else SampleRootModel.parse_obj([])),
             ),
         ),
         pytest.param(
-            fields.PydanticSchemaField(schema=SampleRootModel, default=SampleRootModel.parse_obj([""])),
-            marks=pytest.mark.xfail(
-                PYDANTIC_V1,
-                reason="Prepared root-model based defaults are not supported with Pydantic v1",
-                raises=ValidationError,
+            fields.PydanticSchemaField(
+                schema=SampleRootModel,
+                default=(SampleRootModel.model_validate([""]) if PYDANTIC_V2 else SampleRootModel.parse_obj([""])),
             ),
         ),
         pytest.param(
@@ -134,11 +133,14 @@ def test_resolved_forwardrefs(forward_ref):
                 schema=InnerSchema,
                 default=(("stub_str", "abc"), ("stub_list", [date(2022, 7, 1)])),
             ),
-            marks=pytest.mark.xfail(
-                PYDANTIC_V2,
-                reason="Tuple-based default reconstruction is not supported with Pydantic 2",
-                raises=pydantic.ValidationError,
-            ),
+            marks=[
+                pytest.mark.xfail(
+                    PYDANTIC_V2,
+                    reason="Tuple-based default reconstruction is not supported with Pydantic 2",
+                    raises=pydantic.ValidationError,
+                ),
+                pytest.mark.filterwarnings("ignore::UserWarning"),
+            ],
         ),
     ],
 )

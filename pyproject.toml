@@ -61,15 +61,15 @@ dev = [
     "pre-commit",
     "uritemplate",
     "inflection",
-    "pytest~=7.4",
-    "pytest-django>=4.5,<6",
-    "django-stubs~=5.2.3",
+    "pytest>=9",
+    "pytest-django>=4.5",
+    "django-stubs>=5",
     "djangorestframework>=3,<4",
-    "djangorestframework-stubs~=3.16.3",
+    "djangorestframework-stubs>=3",
     "django_jsonform>=2.0,<3",
     "dj-database-url~=2.0",
     "pyyaml",
-    "syrupy>=3,<5",
+    "syrupy",
     "annotated-types>=0.7.0",
 ]
 ci = [
@@ -116,6 +116,8 @@ django_settings_module = "tests.settings.django_test_settings"
 
 [tool.pytest.ini_options]
 strict = true
+strict_parametrization_ids = false
+
 addopts = "--import-mode=importlib --capture=no"
 pythonpath = ["."]
 testpaths = ["tests"]

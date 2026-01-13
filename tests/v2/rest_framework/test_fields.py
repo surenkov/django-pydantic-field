@@ -1,23 +1,21 @@
 import typing as ty
 from datetime import date
 
-import pydantic
 import pytest
-import typing_extensions as te
 from rest_framework import exceptions, serializers
 
 from tests.conftest import InnerSchema
 from tests.test_app.models import SampleModel
 
-rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework")
+rest_framework = pytest.importorskip("django_pydantic_field.v2.rest_framework", exc_type=ImportError)
 
 
 class SampleSerializer(serializers.Serializer):
-    field = rest_framework.SchemaField(schema=ty.List[InnerSchema])
+    field = rest_framework.SchemaField(ty.List[InnerSchema])
     annotated = rest_framework.SchemaField(
-        schema=te.Annotated[ty.List[InnerSchema], pydantic.Field(alias="annotated_field")],
+        schema=ty.List[InnerSchema],
+        source="annotated_field",
         default=list,
-        by_alias=True,
     )
 
 
@@ -64,7 +62,10 @@ def test_field_schema_with_custom_config():
 def test_serializer_marshalling_with_schema_field():
     existing_instance = {"field": [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])], "annotated_field": []}
     expected_data = {"field": [{"stub_str": "abc", "stub_int": 1, "stub_list": ["2022-07-01"]}], "annotated": []}
-    expected_validated_data = {"field": [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])], "annotated": []}
+    expected_validated_data = {
+        "field": [InnerSchema(stub_str="abc", stub_list=[date(2022, 7, 1)])],
+        "annotated_field": [],
+    }
 
     serializer = SampleSerializer(instance=existing_instance)
     assert serializer.data == expected_data

@@ -9,10 +9,12 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 MIGRATIONS_DIR = "tests/sample_app/migrations/"
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_makemigrations_not_failing():
     call_command("makemigrations", "sample_app", "--noinput", "--dry-run")
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_makemigrations_no_duplicates(capfd):
     with clean_dir(MIGRATIONS_DIR):
         call_command("makemigrations", "sample_app", "--noinput")

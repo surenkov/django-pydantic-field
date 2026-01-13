@@ -8,8 +8,7 @@ from functools import cached_property
 import typing_extensions as te
 
 from django_pydantic_field._internal._annotation_utils import evaluate_forward_ref, get_annotated_type, get_namespace
-from django_pydantic_field._migration_serializers import GenericContainer
-from django_pydantic_field.compat.django import BaseContainer
+from django_pydantic_field.compat.django import BaseContainer, GenericContainer
 from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ConfigType
 
 if ty.TYPE_CHECKING:

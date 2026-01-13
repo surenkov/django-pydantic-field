@@ -8,6 +8,7 @@ from pydantic.dataclasses import dataclass
 from rest_framework.test import APIRequestFactory
 from syrupy.extensions.json import JSONSnapshotExtension
 
+from django_pydantic_field.compat import PYDANTIC_V1
 from django_pydantic_field.compat.pydantic import PYDANTIC_V2, pydantic_v1
 
 
@@ -16,9 +17,13 @@ class InnerSchema(pydantic.BaseModel):
     stub_int: int = 1
     stub_list: t.List[date]
 
-    class Config:
-        allow_mutation = True
-        frozen = False
+    if PYDANTIC_V2:
+        model_config = pydantic.ConfigDict(frozen=False)
+    else:
+
+        class Config:
+            allow_mutation = True
+            frozen = False
 
 
 class InnerSchemaV1(pydantic_v1.BaseModel):
@@ -41,7 +46,9 @@ class SampleDataclass:
 class SchemaWithCustomTypes(pydantic.BaseModel):
     url: pydantic.HttpUrl = "http://localhost/"
     uid: pydantic.UUID4 = "367388a6-9b3b-4ef0-af84-a27d61a05bc7"
-    crd: pydantic.PaymentCardNumber = "4111111111111111"
+
+    if PYDANTIC_V1:
+        crd: pydantic.PaymentCardNumber = "4111111111111111"
 
     if PYDANTIC_V2:
         b64: pydantic.Base64Str = "YmFzZTY0"
