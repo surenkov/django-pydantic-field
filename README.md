@@ -68,7 +68,7 @@ typing.assert_type(model.optional_foo, Foo | None)
 Any type supported by Pydantic can be used as a schema:
 - `pydantic.BaseModel` and `pydantic.RootModel` (v2)
 - Standard Python types (`list[str]`, `dict[int, float]`, etc.)
-- `dataclasses.dataclass`
+- `dataclasses.dataclass` and `TypedDict` protocols
 - `typing.Annotated` with metadata.
 
 ```python

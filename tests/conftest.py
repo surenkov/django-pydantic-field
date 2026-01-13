@@ -7,9 +7,15 @@ from django.conf import settings
 from pydantic.dataclasses import dataclass
 from rest_framework.test import APIRequestFactory
 from syrupy.extensions.json import JSONSnapshotExtension
+from typing_extensions import TypedDict
 
 from django_pydantic_field.compat import PYDANTIC_V1
 from django_pydantic_field.compat.pydantic import PYDANTIC_V2, pydantic_v1
+
+
+class SampleTypedDict(TypedDict):
+    stub_str: str
+    stub_int: int
 
 
 class InnerSchema(pydantic.BaseModel):

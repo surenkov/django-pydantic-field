@@ -15,7 +15,12 @@ from django.test.utils import isolate_apps
 from django_pydantic_field import fields
 from django_pydantic_field.compat.pydantic import PYDANTIC_V2
 
-from .conftest import InnerSchema, SampleDataclass, SchemaWithCustomTypes  # noqa
+from .conftest import (
+    InnerSchema,
+    SampleDataclass,
+    SampleTypedDict,
+    SchemaWithCustomTypes,
+)
 from .sample_app.models import Building
 from .test_app.models import SampleForwardRefModel, SampleModel, SampleSchema
 
@@ -291,3 +296,31 @@ def test_model_init_no_default():
         SampleModel()
     except Exception:
         pytest.fail("Model with schema field without a default value should be able to initialize")
+
+
+def test_typeddict_field_serialization():
+    field = fields.SchemaField(SampleTypedDict, default={"stub_str": "abc", "stub_int": 1})
+    _, _, args, kwargs = field.deconstruct()
+    reconstructed_field = fields.SchemaField(*args, **kwargs)
+
+    assert field.get_default() == reconstructed_field.get_default()
+    assert field.to_python({"stub_str": "abc", "stub_int": 1}) == {"stub_str": "abc", "stub_int": 1}
+
+
+def test_typeddict_field_validation():
+    field = fields.SchemaField(SampleTypedDict)
+    with pytest.raises(ValidationError):
+        field.to_python({"stub_str": "abc"})  # missing stub_int
+
+
+@isolate_apps("tests.test_app")
+def test_typeddict_model_field():
+    class TypedDictModel(models.Model):
+        class Meta:
+            app_label = "test_app"
+
+        field = fields.SchemaField(SampleTypedDict)
+
+    data = {"stub_str": "abc", "stub_int": 2}
+    obj = TypedDictModel(field=data)
+    assert obj.field == data

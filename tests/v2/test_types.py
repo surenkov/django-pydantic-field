@@ -4,7 +4,7 @@ import pydantic
 import pytest
 
 from django_pydantic_field.types import ImproperlyConfiguredSchema
-from tests.conftest import InnerSchema, SampleDataclass
+from tests.conftest import InnerSchema, SampleDataclass, SampleTypedDict
 
 types = pytest.importorskip("django_pydantic_field.v2.types")
 
@@ -19,6 +19,7 @@ types = pytest.importorskip("django_pydantic_field.v2.types")
         (types.SchemaAdapter, [ty.List[int], {"strict": True}, None, None], {}),
         (types.SchemaAdapter, [None, None, InnerSchema, "stub_int"], {}),
         (types.SchemaAdapter, [None, None, SampleDataclass, "stub_int"], {}),
+        (types.SchemaAdapter, [None, None, SampleTypedDict, "stub_int"], {}),
         pytest.param(types.SchemaAdapter.from_type, ["list[int]"], {}),
         pytest.param(types.SchemaAdapter.from_type, ["list[int]", {"strict": True}], {}),
         (types.SchemaAdapter.from_type, [ty.List[int]], {}),
@@ -27,6 +28,8 @@ types = pytest.importorskip("django_pydantic_field.v2.types")
         (types.SchemaAdapter.from_annotation, [InnerSchema, "stub_int", {"strict": True}], {}),
         (types.SchemaAdapter.from_annotation, [SampleDataclass, "stub_int"], {}),
         (types.SchemaAdapter.from_annotation, [SampleDataclass, "stub_int", {"strict": True}], {}),
+        (types.SchemaAdapter.from_annotation, [SampleTypedDict, "stub_int"], {}),
+        (types.SchemaAdapter.from_annotation, [SampleTypedDict, "stub_int", {"strict": True}], {}),
     ],
 )
 # fmt: on
