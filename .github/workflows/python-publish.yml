@@ -3,6 +3,7 @@ name: Build and Upload Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,4 +26,4 @@ jobs:
     - name: Build package
       run: uv build
     - name: Publish package distributions to PyPI
-      run: uv publish --non-interactive
+      run: uv publish
