@@ -44,7 +44,7 @@ class MyModel(models.Model):
     # Django-like style (explicit schema)
     bar = SchemaField(Foo, default={"count": 5})
 
-    #  Annotation-based style (modern)
+    # Annotation-based style (Pydantic-like)
     foo: Foo = SchemaField()
 
     # Supports standard Python types and annotations
