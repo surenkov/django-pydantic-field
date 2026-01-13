@@ -16,25 +16,5 @@ class PydanticSchemaField(V1SchemaAdapterResolver, _PydanticSchemaField[types.ST
         return forms.SchemaField
 
 
-@ty.overload
-def SchemaField(
-    schema: ty.ForwardRef | str | None = None,
-    config: types.ConfigType = None,
-    default: ty.Any = NOT_PROVIDED,
-    *args: ty.Any,
-    **kwargs: ty.Any,
-) -> ty.Any: ...
-
-
-@ty.overload
-def SchemaField(
-    schema: type[types.ST],
-    config: types.ConfigType = None,
-    default: ty.Any = NOT_PROVIDED,
-    *args: ty.Any,
-    **kwargs: ty.Any,
-) -> PydanticSchemaField[types.ST]: ...
-
-
 def SchemaField(schema=None, config=None, default=NOT_PROVIDED, *args, **kwargs) -> ty.Any:
     return PydanticSchemaField(schema, config, default=default, *args, **kwargs)
