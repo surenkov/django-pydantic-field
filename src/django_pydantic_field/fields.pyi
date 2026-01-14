@@ -32,9 +32,9 @@ class PydanticSchemaField(JSONField[types.ST, types.ST]):
 
 @ty.overload
 def SchemaField(
-    schema: type[types.ST],
+    schema: type[types.ST] | type[types.ST | None],
     config: types.ConfigType = ...,
-    default: ty.Callable[[], _DT] | _DT | BaseExpression = ...,
+    default: ty.Callable[[], _DT] | ty.Callable[[], _DT | None] | _DT | None | BaseExpression = ...,
     *args: ty.Any,
     null: ty.Literal[True],
     **kwargs: ty.Any,
