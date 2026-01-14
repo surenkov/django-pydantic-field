@@ -1,20 +1,26 @@
+import dataclasses
 import typing as ty
+from unittest.mock import MagicMock
 
+import annotated_types
 import pytest
-import typing_extensions as te
 from django.db.migrations.writer import MigrationWriter
+from pydantic import SecretStr, conint, constr
+from typing_extensions import Annotated
 
-import django_pydantic_field
-
-try:
-    from django_pydantic_field.compat.django import GenericContainer
-except ImportError:
-    from django_pydantic_field._migration_serializers import GenericContainer  # noqa
+from django_pydantic_field.compat import PYDANTIC_V1
+from django_pydantic_field.compat.django import GenericContainer
 
 try:
-    import annotationlib  # type: ignore[unresolved-import]
+    from pydantic.types import StringConstraints
 except ImportError:
-    annotationlib = None
+    StringConstraints = MagicMock()
+
+
+@dataclasses.dataclass
+class SampleDataclass:
+    tp: ty.Any
+
 
 test_types = [
     str,
@@ -25,6 +31,32 @@ test_types = [
     list[ty.Union[int, bool]],
     tuple[list[ty.Literal[1]], ty.Union[str, ty.Literal["foo"]]],
     ty.ForwardRef("str"),
+    SecretStr,
+    Annotated[int, annotated_types.Gt(gt=0)],
+    SampleDataclass,
+    pytest.param(
+        conint(gt=0),
+        marks=pytest.mark.xfail(
+            PYDANTIC_V1,
+            reason="Pydantic v1 does not provide a type hierarchy for constrained types",
+            strict=False,
+        ),
+    ),
+    pytest.param(
+        constr(min_length=10),
+        marks=pytest.mark.xfail(
+            PYDANTIC_V1,
+            reason="Pydantic v1 does not provide a type hierarchy for constrained types",
+            strict=False,
+        ),
+    ),
+    pytest.param(
+        Annotated[str, StringConstraints(pattern=r"[a-zA-Z0-9_]+")],
+        marks=pytest.mark.skipif(
+            PYDANTIC_V1,
+            reason="StringConstraints is available since Pydantic v2",
+        ),
+    ),
 ]
 
 
@@ -37,8 +69,9 @@ def test_wrap_unwrap_idempotent(raw_type):
 @pytest.mark.parametrize("raw_type", test_types)
 def test_serialize_eval_idempotent(raw_type):
     raw_type = GenericContainer.wrap(raw_type)
-    expression, _ = MigrationWriter.serialize(raw_type)
-    imports = dict(
-        typing=ty, typing_extensions=te, django_pydantic_field=django_pydantic_field, annotationlib=annotationlib
-    )
-    assert eval(expression, imports) == raw_type
+    expression, raw_imports = MigrationWriter.serialize(raw_type)
+
+    resolved_imports = {}
+    exec("\n".join(raw_imports) + "\n", {}, resolved_imports)
+
+    assert eval(expression, resolved_imports) == raw_type
