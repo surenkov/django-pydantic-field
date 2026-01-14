@@ -2,7 +2,7 @@ export DJANGO_SETTINGS_MODULE=tests.settings.django_test_settings
 
 .PHONY: install
 install:
-	uv sync --extra dev --extra test
+	uv sync --group dev
 
 .PHONY: build
 build:
