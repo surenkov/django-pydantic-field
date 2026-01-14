@@ -6,7 +6,7 @@ import pytest
 from django_pydantic_field.types import ImproperlyConfiguredSchema
 from tests.conftest import InnerSchema, SampleDataclass, SampleTypedDict
 
-types = pytest.importorskip("django_pydantic_field.v2.types")
+types = pytest.importorskip("django_pydantic_field.v2.types", exc_type=ImportError)
 
 
 # fmt: off
