@@ -90,6 +90,8 @@ class GenericContainer(BaseContainer):
         if isinstance(value, GenericTypes):
             wrapped_args = tuple(map(cls.wrap, get_args(value)))
             return cls(get_origin(value), wrapped_args)
+        if DataclassContainer.is_dataclass_instance(value):
+            return DataclassContainer.wrap(value)
         if isinstance(value, FieldInfo):
             return FieldInfoContainer.wrap(value)
         return value
@@ -129,7 +131,7 @@ class DataclassContainer(BaseContainer):
 
     @classmethod
     def wrap(cls, value):
-        if cls._is_dataclass_instance(value):
+        if cls.is_dataclass_instance(value):
             return cls(type(value), dataclasses.asdict(value))
         if isinstance(value, GenericTypes):
             return GenericContainer.wrap(value)
@@ -142,11 +144,11 @@ class DataclassContainer(BaseContainer):
         return value
 
     @staticmethod
-    def _is_dataclass_instance(obj: ty.Any):
+    def is_dataclass_instance(obj: ty.Any):
         return dataclasses.is_dataclass(obj) and not isinstance(obj, type)
 
     def __eq__(self, other):
-        if self._is_dataclass_instance(other):
+        if self.is_dataclass_instance(other):
             return self == self.wrap(other)
         return super().__eq__(other)
 
@@ -292,7 +294,7 @@ class RepresentationSerializer(BaseSerializer):
                 repr_args.append(f"{arg_name}={arg_value_repr}")
 
         final_args_repr = ", ".join(repr_args)
-        return f"{tp_repr}({final_args_repr})"
+        return f"{tp_repr}({final_args_repr})", imports
 
 
 AnnotatedAlias = te._AnnotatedAlias
