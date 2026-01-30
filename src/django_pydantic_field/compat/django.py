@@ -51,6 +51,24 @@ except ImportError:
     FieldInfoDefaultValues = FieldInfo.__field_constraints__  # type: ignore[attr-defined]
 
 
+UnionType = types.UnionType
+AnnotatedAlias = te._AnnotatedAlias
+
+if sys.version_info >= (3, 14):
+    GenericTypes: ty.Tuple[ty.Any, ...] = (
+        types.GenericAlias,
+        type(ty.List[int]),
+        type(ty.List),
+        ty.Union,
+    )
+else:
+    GenericTypes = (
+        types.GenericAlias,
+        type(ty.List[int]),
+        type(ty.List),
+    )
+
+
 class BaseContainer(abc.ABC):
     __slot__ = ()
 
@@ -297,16 +315,19 @@ class RepresentationSerializer(BaseSerializer):
         return f"{tp_repr}({final_args_repr})", imports
 
 
-AnnotatedAlias = te._AnnotatedAlias
+class UnionTypeSerializer(BaseSerializer):
+    value: UnionType
 
-if sys.version_info >= (3, 14):
-    GenericTypes: ty.Tuple[ty.Any, ...] = (types.GenericAlias, type(ty.List[int]), type(ty.List), ty.Union)
-else:
-    GenericTypes = (
-        types.GenericAlias,
-        type(ty.List[int]),
-        type(ty.List),
-    )
+    def serialize(self):
+        imports = set()
+        if isinstance(self.value, (type(ty.Union), UnionType)):  # type: ignore
+            imports.add("import typing")
+
+        for arg in get_args(self.value):
+            _, arg_imports = serializer_factory(GenericContainer.wrap(arg)).serialize()
+            imports.update(arg_imports)
+
+        return repr(self.value), imports
 
 
 # BaseContainerSerializer *must be* registered after all specialized container serializers
@@ -322,26 +343,6 @@ for type_ in GenericTypes:
     MigrationWriter.register_serializer(type_, TypingSerializer)
 
 MigrationWriter.register_serializer(ty.ForwardRef, TypingSerializer)
-MigrationWriter.register_serializer(type(ty.Union), TypingSerializer)  # type: ignore
 MigrationWriter.register_serializer(ty._SpecialForm, TypingSerializer)  # type: ignore
-
-
-UnionType = types.UnionType
-
-
-class UnionTypeSerializer(BaseSerializer):
-    value: UnionType
-
-    def serialize(self):
-        imports = set()
-        if isinstance(self.value, (type(ty.Union), types.UnionType)):  # type: ignore
-            imports.add("import typing")
-
-        for arg in get_args(self.value):
-            _, arg_imports = serializer_factory(arg).serialize()
-            imports.update(arg_imports)
-
-        return repr(self.value), imports
-
-
+MigrationWriter.register_serializer(type(ty.Union), TypingSerializer)  # type: ignore
 MigrationWriter.register_serializer(UnionType, UnionTypeSerializer)
