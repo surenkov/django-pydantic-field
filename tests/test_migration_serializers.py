@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import annotated_types
 import pytest
 from django.db.migrations.writer import MigrationWriter
-from pydantic import SecretStr, conint, constr
+from pydantic import BaseModel, SecretStr, conint, constr
 from typing_extensions import Annotated
 
 from django_pydantic_field.compat import PYDANTIC_V1
@@ -22,6 +22,10 @@ class SampleDataclass:
     tp: ty.Any
 
 
+class SampleModel(BaseModel):
+    name: str
+
+
 test_types = [
     str,
     list,
@@ -33,6 +37,8 @@ test_types = [
     ty.ForwardRef("str"),
     SecretStr,
     Annotated[int, annotated_types.Gt(gt=0)],
+    list[SampleModel] | None,
+    ty.Union[list[SampleModel], None],
     SampleDataclass,
     pytest.param(
         conint(gt=0),
