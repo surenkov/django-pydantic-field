@@ -4,11 +4,11 @@ import typing_extensions as te
 from django.db.models import JSONField, Model
 from django.db.models.expressions import BaseExpression
 
-from django_pydantic_field import types
+from django_pydantic_field import compat, types
 
 __all__ = ("PydanticSchemaField", "SchemaField")
 
-_AnnotatedAlias: ty.TypeAlias = type(te.Annotated[types.ST, ...])
+_AnnotatedAlias = type(te.Annotated[types.ST, ...])
 _DT: ty.TypeAlias = ty.Any
 
 @ty.type_check_only
@@ -29,6 +29,15 @@ class PydanticSchemaField(JSONField[types.ST, types.ST]):
     def __get__(self, instance: Model, owner: ty.Any) -> types.ST: ...
     @ty.overload
     def __get__(self, instance: ty.Any, owner: ty.Any) -> types.ST: ...  # type: ignore[invalid-method-override]
+    def __init__(
+        self,
+        # fmt: off
+        schema: type[types.ST] | ty.ForwardRef | str | _AnnotatedAlias | compat.django.GenericContainer | None = ...,
+        # fmt: on
+        config: types.ConfigType = ...,
+        *args: ty.Any,
+        **kwargs: ty.Any,
+    ) -> None: ...
 
 @ty.overload
 def SchemaField(
