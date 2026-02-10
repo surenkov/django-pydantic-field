@@ -7,7 +7,7 @@ from functools import cached_property
 
 import typing_extensions as te
 
-from django_pydantic_field._internal._annotation_utils import evaluate_forward_ref, get_annotated_type, get_namespace
+from django_pydantic_field._internal._annotation_utils import get_annotated_type, get_namespace
 from django_pydantic_field.compat.django import BaseContainer, GenericContainer
 from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ConfigType
 
@@ -154,8 +154,8 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
             return None
 
         if isinstance(schema, ty.ForwardRef):
-            globalns = get_namespace(self.parent_type)
-            return evaluate_forward_ref(schema, globalns)
+            globals = get_namespace(self.parent_type)
+            return te.evaluate_forward_ref(schema, globals=globals, owner=self.parent_type)
 
         wrapped_schema = GenericContainer.wrap(schema)
         if not isinstance(wrapped_schema, GenericContainer):
