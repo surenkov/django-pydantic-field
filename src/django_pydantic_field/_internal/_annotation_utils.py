@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import sys
 import typing as ty
-from collections import ChainMap
 
 from django_pydantic_field.compat import typing
 
 if ty.TYPE_CHECKING:
-    from collections.abc import Mapping
-
     get_annotations: ty.Callable[[ty.Any], dict[str, ty.Any]]
 
 try:
@@ -31,8 +28,8 @@ def get_annotated_type(obj, field, default=None) -> ty.Any:
         return default
 
 
-def get_namespace(cls) -> ChainMap[str, ty.Any]:
-    return ChainMap(get_local_namespace(cls), get_global_namespace(cls))
+def get_namespace(cls) -> dict[str, ty.Any]:
+    return dict(get_global_namespace(cls), **get_local_namespace(cls))
 
 
 def get_global_namespace(cls) -> dict[str, ty.Any]:
@@ -55,13 +52,3 @@ def get_origin_type(cls: type):
     if origin_tp is not None:
         return origin_tp
     return cls
-
-
-if sys.version_info < (3, 14):
-
-    def evaluate_forward_ref(ref: ty.ForwardRef, ns: Mapping[str, ty.Any]):
-        return ref._evaluate(dict(ns), {}, recursive_guard=frozenset())
-else:
-
-    def evaluate_forward_ref(ref: ty.ForwardRef, ns: Mapping[str, ty.Any]):
-        return ty.evaluate_forward_ref(ref, globals=dict(ns))
