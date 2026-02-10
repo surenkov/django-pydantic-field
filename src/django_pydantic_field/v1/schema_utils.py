@@ -12,7 +12,7 @@ def inherit_configs(parent: ty.Type[pydantic_v1.BaseModel], config: ConfigType |
     if config is None:
         return parent_config
     if isinstance(config, dict):
-        config = type("Config", (pydantic_v1.BaseConfig,), config)
+        config = type("Config", (pydantic_v1.BaseConfig,), dict(config))
     return inherit_config(ty.cast(ty.Type[pydantic_v1.BaseConfig], config), parent_config)
 
 
@@ -29,7 +29,7 @@ def prepare_schema(
     type_name = get_field_schema_name(schema)
     wrapped_schema = pydantic_v1.create_model(
         type_name,
-        __root__=(ty.Optional[schema] if allow_null else schema, ...),
+        __root__=((schema | None) if allow_null else schema, ...),
         __config__=inherit_configs(schema, config),
     )
 

@@ -1,5 +1,5 @@
 from django_pydantic_field.fields import (
-    PydanticSchemaField,  # ty:ignore[unresolved-import]
+    PydanticSchemaField,
     SchemaField,
 )
 

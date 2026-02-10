@@ -75,7 +75,7 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
     def dump_python(self, value: ty.Any, **override_kwargs: te.Unpack[ExportKwargs]) -> ty.Any:
         """Dump the value to a Python object."""
         union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs, {"mode": "json"})
-        return self.type_adapter.dump_python(value, **union_kwargs)
+        return self.type_adapter.dump_python(value, **union_kwargs)  # type: ignore
 
     def dump_json(self, value: ty.Any, **override_kwargs: te.Unpack[ExportKwargs]) -> bytes:
         union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)

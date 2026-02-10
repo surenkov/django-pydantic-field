@@ -203,7 +203,7 @@ class SchemaKeyTransformAdapter:
     def __call__(self, col: Col | None = None, *args, **kwargs) -> Transform | None:
         if isinstance(col, BaseExpression):
             col = col.copy()
-            col.output_field = super(PydanticSchemaField, col.output_field)
+            col.output_field = super(PydanticSchemaField, col.output_field)  # type: ignore[invalid-super-argument]
         return self.transform(col, *args, **kwargs)
 
 
