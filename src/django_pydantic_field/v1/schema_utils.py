@@ -3,7 +3,8 @@ from __future__ import annotations
 import typing as ty
 
 from django_pydantic_field._internal._annotation_utils import get_namespace
-from django_pydantic_field.compat.pydantic import ConfigType, display_as_type, inherit_config, pydantic_v1
+from django_pydantic_field.compat.pydantic import ConfigType
+from django_pydantic_field.v1.compat import display_as_type, inherit_config, pydantic_v1
 
 
 def inherit_configs(parent: ty.Type[pydantic_v1.BaseModel], config: ConfigType | None = None):
@@ -11,7 +12,7 @@ def inherit_configs(parent: ty.Type[pydantic_v1.BaseModel], config: ConfigType |
     if config is None:
         return parent_config
     if isinstance(config, dict):
-        config = type("Config", (pydantic_v1.BaseConfig,), config)  # type: ignore[invalid-argument-type]
+        config = type("Config", (pydantic_v1.BaseConfig,), config)
     return inherit_config(ty.cast(ty.Type[pydantic_v1.BaseConfig], config), parent_config)
 
 
@@ -33,5 +34,5 @@ def prepare_schema(
     )
 
     namespace = get_namespace(owner)
-    wrapped_schema.update_forward_refs(**namespace)  # type: ignore[deprecated]
+    wrapped_schema.update_forward_refs(**namespace)
     return wrapped_schema

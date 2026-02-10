@@ -3,13 +3,12 @@ from __future__ import annotations
 import typing as ty
 import warnings
 
-import pydantic
 from django.core.exceptions import ValidationError
 from django.forms.fields import InvalidJSONInput, JSONField, JSONString
 from django.utils.translation import gettext_lazy as _
 
 from django_pydantic_field import types
-from django_pydantic_field.compat.pydantic import pydantic_v1
+from django_pydantic_field.compat.pydantic import ValidationErrorsTuple
 
 if ty.TYPE_CHECKING:
     import typing_extensions as te
@@ -62,7 +61,7 @@ class SchemaField(JSONField, types.SchemaAdapterResolver, ty.Generic[types.ST]):
             return None
         try:
             return self.adapter.validate_json(data)
-        except (pydantic.ValidationError, pydantic_v1.ValidationError):
+        except ValidationErrorsTuple:
             return InvalidJSONInput(data)
 
     def to_python(self, value: ty.Any) -> ty.Any:
@@ -73,7 +72,7 @@ class SchemaField(JSONField, types.SchemaAdapterResolver, ty.Generic[types.ST]):
 
         try:
             value = self._try_coerce(value)
-        except (pydantic.ValidationError, pydantic_v1.ValidationError) as exc:
+        except ValidationErrorsTuple as exc:
             title = getattr(exc, "title", "Invalid value")
             error_params = {
                 "value": value,
@@ -104,7 +103,7 @@ class SchemaField(JSONField, types.SchemaAdapterResolver, ty.Generic[types.ST]):
             initial = self._try_coerce(initial)
             data = self._try_coerce(data)
             return self.adapter.dump_python(initial) != self.adapter.dump_python(data)
-        except (pydantic.ValidationError, pydantic_v1.ValidationError):
+        except ValidationErrorsTuple:
             return True
 
     def _try_coerce(self, value):

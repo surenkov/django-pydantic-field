@@ -4,8 +4,8 @@ from datetime import date
 
 import pytest
 
-from django_pydantic_field.compat.pydantic import pydantic_v1
 from django_pydantic_field.v1 import schema_utils
+from django_pydantic_field.v1.compat import pydantic_v1
 
 pytestmark = pytest.mark.skipif(
     sys.version_info >= (3, 14),

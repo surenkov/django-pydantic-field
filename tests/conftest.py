@@ -1,4 +1,5 @@
-import typing as t
+import sys
+import typing as ty
 from datetime import date
 
 import pydantic
@@ -9,8 +10,12 @@ from rest_framework.test import APIRequestFactory
 from syrupy.extensions.json import JSONSnapshotExtension
 from typing_extensions import TypedDict
 
-from django_pydantic_field.compat import PYDANTIC_V1
-from django_pydantic_field.compat.pydantic import PYDANTIC_V2, pydantic_v1
+from django_pydantic_field.compat import PYDANTIC_V1, PYDANTIC_V2
+
+try:
+    from django_pydantic_field.v1.compat import pydantic_v1
+except ImportError:
+    pydantic_v1 = None
 
 
 class SampleTypedDict(TypedDict):
@@ -21,7 +26,7 @@ class SampleTypedDict(TypedDict):
 class InnerSchema(pydantic.BaseModel):
     stub_str: str
     stub_int: int = 1
-    stub_list: t.List[date]
+    stub_list: ty.List[date]
 
     if PYDANTIC_V2:
         model_config = pydantic.ConfigDict(frozen=False)
@@ -32,20 +37,29 @@ class InnerSchema(pydantic.BaseModel):
             frozen = False
 
 
-class InnerSchemaV1(pydantic_v1.BaseModel):
-    stub_str: str
-    stub_int: int = 1
-    stub_list: t.List[date]
+if sys.version_info < (3, 14) and pydantic_v1 is not None:
 
-    class Config:
-        allow_mutation = True
-        frozen = False
+    class InnerSchemaV1(pydantic_v1.BaseModel):
+        stub_str: str
+        stub_int: int = 1
+        stub_list: ty.List[date]
+
+        class Config:
+            allow_mutation = True
+            frozen = False
+else:
+
+    class InnerSchemaV1(pydantic.BaseModel):
+        stub_str: str = ""
+        stub_int: int = 1
+        stub_list: ty.List[date] = pydantic.Field(default_factory=list)
+        model_config = pydantic.ConfigDict(validate_assignment=True, frozen=False)
 
 
 @dataclass
 class SampleDataclass:
     stub_str: str
-    stub_list: t.List[date]
+    stub_list: ty.List[date]
     stub_int: int = 1
 
 
@@ -109,3 +123,9 @@ def available_database_backends(request, settings):
 @pytest.fixture
 def snapshot_json(snapshot):
     return snapshot.use_extension(JSONSnapshotExtension)
+
+
+def pytest_ignore_collect(collection_path, config):
+    if sys.version_info >= (3, 14) and "tests/v1" in str(collection_path):
+        return True
+    return False
