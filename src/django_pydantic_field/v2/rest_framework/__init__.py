@@ -11,7 +11,7 @@ _DEPRECATED_MESSAGE = (
 )
 
 __all__ = (
-    "AutoSchema",  # type: ignore
+    "AutoSchema",
     "SchemaField",
     "SchemaParser",
     "SchemaRenderer",

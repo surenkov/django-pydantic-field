@@ -34,8 +34,8 @@ class AutoSchema(openapi.AutoSchema):
         if method.lower() == "delete":
             return {}
 
-        request_serializer = self.get_request_serializer(path, method)  # type: ignore[attr-defined]
-        response_serializer = self.get_response_serializer(path, method)  # type: ignore[attr-defined]
+        request_serializer = self.get_request_serializer(path, method)
+        response_serializer = self.get_response_serializer(path, method)
 
         components = {
             **self._collect_serializer_component(response_serializer, "serialization"),

@@ -45,11 +45,11 @@ class SchemaField(fields.Field, ty.Generic[types.ST]):
                 return self.adapter.validate_json(data)
             return self.adapter.validate_python(data)
         except pydantic.ValidationError as exc:
-            raise exceptions.ValidationError(exc.errors(), code="invalid")  # type: ignore
+            raise exceptions.ValidationError(exc.errors(), code="invalid")
 
     def to_representation(self, value: ty.Optional[types.ST]):
         try:
             prep_value = self.adapter.validate_python(value)
             return self.adapter.dump_python(prep_value)
         except pydantic.ValidationError as exc:
-            raise exceptions.ValidationError(exc.errors(), code="invalid")  # type: ignore
+            raise exceptions.ValidationError(exc.errors(), code="invalid")

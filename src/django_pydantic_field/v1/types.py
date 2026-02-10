@@ -7,9 +7,9 @@ from functools import cached_property
 
 import typing_extensions as te
 
-from django_pydantic_field.compat.pydantic import pydantic_v1
 from django_pydantic_field.types import ST, BaseSchemaAdapter, SchemaAdapterResolver
 from django_pydantic_field.v1 import schema_utils
+from django_pydantic_field.v1.compat import pydantic_v1
 
 
 class ExportKwargs(te.TypedDict, total=False):

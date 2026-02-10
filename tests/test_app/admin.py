@@ -22,12 +22,12 @@ class SampleModelAdmin(admin.ModelAdmin):
 
 @admin.register(models.SampleForwardRefModel)
 class SampleForwardRefModelAdmin(admin.ModelAdmin):
-    formfield_overrides = json_formfield_overrides  # type: ignore
+    formfield_overrides = json_formfield_overrides
 
 
 @admin.register(models.SampleModelWithRoot)
 class SampleModelWithRootAdmin(admin.ModelAdmin):
-    formfield_overrides = json_schema_formfield_overrides  # type: ignore
+    formfield_overrides = json_schema_formfield_overrides
 
 
 @admin.register(models.ExampleModel)

@@ -7,8 +7,8 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.forms import Form, modelform_factory
 
-from django_pydantic_field.compat.pydantic import pydantic_v1
 from django_pydantic_field.v1 import fields, forms
+from django_pydantic_field.v1.compat import pydantic_v1
 from tests.test_app.models import SampleForwardRefModel
 from tests.test_app.models import SampleSchema as V2SampleSchema
 

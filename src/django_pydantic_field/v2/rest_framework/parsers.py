@@ -23,4 +23,4 @@ class SchemaParser(mixins.AnnotatedAdapterMixin[types.ST], parsers.JSONParser):
         try:
             return adapter.validate_json(stream.read())
         except pydantic.ValidationError as exc:
-            raise exceptions.ParseError(exc.errors())  # type: ignore
+            raise exceptions.ParseError(exc.errors())

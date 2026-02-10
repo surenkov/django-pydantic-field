@@ -46,7 +46,7 @@ try:
 except ImportError:
     # Assuming this is a Pydantic v1
     from pydantic.fields import Undefined as PydanticUndefined  # type: ignore[unresolved-import]
-    from pydantic.utils import Representation  # type: ignore[unresolved-import]
+    from pydantic.utils import Representation
 
     FieldInfoDefaultValues = FieldInfo.__field_constraints__  # type: ignore[attr-defined]
 
@@ -320,7 +320,7 @@ class UnionTypeSerializer(BaseSerializer):
 
     def serialize(self):
         imports = set()
-        if isinstance(self.value, (type(ty.Union), UnionType)):  # type: ignore
+        if isinstance(self.value, (type(ty.Union), UnionType)):
             imports.add("import typing")
 
         for arg in get_args(self.value):
@@ -343,6 +343,6 @@ for type_ in GenericTypes:
     MigrationWriter.register_serializer(type_, TypingSerializer)
 
 MigrationWriter.register_serializer(ty.ForwardRef, TypingSerializer)
-MigrationWriter.register_serializer(ty._SpecialForm, TypingSerializer)  # type: ignore
-MigrationWriter.register_serializer(type(ty.Union), TypingSerializer)  # type: ignore
+MigrationWriter.register_serializer(ty._SpecialForm, TypingSerializer)
+MigrationWriter.register_serializer(type(ty.Union), TypingSerializer)
 MigrationWriter.register_serializer(UnionType, UnionTypeSerializer)
