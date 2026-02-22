@@ -34,7 +34,7 @@ class PydanticSchemaField(JSONField[types.ST, types.ST]):
         # fmt: off
         schema: type[types.ST] | ty.ForwardRef | str | _AnnotatedAlias | compat.django.GenericContainer | None = ...,
         # fmt: on
-        config: types.ConfigType = ...,
+        config: types.ConfigType | None = ...,
         *args: ty.Any,
         **kwargs: ty.Any,
     ) -> None: ...
