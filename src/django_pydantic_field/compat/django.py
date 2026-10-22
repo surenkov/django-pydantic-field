@@ -44,10 +44,12 @@ try:
     from pydantic_core import PydanticUndefined
 
     try:
-        from pydantic.fields import _DefaultValues as FieldInfoDefaultValues
-    except ImportError:
         # Pydantic 2.14 removed `_DefaultValues`; `_Attrs` holds the same defaults for every `FieldInfo` slot
         from pydantic.fields import _Attrs as FieldInfoDefaultValues
+    except ImportError:
+        from pydantic.fields import (
+            _DefaultValues as FieldInfoDefaultValues,  # type: ignore[attr-defined,unresolved-import]
+        )
 except ImportError:
     # Assuming this is a Pydantic v1
     from pydantic.fields import Undefined as PydanticUndefined  # type: ignore[unresolved-import]
