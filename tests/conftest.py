@@ -37,7 +37,7 @@ class InnerSchema(pydantic.BaseModel):
             frozen = False
 
 
-if sys.version_info < (3, 14) and pydantic_v1 is not None:
+if pydantic_v1 is not None:
 
     class InnerSchemaV1(pydantic_v1.BaseModel):
         stub_str: str
