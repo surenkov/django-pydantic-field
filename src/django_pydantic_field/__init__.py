@@ -1,3 +1,4 @@
+from .fields import PydanticDjangoJSONEncoder as PydanticDjangoJSONEncoder
 from .fields import SchemaField as SchemaField
 
 

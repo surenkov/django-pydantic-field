@@ -1,12 +1,15 @@
 import typing as ty
 
 import typing_extensions as te
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import JSONField, Model
 from django.db.models.expressions import BaseExpression
 
 from django_pydantic_field import compat, types
 
-__all__ = ("PydanticSchemaField", "SchemaField")
+__all__ = ("PydanticDjangoJSONEncoder", "PydanticSchemaField", "SchemaField")
+
+class PydanticDjangoJSONEncoder(DjangoJSONEncoder): ...
 
 _AnnotatedAlias: ty.TypeAlias = ty.Any
 _DT: ty.TypeAlias = ty.Any

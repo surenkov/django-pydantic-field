@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+import dataclasses
 import typing as ty
-
-import pydantic
 
 from django.core import checks, exceptions
 from django.core.serializers.json import DjangoJSONEncoder
@@ -14,20 +13,26 @@ from django.db.models.lookups import Transform
 from django.db.models.query_utils import DeferredAttribute
 
 from django_pydantic_field.compat.django import BaseContainer, GenericContainer
-from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ValidationErrorsTuple
+from django_pydantic_field.compat.pydantic import PYDANTIC_V1, BaseModelTuple, ValidationErrorsTuple
 from django_pydantic_field.types import SchemaAdapterResolver
 
 from . import types
 
-__all__ = ("PydanticSchemaField", "SchemaField")
+__all__ = ("PydanticDjangoJSONEncoder", "PydanticSchemaField", "SchemaField")
 
 
 class PydanticDjangoJSONEncoder(DjangoJSONEncoder):
-    """DjangoJSONEncoder subclass that adds support for Pydantic models."""
+    """DjangoJSONEncoder subclass that adds support for Pydantic models and dataclasses."""
 
-    def default(self, o):
-        if isinstance(o, pydantic.BaseModel):
-            return o.model_dump(mode="json")
+    def default(self, o: ty.Any) -> ty.Any:
+        if isinstance(o, BaseModelTuple):
+            if hasattr(o, "model_dump"):
+                return o.model_dump(mode="json")
+            if hasattr(o, "__root__"):
+                return o.dict()["__root__"]
+            return o.dict()
+        if dataclasses.is_dataclass(o) and not isinstance(o, type):
+            return dataclasses.asdict(o)
         return super().default(o)
 
 
@@ -57,7 +62,10 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
     adapter: types.BaseSchemaAdapter[types.ST]
 
     def __init__(self, schema=None, config=None, *args, **kwargs):
-        kwargs.setdefault("encoder", PydanticDjangoJSONEncoder)
+        encoder = kwargs.pop("encoder", None)
+        if encoder is None or encoder is DjangoJSONEncoder:
+            encoder = PydanticDjangoJSONEncoder
+        kwargs["encoder"] = encoder
 
         SchemaAdapter = self.get_schema_adapter_class()
         self.export_kwargs = export_kwargs = SchemaAdapter.extract_export_kwargs(kwargs)
@@ -81,6 +89,9 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
         default = kwargs.get("default", NOT_PROVIDED)
         if default is not NOT_PROVIDED and not callable(default):
             kwargs["default"] = self._prepare_raw_value(default, include=None, exclude=None, round_trip=True)
+
+        if kwargs.get("encoder") is PydanticDjangoJSONEncoder:
+            kwargs["encoder"] = DjangoJSONEncoder
 
         prep_schema = GenericContainer.wrap(self.adapter.prepared_schema)
         kwargs.update(schema=prep_schema, config=self.config, **self.export_kwargs)

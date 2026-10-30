@@ -1,7 +1,14 @@
 import typing as ty
 
 from django_pydantic_field import types
-from django_pydantic_field.fields import PydanticSchemaField as _PydanticSchemaField
+from django_pydantic_field.fields import (
+    PydanticDjangoJSONEncoder as PydanticDjangoJSONEncoder,
+)
+from django_pydantic_field.fields import (
+    PydanticSchemaField as _PydanticSchemaField,
+)
+
+__all__ = ("PydanticDjangoJSONEncoder", "PydanticSchemaField", "SchemaField")
 
 class PydanticSchemaField(_PydanticSchemaField[types.ST]): ...
 
