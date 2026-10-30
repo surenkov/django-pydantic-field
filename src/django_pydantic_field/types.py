@@ -141,7 +141,7 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
 
         schema = self._resolve_schema_forward_ref(schema)
         if schema is None:
-            if self.is_bound:
+            if self.is_bound and self.parent_type is not None:
                 error_msg = f"Annotation is not provided for {self.parent_type.__name__}.{self.attname}"
             else:
                 error_msg = "Cannot resolve the schema. The adapter is accessed before it was bound."

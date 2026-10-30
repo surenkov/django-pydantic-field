@@ -41,11 +41,11 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
 
     def validate_python(self, value: ty.Any, **kwargs: ty.Any) -> ST:
         model = self.wrapped_schema
-        return model.parse_obj(value).__root__
+        return getattr(model.parse_obj(value), "__root__")
 
     def validate_json(self, value: str | bytes, **kwargs: ty.Any) -> ST:
         model = self.wrapped_schema
-        return model.parse_raw(value).__root__
+        return getattr(model.parse_raw(value), "__root__")
 
     def dump_python(self, value: ty.Any, mode: str = "python", **override_kwargs) -> ty.Any:
         dict_kwargs = ChainMap(override_kwargs, self.export_kwargs)

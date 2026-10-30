@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typing as ty
 
+from django.http import HttpRequest
 from rest_framework import exceptions, parsers, renderers, serializers
 from rest_framework.pagination import BasePagination
 from rest_framework.schemas import openapi
@@ -79,7 +80,7 @@ class SchemaField(serializers.Field, ty.Generic[types.ST]):
                 return self.adapter.validate_json(data)
             return self.adapter.validate_python(data)
         except pydantic_v1.ValidationError as e:
-            raise serializers.ValidationError(e.errors())
+            raise serializers.ValidationError(ty.cast(ty.Any, e.errors()))
 
     def to_representation(self, value: ty.Optional[types.ST]) -> ty.Any:
         return self.adapter.dump_python(value)
@@ -118,11 +119,13 @@ class SchemaParser(AnnotatedAdapterMixin[types.ST], parsers.JSONParser):
     def parse(self, stream, media_type=None, parser_context=None):
         parser_context = parser_context or {}
         adapter = self.get_adapter(parser_context)
+        if adapter is None:
+            raise RuntimeError("Schema should be either explicitly set with annotation or passed in the context")
 
         try:
             return adapter.validate_json(stream.read())
         except pydantic_v1.ValidationError as e:
-            raise exceptions.ParseError(e.errors())
+            raise exceptions.ParseError(ty.cast(ty.Any, e.errors()))
 
 
 class AutoSchema(openapi.AutoSchema):
@@ -135,7 +138,8 @@ class AutoSchema(openapi.AutoSchema):
 
     def map_parsers(self, path: str, method: str):
         request_types: ty.List[ty.Any] = []
-        parser_ctx = self.view.get_parser_context(None)
+        request = HttpRequest()
+        parser_ctx = self.view.get_parser_context(request)
 
         for parser_type in self.view.parser_classes:
             parser = parser_type()

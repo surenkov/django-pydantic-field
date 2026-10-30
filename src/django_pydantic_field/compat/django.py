@@ -34,6 +34,7 @@ import typing as ty
 import typing_extensions as te
 from django.db.migrations.serializer import BaseSerializer, serializer_factory
 from django.db.migrations.writer import MigrationWriter
+from pydantic import fields as pydantic_fields
 from pydantic.fields import FieldInfo
 
 from .pydantic import PYDANTIC_V1
@@ -43,19 +44,18 @@ try:
     from pydantic._internal._repr import Representation
     from pydantic_core import PydanticUndefined
 
-    try:
-        # Pydantic 2.14 removed `_DefaultValues`; `_Attrs` holds the same defaults for every `FieldInfo` slot
-        from pydantic.fields import _Attrs as FieldInfoDefaultValues
-    except ImportError:
-        from pydantic.fields import (
-            _DefaultValues as FieldInfoDefaultValues,  # type: ignore[attr-defined,unresolved-import]
-        )
+    # Pydantic 2.14 removed `_DefaultValues`; `_Attrs` holds the same defaults for every `FieldInfo` slot
+    FieldInfoDefaultValues: dict[str, ty.Any] = getattr(
+        pydantic_fields,
+        "_Attrs",
+        getattr(pydantic_fields, "_DefaultValues", {}),
+    )
 except ImportError:
     # Assuming this is a Pydantic v1
-    from pydantic.fields import Undefined as PydanticUndefined  # type: ignore[unresolved-import]
     from pydantic.utils import Representation
 
-    FieldInfoDefaultValues = FieldInfo.__field_constraints__  # type: ignore[attr-defined]
+    PydanticUndefined = getattr(pydantic_fields, "Undefined", None)
+    FieldInfoDefaultValues = getattr(FieldInfo, "__field_constraints__", {})
 
 
 UnionType = types.UnionType
@@ -217,7 +217,7 @@ class FieldInfoContainer(BaseContainer):
         metadata = tuple(map(BaseContainer.unwrap, value.metadata))
         try:
             annotated_args = (origin, *metadata)  # noqa: F841
-            annotation = te.Annotated[annotated_args]  # type: ignore[invalid-type-form]
+            annotation = ty.cast(ty.Any, te.Annotated)[annotated_args]
         except TypeError:
             annotation = None
 

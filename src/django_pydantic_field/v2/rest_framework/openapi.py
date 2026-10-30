@@ -104,13 +104,13 @@ class AutoSchema(openapi.AutoSchema):
         }
 
     def map_parsers(self, path: str, method: str) -> list[str]:
-        schema_parsers = []
+        schema_parsers: list[type[mixins.AnnotatedAdapterMixin]] = []
         media_types = []
 
         for parser in self.view.parser_classes:
             media_types.append(parser.media_type)
             if issubclass(get_origin_type(parser), parsers.SchemaParser):
-                schema_parsers.append(parser)
+                schema_parsers.append(ty.cast("type[mixins.AnnotatedAdapterMixin]", parser))
 
         if schema_parsers:
             self.adapter_mode = "validation"
@@ -121,13 +121,13 @@ class AutoSchema(openapi.AutoSchema):
         return media_types
 
     def map_renderers(self, path: str, method: str) -> list[str]:
-        schema_renderers = []
+        schema_renderers: list[type[mixins.AnnotatedAdapterMixin]] = []
         media_types = []
 
         for renderer in self.view.renderer_classes:
             media_types.append(renderer.media_type)
             if issubclass(get_origin_type(renderer), renderers.SchemaRenderer):
-                schema_renderers.append(renderer)
+                schema_renderers.append(ty.cast("type[mixins.AnnotatedAdapterMixin]", renderer))
 
         if schema_renderers:
             self.adapter_mode = "serialization"

@@ -31,7 +31,7 @@ class _SchemaFieldKwargs(_FieldKwargs[ST], ExportKwargs, total=False):
     pass
 
 @ty.type_check_only
-class _DeprecatedSchemaFieldKwargs(_SchemaFieldKwargs[ST], DeprecatedExportKwargs, total=False):
+class _DeprecatedSchemaFieldKwargs(_FieldKwargs[ST], DeprecatedExportKwargs, total=False):
     pass
 
 class SchemaField(Field, ty.Generic[ST]):

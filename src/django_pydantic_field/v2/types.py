@@ -44,7 +44,7 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
     def type_adapter(self) -> pydantic.TypeAdapter:
         schema = self.prepared_schema
         if self.allow_null:
-            schema = ty.Optional[schema]
+            schema = ty.cast(ty.Any, ty.Optional)[schema]
         return pydantic.TypeAdapter(schema, config=self.config)
 
     def bind(self, parent_type: type | None, attname: str | None) -> te.Self:
@@ -74,12 +74,14 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
 
     def dump_python(self, value: ty.Any, **override_kwargs: te.Unpack[ExportKwargs]) -> ty.Any:
         """Dump the value to a Python object."""
-        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs, {"mode": "json"})
-        return self.type_adapter.dump_python(value, **union_kwargs)  # type: ignore
+        union_kwargs = ChainMap(dict(override_kwargs), self._dump_python_kwargs, {"mode": "json"})
+        type_adapter: ty.Any = self.type_adapter
+        return type_adapter.dump_python(value, **union_kwargs)
 
     def dump_json(self, value: ty.Any, **override_kwargs: te.Unpack[ExportKwargs]) -> bytes:
-        union_kwargs = ChainMap(override_kwargs, self._dump_python_kwargs)
-        return self.type_adapter.dump_json(value, **union_kwargs)
+        union_kwargs = ChainMap(dict(override_kwargs), self._dump_python_kwargs)
+        type_adapter: ty.Any = self.type_adapter
+        return type_adapter.dump_json(value, **union_kwargs)
 
     def json_schema(self) -> dict[str, ty.Any]:
         """Return the JSON schema for the field."""
