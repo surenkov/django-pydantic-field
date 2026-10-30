@@ -182,7 +182,17 @@ def foo_view(request):
 
 ### OpenAPI Generation
 
-`django-pydantic-field` provides an `AutoSchema` that automatically generates OpenAPI definitions for your Pydantic-backed DRF components.
+#### `drf-spectacular`
+
+If you use [`drf-spectacular`](https://drf-spectacular.readthedocs.io/) with Pydantic v2, `django-pydantic-field` automatically registers an `OpenApiSerializerFieldExtension` for `django_pydantic_field.rest_framework.SchemaField` out of the box—no additional configuration is required.
+
+```bash
+pip install "django-pydantic-field[spectacular]"
+```
+
+#### DRF Core `AutoSchema`
+
+`django-pydantic-field` also provides an `AutoSchema` for DRF's built-in schema generator that automatically generates OpenAPI definitions for your Pydantic-backed DRF components.
 ```python
 from django_pydantic_field.rest_framework import AutoSchema
 
