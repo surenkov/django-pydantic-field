@@ -87,6 +87,9 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         return self.type_adapter.json_schema(by_alias=by_alias)
 
     def get_default_value(self) -> ST | None:
+        core_schema = self.type_adapter.core_schema
+        if core_schema.get("type") == "default" and "default_factory" in core_schema:
+            return None
         wrapped = self.type_adapter.get_default_value()
         if wrapped is not None:
             return wrapped.value
