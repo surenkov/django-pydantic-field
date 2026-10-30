@@ -10,12 +10,14 @@ PYDANTIC_V2 = PYDANTIC_VERSION.startswith("2.")
 if PYDANTIC_V1:
     import pydantic as pydantic_v1
 
+    BaseModelTuple: tuple[type, ...] = (pydantic_v1.BaseModel,)
     ValidationErrorsTuple = (pydantic_v1.ValidationError,)
     ConfigType = ty.Union[
         pydantic.ConfigDict,
         ty.Type[pydantic_v1.BaseConfig],
     ]
 elif sys.version_info >= (3, 14):
+    BaseModelTuple: tuple[type, ...] = (pydantic.BaseModel,)
     ValidationErrorsTuple = (pydantic.ValidationError,)
     ConfigType = ty.Union[
         pydantic.ConfigDict,
@@ -25,6 +27,7 @@ elif sys.version_info >= (3, 14):
 else:
     from pydantic import v1 as pydantic_v1
 
+    BaseModelTuple: tuple[type, ...] = (pydantic.BaseModel, pydantic_v1.BaseModel)
     ValidationErrorsTuple = (pydantic.ValidationError, pydantic_v1.ValidationError)
     ConfigType = ty.Union[
         pydantic.ConfigDict,

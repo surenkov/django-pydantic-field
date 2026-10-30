@@ -1,3 +1,4 @@
+import json
 import sys
 from datetime import date
 
@@ -5,7 +6,7 @@ import pytest
 from django.db import models
 
 from django_pydantic_field.v1 import fields
-from tests.conftest import InnerSchema
+from tests.conftest import InnerSchema, InnerSchemaV1
 from tests.test_app.models import SampleModel
 
 pytestmark = pytest.mark.skipif(
@@ -45,3 +46,14 @@ def test_untyped_model_field_check_failed():
 
     errors = UntypedModel._meta.get_field("sample_field").check()
     assert any(e.id == "pydantic.E001" for e in errors)
+
+
+def test_v1_model_encoding_with_pydantic_django_json_encoder():
+    """Verify Pydantic v1 model serialization via PydanticDjangoJSONEncoder."""
+    instance = InnerSchemaV1(stub_str="v1", stub_list=[date(2022, 7, 1)])
+    encoded = json.dumps(instance, cls=fields.PydanticDjangoJSONEncoder)
+    assert json.loads(encoded) == {
+        "stub_str": "v1",
+        "stub_int": 1,
+        "stub_list": ["2022-07-01"],
+    }
