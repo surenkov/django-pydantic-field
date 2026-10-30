@@ -5,6 +5,14 @@ from .fields import SchemaField as SchemaField
 from .parsers import SchemaParser as SchemaParser
 from .renderers import SchemaRenderer as SchemaRenderer
 
+if PYDANTIC_V2:
+    try:
+        import drf_spectacular  # noqa: F401
+    except ImportError:
+        pass
+    else:
+        from django_pydantic_field import spectacular  # noqa: F401
+
 _DEPRECATED_MESSAGE = (
     "`django_pydantic_field.rest_framework.AutoSchema` is deprecated, "
     "please use explicit imports for `django_pydantic_field.rest_framework.openapi.AutoSchema` instead."
