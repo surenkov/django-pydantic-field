@@ -3,7 +3,34 @@ import typing as ty
 from django_pydantic_field import types
 from django_pydantic_field.fields import PydanticSchemaField as _PydanticSchemaField
 
-class PydanticSchemaField(_PydanticSchemaField[types.ST]): ...
+_SchemaT = ty.TypeVar("_SchemaT")
+
+class PydanticSchemaField(_PydanticSchemaField[_SchemaT]):
+    @ty.overload
+    def __init__(
+        self: PydanticSchemaField[types.ST | None],
+        schema: type[types.ST] | type[types.ST | None],
+        config: types.ConfigType = None,
+        *args: ty.Any,
+        null: ty.Literal[True],
+        **kwargs: ty.Any,
+    ) -> None: ...
+    @ty.overload
+    def __init__(
+        self: PydanticSchemaField[types.ST],
+        schema: type[types.ST],
+        config: types.ConfigType = None,
+        *args: ty.Any,
+        **kwargs: ty.Any,
+    ) -> None: ...
+    @ty.overload
+    def __init__(
+        self,
+        schema: ty.ForwardRef | str | None = None,
+        config: types.ConfigType = None,
+        *args: ty.Any,
+        **kwargs: ty.Any,
+    ) -> None: ...
 
 @ty.overload
 def SchemaField(

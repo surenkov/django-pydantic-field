@@ -5,7 +5,10 @@ import typing_extensions as te
 from django.db import models
 
 from django_pydantic_field import SchemaField
+from django_pydantic_field.fields import PydanticSchemaField
+from django_pydantic_field.v1.fields import PydanticSchemaField as PydanticSchemaFieldV1
 from django_pydantic_field.v1.fields import SchemaField as SchemaFieldV1
+from django_pydantic_field.v2.fields import PydanticSchemaField as PydanticSchemaFieldV2
 from django_pydantic_field.v2.fields import SchemaField as SchemaFieldV2
 
 T = t.TypeVar("T")
@@ -18,6 +21,18 @@ class SimpleSchema(pydantic.BaseModel):
 
 class GenericSchema(pydantic.BaseModel, t.Generic[T]):
     data: T
+
+
+class CustomSchemaField(PydanticSchemaField[T]):
+    pass
+
+
+class CustomSchemaFieldV1(PydanticSchemaFieldV1[T]):
+    pass
+
+
+class CustomSchemaFieldV2(PydanticSchemaFieldV2[T]):
+    pass
 
 
 class LinterTestModel(models.Model):
@@ -50,6 +65,18 @@ class LinterTestModel(models.Model):
     nullable_v1_no_annotation = SchemaFieldV1(SimpleSchema, null=True)
     nullable_v2_no_annotation = SchemaFieldV2(SimpleSchema, null=True)
     non_nullable_no_annotation = SchemaField(SimpleSchema, null=False)
+
+    # Direct PydanticSchemaField instantiation
+    direct_psf_nonnull = PydanticSchemaField(SimpleSchema)
+    direct_psf_nullable = PydanticSchemaField(SimpleSchema, null=True)
+    direct_psf_v1_nullable = PydanticSchemaFieldV1(SimpleSchema, null=True)
+    direct_psf_v2_nullable = PydanticSchemaFieldV2(SimpleSchema, null=True)
+
+    # Subclassed PydanticSchemaField instantiation
+    subclassed_psf_nonnull = CustomSchemaField(SimpleSchema)
+    subclassed_psf_nullable = CustomSchemaField(SimpleSchema, null=True)
+    subclassed_psf_v1_nullable = CustomSchemaFieldV1(SimpleSchema, null=True)
+    subclassed_psf_v2_nullable = CustomSchemaFieldV2(SimpleSchema, null=True)
 
     # More complex cases from samples
     nested_generics: t.Union[t.List[te.Literal["foo"]], te.Literal["bar"]] = SchemaField()
@@ -87,3 +114,13 @@ def linter_test_model_assertions(model: LinterTestModel):
     te.assert_type(model.nullable_v1_no_annotation, SimpleSchema | None)
     te.assert_type(model.nullable_v2_no_annotation, SimpleSchema | None)
     te.assert_type(model.non_nullable_no_annotation, SimpleSchema)
+
+    te.assert_type(model.direct_psf_nonnull, SimpleSchema)
+    te.assert_type(model.direct_psf_nullable, SimpleSchema | None)
+    te.assert_type(model.direct_psf_v1_nullable, SimpleSchema | None)
+    te.assert_type(model.direct_psf_v2_nullable, SimpleSchema | None)
+
+    te.assert_type(model.subclassed_psf_nonnull, SimpleSchema)
+    te.assert_type(model.subclassed_psf_nullable, SimpleSchema | None)
+    te.assert_type(model.subclassed_psf_v1_nullable, SimpleSchema | None)
+    te.assert_type(model.subclassed_psf_v2_nullable, SimpleSchema | None)
