@@ -8,7 +8,7 @@ from django_pydantic_field import compat, types
 
 __all__ = ("PydanticSchemaField", "SchemaField")
 
-_AnnotatedAlias = type(te.Annotated[types.ST, ...])
+_AnnotatedAlias: ty.TypeAlias = ty.Any
 _DT: ty.TypeAlias = ty.Any
 
 @ty.type_check_only
@@ -27,8 +27,6 @@ class PydanticSchemaField(JSONField[types.ST, types.ST]):
     def __get__(self, instance: None, owner: ty.Any) -> SchemaAttribute[types.ST]: ...
     @ty.overload
     def __get__(self, instance: Model, owner: ty.Any) -> types.ST: ...
-    @ty.overload
-    def __get__(self, instance: ty.Any, owner: ty.Any) -> types.ST: ...  # type: ignore[invalid-method-override]
     def __init__(
         self,
         # fmt: off

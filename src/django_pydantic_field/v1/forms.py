@@ -1,3 +1,5 @@
+import typing as ty
+
 from django_pydantic_field.forms import JSONFormSchemaWidget as _JSONFormSchemaWidget
 from django_pydantic_field.forms import SchemaField as _SchemaField
 from django_pydantic_field.v1.types import ST, SchemaAdapter, V1SchemaAdapterResolver
@@ -34,5 +36,7 @@ else:
 
         return widget
 
-    class JSONFormSchemaWidget(V1SchemaAdapterResolver, _JSONFormSchemaWidget):  # type: ignore[no-redef]
+    _BaseWidget = ty.cast(ty.Any, _JSONFormSchemaWidget)
+
+    class JSONFormSchemaWidget(V1SchemaAdapterResolver, _BaseWidget):
         pass

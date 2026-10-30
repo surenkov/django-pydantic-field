@@ -1,4 +1,14 @@
+from __future__ import annotations
+
+import typing as ty
+
 from django.contrib import admin
+from django.db.models import Field
+
+from . import models
+
+json_formfield_overrides: dict[type[Field[ty.Any, ty.Any]], dict[str, ty.Any]]
+json_schema_formfield_overrides: dict[type[Field[ty.Any, ty.Any]], dict[str, ty.Any]]
 
 try:
     from django_jsonform.widgets import JSONFormWidget
@@ -11,8 +21,6 @@ try:
 except ImportError:
     json_formfield_overrides = {}
     json_schema_formfield_overrides = {}
-
-from . import models
 
 
 @admin.register(models.SampleModel)

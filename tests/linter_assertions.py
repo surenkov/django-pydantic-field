@@ -74,16 +74,16 @@ def linter_test_model_assertions(model: LinterTestModel):
     te.assert_type(model.v1_field, SimpleSchema)
     te.assert_type(model.v2_field, SimpleSchema)
     te.assert_type(model.forward_ref, SimpleSchema)
-    te.assert_type(model.no_annotation, SimpleSchema | Unknown)  # TODO: wait for ty to resolve this
-    te.assert_type(model.no_annotation_list, t.List[SimpleSchema] | Unknown)  # TODO: wait for ty to resolve this
+    te.assert_type(model.no_annotation, SimpleSchema)
+    te.assert_type(model.no_annotation_list, t.List[SimpleSchema])
     te.assert_type(model.nested_generics, t.Union[t.List[te.Literal["foo"]], te.Literal["bar"]])
-    te.assert_type(model.untyped_list, list[Unknown] | Unknown)  # TODO: wait for ty to resolve this
-    te.assert_type(model.untyped_builtin_list, t.List[Unknown] | Unknown)  # TODO: wait for ty to resolve this
+    te.assert_type(model.untyped_list, list[Unknown])
+    te.assert_type(model.untyped_builtin_list, t.List[Unknown])
     te.assert_type(model.annotated_field, t.Union[int, float])
     te.assert_type(model.annotated_schema, Unknown)  # TODO: wait for ty to resolve this
     te.assert_type(model.default_val, SimpleSchema)
     te.assert_type(model.default_callable, SimpleSchema)
-    te.assert_type(model.nullable_no_annotation, SimpleSchema | None | Unknown)
-    te.assert_type(model.nullable_v1_no_annotation, SimpleSchema | None | Unknown)
-    te.assert_type(model.nullable_v2_no_annotation, SimpleSchema | None | Unknown)
-    te.assert_type(model.non_nullable_no_annotation, SimpleSchema | Unknown)
+    te.assert_type(model.nullable_no_annotation, SimpleSchema | None)
+    te.assert_type(model.nullable_v1_no_annotation, SimpleSchema | None)
+    te.assert_type(model.nullable_v2_no_annotation, SimpleSchema | None)
+    te.assert_type(model.non_nullable_no_annotation, SimpleSchema)

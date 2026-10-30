@@ -23,6 +23,11 @@ __all__ = ("PydanticSchemaField", "SchemaField")
 class SchemaAttribute(DeferredAttribute, ty.Generic[types.ST]):
     field: PydanticSchemaField[types.ST]
 
+    def __new__(cls, field: PydanticSchemaField[types.ST]):
+        if cls is SchemaAttribute and not field.has_default():
+            return super().__new__(UninitializedSchemaAttribute)
+        return super().__new__(cls)
+
     def __set_name__(self, owner, name):
         self.field.adapter.bind(owner, name)
 
@@ -71,11 +76,7 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
 
         return field_name, import_path, args, kwargs
 
-    @staticmethod
-    def descriptor_class(field: PydanticSchemaField[types.ST]) -> SchemaAttribute[types.ST]:
-        if field.has_default():
-            return SchemaAttribute(field)
-        return UninitializedSchemaAttribute(field)
+    descriptor_class: type = SchemaAttribute
 
     def contribute_to_class(self, cls: types.DjangoModelType, name: str, private_only: bool = False) -> None:
         try:
@@ -153,8 +154,8 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
         value = super().value_from_object(obj)
         return self._prepare_raw_value(value)
 
-    def get_transform(self, lookup_name: str):
-        transform: ty.Any = super().get_transform(lookup_name)
+    def get_transform(self, name: str):
+        transform: ty.Any = super().get_transform(name)
         if transform is not None:
             transform = SchemaKeyTransformAdapter(transform)
         return transform
@@ -166,7 +167,7 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
         return default_value
 
     def formfield(self, form_class=None, choices_form_class=None, **kwargs):
-        field_kwargs = dict(
+        field_kwargs: dict[str, ty.Any] = dict(
             form_class=form_class or self.get_default_form_class(),
             choices_form_class=choices_form_class,
             schema=self.adapter.prepared_schema,

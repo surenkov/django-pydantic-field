@@ -5,12 +5,9 @@ import typing as ty
 
 from django_pydantic_field.compat import typing
 
-if ty.TYPE_CHECKING:
-    get_annotations: ty.Callable[[ty.Any], dict[str, ty.Any]]
-
-try:
-    from annotationlib import get_annotations  # type: ignore[unresolved-import] # Python >= 3.14
-except ImportError:
+if sys.version_info >= (3, 14):
+    from annotationlib import get_annotations
+else:
 
     def get_annotations(obj: ty.Any) -> dict[str, ty.Any]:
         if isinstance(obj, type):
