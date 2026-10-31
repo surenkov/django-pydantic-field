@@ -26,9 +26,10 @@ class AnnotatedAdapterMixin(ty.Generic[types.ST]):
     def _make_adapter_from_context(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
         schema = ctx.get(self.schema_context_key)
         if schema is not None:
+            parent = ctx.get("view")
             config = ctx.get(self.config_context_key)
             export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
-            return types.SchemaAdapter(schema, config, type(ctx.get("view")), None, **export_kwargs)
+            return types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
 
         return schema
 
@@ -38,6 +39,7 @@ class AnnotatedAdapterMixin(ty.Generic[types.ST]):
         except (AttributeError, IndexError):
             return None
 
+        parent = ctx.get("view")
         config = ctx.get(self.config_context_key)
         export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
-        return types.SchemaAdapter(schema, config, type(ctx.get("view")), None, **export_kwargs)
+        return types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)

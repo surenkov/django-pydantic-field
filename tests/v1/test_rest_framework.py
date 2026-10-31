@@ -234,29 +234,26 @@ def test_openapi_serializer_schema_generation(request_factory):
 
     results = yaml.load(response.rendered_content, yaml.Loader)
     assert results["components"]["schemas"]["Sample"]["properties"]["field"] == {
-        "title": "FieldSchema[list[tests.conftest.InnerSchemaV1]]",
         "type": "array",
-        "items": {"$ref": "#/definitions/InnerSchemaV1"},
-        "definitions": {
-            "InnerSchemaV1": {
-                "title": "InnerSchemaV1",
-                "type": "object",
-                "properties": {
-                    "stub_str": {"title": "Stub Str", "type": "string"},
-                    "stub_int": {
-                        "title": "Stub Int",
-                        "default": 1,
-                        "type": "integer",
-                    },
-                    "stub_list": {
-                        "title": "Stub List",
-                        "type": "array",
-                        "items": {"type": "string", "format": "date"},
-                    },
-                },
-                "required": ["stub_str", "stub_list"],
-            }
+        "items": {"$ref": "#/components/schemas/InnerSchemaV1"},
+    }
+    assert results["components"]["schemas"]["InnerSchemaV1"] == {
+        "title": "InnerSchemaV1",
+        "type": "object",
+        "properties": {
+            "stub_str": {"title": "Stub Str", "type": "string"},
+            "stub_int": {
+                "title": "Stub Int",
+                "default": 1,
+                "type": "integer",
+            },
+            "stub_list": {
+                "title": "Stub List",
+                "type": "array",
+                "items": {"type": "string", "format": "date"},
+            },
         },
+        "required": ["stub_str", "stub_list"],
     }
 
 
@@ -272,71 +269,122 @@ def test_openapi_parser_renderer_schema_generation(request_factory):
     results = yaml.load(response.rendered_content, yaml.Loader)
     assert results["paths"]["/api/"]["post"]["requestBody"]["content"]["application/json"] == {
         "schema": {
-            "title": "FieldSchema[InnerSchemaV1]",
-            "$ref": "#/definitions/InnerSchemaV1",
-            "definitions": {
-                "InnerSchemaV1": {
-                    "title": "InnerSchemaV1",
-                    "type": "object",
-                    "properties": {
-                        "stub_str": {
-                            "title": "Stub Str",
-                            "type": "string",
-                        },
-                        "stub_int": {
-                            "title": "Stub Int",
-                            "default": 1,
-                            "type": "integer",
-                        },
-                        "stub_list": {
-                            "title": "Stub List",
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "format": "date",
-                            },
-                        },
-                    },
-                    "required": ["stub_str", "stub_list"],
-                }
-            },
+            "$ref": "#/components/schemas/InnerSchemaV1",
         }
     }
     assert results["paths"]["/api/"]["post"]["responses"]["201"] == {
         "content": {
             "application/json": {
                 "schema": {
-                    "title": "FieldSchema[list[tests.conftest.InnerSchemaV1]]",
                     "type": "array",
-                    "items": {"$ref": "#/definitions/InnerSchemaV1"},
-                    "definitions": {
-                        "InnerSchemaV1": {
-                            "title": "InnerSchemaV1",
-                            "type": "object",
-                            "properties": {
-                                "stub_str": {
-                                    "title": "Stub Str",
-                                    "type": "string",
-                                },
-                                "stub_int": {
-                                    "title": "Stub Int",
-                                    "default": 1,
-                                    "type": "integer",
-                                },
-                                "stub_list": {
-                                    "title": "Stub List",
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string",
-                                        "format": "date",
-                                    },
-                                },
-                            },
-                            "required": ["stub_str", "stub_list"],
-                        }
-                    },
+                    "items": {"$ref": "#/components/schemas/InnerSchemaV1"},
                 }
             }
         },
         "description": "",
     }
+    assert results["components"]["schemas"]["InnerSchemaV1"] == {
+        "title": "InnerSchemaV1",
+        "type": "object",
+        "properties": {
+            "stub_str": {
+                "title": "Stub Str",
+                "type": "string",
+            },
+            "stub_int": {
+                "title": "Stub Int",
+                "default": 1,
+                "type": "integer",
+            },
+            "stub_list": {
+                "title": "Stub List",
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "format": "date",
+                },
+            },
+        },
+        "required": ["stub_str", "stub_list"],
+    }
+
+
+def test_openapi_v1_list_view_metadata_and_discriminated_union(request_factory):
+    from django_pydantic_field.v1.compat import pydantic_v1
+
+    class CatV1(pydantic_v1.BaseModel):
+        pet_type: t.Literal["cat"] = "cat"
+        meows: int = pydantic_v1.Field(gt=0, lt=10)
+
+    class DogV1(pydantic_v1.BaseModel):
+        pet_type: t.Literal["dog"] = "dog"
+        barks: float = pydantic_v1.Field(gt=0.0, lt=5.0)
+
+    PetUnionV1 = t.Annotated[t.Union[CatV1, DogV1], pydantic_v1.Field(discriminator="pet_type")]
+
+    @api_view(["GET"])
+    @schema(rest_framework.AutoSchema())
+    @renderer_classes([rest_framework.SchemaRenderer[InnerSchemaV1]])
+    def list_renderer_view(request):
+        return Response([])
+
+    class MetaSerializerV1(serializers.Serializer):
+        item = rest_framework.SchemaField(InnerSchemaV1, allow_null=True, help_text="Nullable V1 item")
+        second_item = rest_framework.SchemaField(InnerSchemaV1)
+        items_list = rest_framework.SchemaField(t.List[InnerSchemaV1])
+        pair = rest_framework.SchemaField(t.Tuple[int, str])
+        pet = rest_framework.SchemaField(PetUnionV1)
+        nullable_pet = rest_framework.SchemaField(PetUnionV1, allow_null=True)
+
+    class MetaViewV1(generics.RetrieveAPIView):
+        serializer_class = MetaSerializerV1
+        schema = rest_framework.AutoSchema()
+
+    class DeleteOnlyViewV1(views.APIView):
+        parser_classes = [rest_framework.SchemaParser[InnerSchemaV1]]
+        renderer_classes = [rest_framework.SchemaRenderer[InnerSchemaV1]]
+        schema = rest_framework.AutoSchema()
+
+        def delete(self, request):
+            return Response(status=204)
+
+    delete_view = DeleteOnlyViewV1()
+    delete_view.request = None
+    delete_view.format_kwarg = None
+    assert delete_view.schema.get_components("/items/", "DELETE") == {}
+
+    schema_url_patterns = [path("items/", list_renderer_view), path("meta/", MetaViewV1.as_view())]
+    schema_view = schemas.get_schema_view(patterns=schema_url_patterns)
+    results = yaml.load(schema_view(request_factory.get("items/", format="json")).rendered_content, yaml.Loader)
+
+    assert results["paths"]["/items/"]["get"]["responses"]["200"]["content"]["application/json"] == {
+        "schema": {"type": "array", "items": {"$ref": "#/components/schemas/InnerSchemaV1"}},
+    }
+    components = results["components"]["schemas"]
+    assert {"InnerSchemaV1", "CatV1", "DogV1"} <= components.keys()
+    assert components["CatV1"]["properties"]["meows"]["minimum"] == 0
+    assert components["CatV1"]["properties"]["meows"]["exclusiveMinimum"] is True
+
+    props = components["MetaV1"]["properties"]
+    assert props["item"] == {
+        "allOf": [{"$ref": "#/components/schemas/InnerSchemaV1"}],
+        "nullable": True,
+        "description": "Nullable V1 item",
+    }
+    assert props["second_item"] == {"$ref": "#/components/schemas/InnerSchemaV1"}
+    assert props["items_list"] == {"type": "array", "items": {"$ref": "#/components/schemas/InnerSchemaV1"}}
+    assert props["pair"] == {
+        "type": "array",
+        "items": {"anyOf": [{"type": "integer"}, {"type": "string"}]},
+        "minItems": 2,
+        "maxItems": 2,
+    }
+    expected_union = {
+        "oneOf": [{"$ref": "#/components/schemas/CatV1"}, {"$ref": "#/components/schemas/DogV1"}],
+        "discriminator": {
+            "propertyName": "pet_type",
+            "mapping": {"cat": "#/components/schemas/CatV1", "dog": "#/components/schemas/DogV1"},
+        },
+    }
+    assert props["pet"] == expected_union
+    assert props["nullable_pet"] == {**expected_union, "nullable": True}

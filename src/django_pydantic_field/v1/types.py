@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import typing as ty
 from collections import ChainMap
@@ -95,6 +96,24 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
             root_schema["definitions"] = definitions
 
         return root_schema
+
+    def raw_openapi_schema(
+        self,
+        ref_template: str = "#/components/schemas/{model}",
+        mode: ty.Literal["validation", "serialization"] = "validation",
+    ) -> tuple[dict[str, ty.Any], dict[str, dict[str, ty.Any]]]:
+        by_alias = self.export_kwargs.get("by_alias", True)
+        schema = copy.deepcopy(
+            self.wrapped_schema.schema(
+                by_alias=by_alias,
+                ref_template=ref_template,
+            )
+        )
+        definitions = schema.pop("definitions", {})
+        root_schema = schema.get("properties", {}).get("__root__", schema)
+        if str(root_schema.get("title", "")).startswith("FieldSchema["):
+            root_schema.pop("title", None)
+        return root_schema, definitions
 
     def get_default_value(self) -> ST | None:
         field = self.wrapped_schema.__fields__["__root__"]

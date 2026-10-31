@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import typing as ty
 from collections import ChainMap
 from functools import cached_property
@@ -87,6 +88,22 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         """Return the JSON schema for the field."""
         by_alias = self.export_kwargs.get("by_alias", True)
         return self.type_adapter.json_schema(by_alias=by_alias)
+
+    def raw_openapi_schema(
+        self,
+        ref_template: str = "#/components/schemas/{model}",
+        mode: ty.Literal["validation", "serialization"] = "validation",
+    ) -> tuple[dict[str, ty.Any], dict[str, dict[str, ty.Any]]]:
+        by_alias = self.export_kwargs.get("by_alias", True)
+        schema = copy.deepcopy(
+            self.type_adapter.json_schema(
+                by_alias=by_alias,
+                ref_template=ref_template,
+                mode=mode,
+            )
+        )
+        defs = schema.pop("$defs", {})
+        return schema, defs
 
     def get_default_value(self) -> ST | None:
         core_schema = self.type_adapter.core_schema

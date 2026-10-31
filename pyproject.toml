@@ -55,6 +55,7 @@ dependencies = [
 [project.optional-dependencies]
 openapi = ["uritemplate", "inflection"]
 jsonform = ["django_jsonform>=2.0,<3"]
+spectacular = ["drf-spectacular>=0.26.0"]
 
 [dependency-groups]
 dev = [
@@ -68,6 +69,7 @@ dev = [
     "django-stubs>=5",
     "djangorestframework>=3,<4",
     "djangorestframework-stubs>=3",
+    "drf-spectacular>=0.26.0",
     "django_jsonform>=2.0,<3",
     "dj-database-url>=2,<4",
     "pyyaml",

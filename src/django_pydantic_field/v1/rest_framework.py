@@ -4,15 +4,22 @@ import typing as ty
 
 from django.http import HttpRequest
 from rest_framework import exceptions, parsers, renderers, serializers
-from rest_framework.pagination import BasePagination
 from rest_framework.schemas import openapi
 from rest_framework.schemas.utils import is_list_view
 
+from django_pydantic_field._internal._openapi import (
+    collect_serializer_field_components,
+    fallback_view_context,
+    translate_adapter_schema,
+    wrap_list_or_paginated_schema,
+    wrap_serializer_property_refs,
+)
 from django_pydantic_field.compat.typing import get_args
 from django_pydantic_field.v1 import types
 from django_pydantic_field.v1.compat import pydantic_v1
 
 if ty.TYPE_CHECKING:
+    from django_pydantic_field._internal._openapi import OpenAPISchema
     from django_pydantic_field.compat.pydantic import ConfigType
 
     RequestResponseContext = ty.Mapping[str, ty.Any]
@@ -129,52 +136,114 @@ class SchemaParser(AnnotatedAdapterMixin[types.ST], parsers.JSONParser):
 
 
 class AutoSchema(openapi.AutoSchema):
+    REF_TEMPLATE_PREFIX = "#/components/schemas/{model}"
     get_request_serializer: ty.Callable
 
-    def map_field(self, field: serializers.Field):
+    def _translate_adapter(
+        self,
+        adapter: types.SchemaAdapter[ty.Any] | None,
+        *,
+        unwrap_root_nullable: bool = False,
+    ) -> OpenAPISchema:
+        return translate_adapter_schema(
+            adapter,
+            ref_template=self.REF_TEMPLATE_PREFIX,
+            oas_version="3.0",
+            unwrap_root_nullable=unwrap_root_nullable,
+        )
+
+    def map_field(self, field: serializers.Field) -> dict[str, ty.Any]:
         if isinstance(field, SchemaField):
-            return field.adapter.json_schema()
+            return self._translate_adapter(
+                field.adapter,
+                unwrap_root_nullable=bool(field.allow_null),
+            ).schema
         return super().map_field(field)
 
-    def map_parsers(self, path: str, method: str):
-        request_types: ty.List[ty.Any] = []
-        request = HttpRequest()
-        parser_ctx = self.view.get_parser_context(request)
+    def map_serializer(self, serializer: serializers.BaseSerializer) -> dict[str, ty.Any]:
+        return wrap_serializer_property_refs(super().map_serializer(serializer))
+
+    def _get_parser_context(self) -> dict[str, ty.Any]:
+        try:
+            return self.view.get_parser_context(HttpRequest()) or {}
+        except Exception:
+            return fallback_view_context(self.view)
+
+    def _get_renderer_context(self) -> dict[str, ty.Any]:
+        try:
+            return self.view.get_renderer_context() or {}
+        except Exception:
+            return fallback_view_context(self.view)
+
+    def map_parsers(self, path: str, method: str) -> list[ty.Any]:
+        request_types: list[ty.Any] = []
+        parser_ctx = self._get_parser_context()
 
         for parser_type in self.view.parser_classes:
             parser = parser_type()
-
             if isinstance(parser, SchemaParser):
                 adapter = parser.get_adapter(parser_ctx)
                 if adapter is not None:
-                    request_types.append((parser.media_type, adapter.json_schema()))
-                else:
-                    request_types.append(parser.media_type)
-            else:
-                request_types.append(parser.media_type)
+                    parser_schema = self._translate_adapter(adapter).schema
+                    request_types.append((parser.media_type, parser_schema))
+                    continue
+
+            request_types.append(parser.media_type)
 
         return request_types
 
-    def map_renderers(self, path: str, method: str):
-        response_types: ty.List[ty.Any] = []
-        renderer_ctx = self.view.get_renderer_context()
+    def map_renderers(self, path: str, method: str) -> list[ty.Any]:
+        response_types: list[ty.Any] = []
+        renderer_ctx = self._get_renderer_context()
 
         for renderer_type in self.view.renderer_classes:
             renderer = renderer_type()
-
             if isinstance(renderer, SchemaRenderer):
                 adapter = renderer.get_adapter(renderer_ctx)
                 if adapter is not None:
-                    response_types.append((renderer.media_type, adapter.json_schema()))
-                else:
-                    response_types.append(renderer.media_type)
+                    renderer_schema = self._translate_adapter(adapter).schema
+                    response_types.append((renderer.media_type, renderer_schema))
+                    continue
 
-            elif not isinstance(renderer, renderers.BrowsableAPIRenderer):
+            if not isinstance(renderer, renderers.BrowsableAPIRenderer):
                 response_types.append(renderer.media_type)
 
         return response_types
 
-    def get_request_body(self, path: str, method: str):
+    def get_components(self, path: str, method: str) -> dict[str, ty.Any]:
+        components = dict(super().get_components(path, method))
+        upper_method = method.upper()
+
+        def translate_field(adapter: types.SchemaAdapter[ty.Any], unwrap_null: bool) -> OpenAPISchema:
+            return self._translate_adapter(adapter, unwrap_root_nullable=unwrap_null)
+
+        if upper_method in ("PUT", "PATCH", "POST"):
+            request_serializer = self.get_request_serializer(path, method)
+            if isinstance(request_serializer, serializers.Serializer):
+                for field in request_serializer.fields.values():
+                    components.update(collect_serializer_field_components(field, SchemaField, translate_field))
+
+            parser_ctx = self._get_parser_context()
+            for parser_type in self.view.parser_classes:
+                parser = parser_type()
+                if isinstance(parser, SchemaParser):
+                    components.update(self._translate_adapter(parser.get_adapter(parser_ctx)).components)
+
+        if upper_method != "DELETE":
+            response_serializer = self.get_response_serializer(path, method)
+            if isinstance(response_serializer, serializers.Serializer):
+                for field in response_serializer.fields.values():
+                    components.update(collect_serializer_field_components(field, SchemaField, translate_field))
+
+            renderer_ctx = self._get_renderer_context()
+            for renderer_type in self.view.renderer_classes:
+                renderer = renderer_type()
+                if isinstance(renderer, SchemaRenderer):
+                    components.update(self._translate_adapter(renderer.get_adapter(renderer_ctx)).components)
+
+        return components
+
+    def get_request_body(self, path: str, method: str) -> dict[str, ty.Any]:
         if method not in ("PUT", "PATCH", "POST"):
             return {}
 
@@ -187,22 +256,27 @@ class AutoSchema(openapi.AutoSchema):
                 media_type, request_schema = request_type
                 content_schemas[media_type] = {"schema": request_schema}
             else:
-                serializer_ref = self.get_reference(serializer)
+                serializer_ref = (
+                    self.get_reference(serializer) if isinstance(serializer, serializers.Serializer) else {}
+                )
                 content_schemas[request_type] = {"schema": serializer_ref}
 
         return {"content": content_schemas}
 
-    def get_responses(self, path: str, method: str):
+    def get_responses(self, path: str, method: str) -> dict[str, ty.Any]:
         if method == "DELETE":
             return {"204": {"description": ""}}
 
         self.response_media_types = self.map_renderers(path, method)
         status_code = "201" if method == "POST" else "200"
         content_types = {}
+        list_view = is_list_view(path, method, self.view)
 
         for response_type in self.response_media_types:
             if isinstance(response_type, tuple):
                 media_type, response_schema = response_type
+                if list_view and response_schema:
+                    response_schema = wrap_list_or_paginated_schema(response_schema, self.get_paginator())
                 content_types[media_type] = {"schema": response_schema}
             else:
                 response_schema = self._get_serializer_response_schema(path, method)
@@ -215,7 +289,7 @@ class AutoSchema(openapi.AutoSchema):
             }
         }
 
-    def get_reference(self, serializer):
+    def get_reference(self, serializer: serializers.BaseSerializer) -> dict[str, str]:
         try:
             get_reference = super().get_reference
         except AttributeError:
@@ -223,22 +297,9 @@ class AutoSchema(openapi.AutoSchema):
 
         return get_reference(serializer)
 
-    def _get_serializer_response_schema(self, path, method):
+    def _get_serializer_response_schema(self, path: str, method: str) -> dict[str, ty.Any]:
         serializer = self.get_response_serializer(path, method)
-
-        if not isinstance(serializer, serializers.Serializer):
-            item_schema = {}
-        else:
-            item_schema = self.get_reference(serializer)
-
+        item_schema = self.get_reference(serializer) if isinstance(serializer, serializers.Serializer) else {}
         if is_list_view(path, method, self.view):
-            response_schema: ty.Dict[str, ty.Any] = {
-                "type": "array",
-                "items": item_schema,
-            }
-            paginator: BasePagination = self.get_paginator()  # type: ignore
-            if paginator:
-                response_schema = paginator.get_paginated_response_schema(response_schema)
-        else:
-            response_schema = item_schema
-        return response_schema
+            return wrap_list_or_paginated_schema(item_schema, self.get_paginator())
+        return item_schema

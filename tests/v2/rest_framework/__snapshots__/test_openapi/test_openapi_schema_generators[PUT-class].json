@@ -59,10 +59,9 @@
           "200": {
             "content": {
               "application/json": {
-                "$ref": "#/components/schemas/Sample"
-              },
-              "text/html": {
-                "$ref": "#/components/schemas/Sample"
+                "schema": {
+                  "$ref": "#/components/schemas/Sample"
+                }
               }
             },
             "description": ""
@@ -99,10 +98,9 @@
           "200": {
             "content": {
               "application/json": {
-                "$ref": "#/components/schemas/Sample"
-              },
-              "text/html": {
-                "$ref": "#/components/schemas/Sample"
+                "schema": {
+                  "$ref": "#/components/schemas/Sample"
+                }
               }
             },
             "description": ""
@@ -139,10 +137,9 @@
           "200": {
             "content": {
               "application/json": {
-                "$ref": "#/components/schemas/Sample"
-              },
-              "text/html": {
-                "$ref": "#/components/schemas/Sample"
+                "schema": {
+                  "$ref": "#/components/schemas/Sample"
+                }
               }
             },
             "description": ""
@@ -162,15 +159,12 @@
           "200": {
             "content": {
               "application/json": {
-                "items": {
-                  "schema": {
-                    "items": {
-                      "$ref": "#/components/schemas/InnerSchema"
-                    },
-                    "type": "array"
-                  }
-                },
-                "type": "array"
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InnerSchema"
+                  },
+                  "type": "array"
+                }
               }
             },
             "description": ""
