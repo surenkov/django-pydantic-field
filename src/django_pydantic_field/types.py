@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import operator as op
+import re
 import typing as ty
 from functools import cached_property
 
@@ -140,10 +141,11 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
 
     @property
     def root_model_name(self) -> str | None:
-        """Return the name of the root Pydantic BaseModel if the prepared schema is one."""
+        """Return the normalized OpenAPI component name of the root Pydantic BaseModel if the prepared schema is one."""
         prepared = get_origin_type(self.prepared_schema)
         if isinstance(prepared, type) and issubclass(prepared, BaseModelTuple):
-            return prepared.__name__
+            raw_name = prepared.__name__.replace(", ", ",")
+            return re.sub(r"[^a-zA-Z0-9.\-_]", "_", raw_name).replace(".", "__")
         return None
 
     def _prepare_schema(self) -> ty.Any:

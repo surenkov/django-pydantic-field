@@ -138,3 +138,66 @@ def translate_adapter_schema(
 
     schema.pop("title", None)
     return OpenAPISchema(schema, defs)
+
+
+def register_spectacular_extensions() -> None:
+    """Import django_pydantic_field.spectacular if Pydantic v2 and drf-spectacular are installed."""
+    from django_pydantic_field.compat.pydantic import PYDANTIC_V2
+
+    if not PYDANTIC_V2:
+        return
+    try:
+        import drf_spectacular  # noqa: F401
+    except ImportError:
+        pass
+    else:
+        from django_pydantic_field import spectacular  # noqa: F401
+
+
+def wrap_serializer_property_refs(serializer_schema: dict[str, ty.Any]) -> dict[str, ty.Any]:
+    """Wrap any $ref with sibling keywords inside serializer properties in allOf for OpenAPI 3.0 compliance."""
+    properties = serializer_schema.get("properties")
+    if isinstance(properties, dict):
+        for prop_name, prop_schema in properties.items():
+            if isinstance(prop_schema, dict):
+                properties[prop_name] = wrap_ref_siblings(prop_schema)
+    return serializer_schema
+
+
+def fallback_view_context(view: ty.Any) -> dict[str, ty.Any]:
+    """Build a minimal view context dictionary when get_parser_context / get_renderer_context fails."""
+    return {
+        "view": view,
+        "args": getattr(view, "args", ()),
+        "kwargs": getattr(view, "kwargs", {}),
+    }
+
+
+def wrap_list_or_paginated_schema(schema: dict[str, ty.Any], paginator: ty.Any) -> dict[str, ty.Any]:
+    """Wrap an item schema into an array schema and apply paginator response wrapping if present."""
+    response_schema: dict[str, ty.Any] = schema if schema.get("type") == "array" else {"type": "array", "items": schema}
+    if paginator:
+        response_schema = paginator.get_paginated_response_schema(response_schema)
+    return response_schema
+
+
+def collect_serializer_field_components(
+    field: ty.Any,
+    schema_field_cls: type[ty.Any],
+    translate_fn: ty.Callable[[ty.Any, bool], OpenAPISchema],
+) -> dict[str, ty.Any]:
+    """Recursively collect OpenAPI component definitions from SchemaField instances inside DRF fields/serializers."""
+    from rest_framework import serializers
+
+    if isinstance(field, schema_field_cls):
+        return translate_fn(field.adapter, bool(field.allow_null)).components
+    if isinstance(field, (serializers.ListSerializer, serializers.ListField)) and isinstance(
+        field.child, serializers.Field
+    ):
+        return collect_serializer_field_components(field.child, schema_field_cls, translate_fn)
+    if isinstance(field, serializers.Serializer):
+        defs: dict[str, ty.Any] = {}
+        for child_field in field.fields.values():
+            defs.update(collect_serializer_field_components(child_field, schema_field_cls, translate_fn))
+        return defs
+    return {}

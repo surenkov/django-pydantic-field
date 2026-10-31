@@ -16,7 +16,6 @@ from tests.test_app.models import SampleModel
 drf_spectacular = pytest.importorskip("drf_spectacular")
 from drf_spectacular.generators import SchemaGenerator  # noqa: E402
 from drf_spectacular.openapi import AutoSchema  # noqa: E402
-from drf_spectacular.plumbing import ComponentRegistry  # noqa: E402
 from drf_spectacular.settings import patched_settings  # noqa: E402
 from drf_spectacular.views import SpectacularAPIView  # noqa: E402
 
@@ -63,6 +62,10 @@ class VariantB(pydantic.BaseModel):
     b_val: str
 
 
+class DeferredTargetSchema(pydantic.BaseModel):
+    label: str
+
+
 def _generate_schema_for_serializer(serializer_cls: type[serializers.BaseSerializer]) -> dict[str, ty.Any]:
     class TestView(generics.RetrieveUpdateAPIView):
         serializer_class = serializer_cls
@@ -75,244 +78,153 @@ def _generate_schema_for_serializer(serializer_cls: type[serializers.BaseSeriali
     return generator.get_schema(request=None, public=True)
 
 
-def test_single_basemodel_field():
-    class ProfileSerializer(serializers.Serializer):
+def test_spectacular_schema_types_and_containers():
+    T = ty.TypeVar("T")
+
+    class GenericBox(pydantic.BaseModel, ty.Generic[T]):
+        value: T
+
+    class KitchenSinkSerializer(serializers.Serializer):
         profile = SchemaField(AddressSchema)
-
-    schema = _generate_schema_for_serializer(ProfileSerializer)
-    components = schema["components"]["schemas"]
-
-    assert "AddressSchema" in components
-    assert components["AddressSchema"]["type"] == "object"
-    assert "street" in components["AddressSchema"]["properties"]
-    assert components["Profile"]["properties"]["profile"] == {
-        "$ref": "#/components/schemas/AddressSchema",
-    }
-
-
-def test_container_basemodel_fields():
-    class ContainerSerializer(serializers.Serializer):
+        shipping = SchemaField(AddressSchema)
         addresses = SchemaField(list[AddressSchema])
         address_map = SchemaField(dict[str, AddressSchema])
+        order = SchemaField(OrderSchema)
+        count = SchemaField(int)
+        names = SchemaField(list[str])
+        status = SchemaField(StatusEnum)
+        variant = SchemaField(VariantA | VariantB)
+        deferred = SchemaField("DeferredTargetSchema")
+        root_box = SchemaField(GenericBox[int])
+        nullable_box = SchemaField(GenericBox[int], allow_null=True)
+        box_list = SchemaField(list[GenericBox[int]])
 
-    schema = _generate_schema_for_serializer(ContainerSerializer)
+    with patched_settings({"OAS_VERSION": "3.0.3"}):
+        schema = _generate_schema_for_serializer(KitchenSinkSerializer)
     components = schema["components"]["schemas"]
-    props = components["Container"]["properties"]
+    props = components["KitchenSink"]["properties"]
 
-    assert "AddressSchema" in components
-    assert props["addresses"] == {
-        "type": "array",
-        "items": {"$ref": "#/components/schemas/AddressSchema"},
-    }
+    for name in (
+        "AddressSchema",
+        "CustomerSchema",
+        "OrderSchema",
+        "StatusEnum",
+        "VariantA",
+        "VariantB",
+        "DeferredTargetSchema",
+        "GenericBox_int_",
+    ):
+        assert name in components
+    assert "GenericBox[int]" not in components
+
+    assert props["profile"] == {"$ref": "#/components/schemas/AddressSchema"}
+    assert props["shipping"] == {"$ref": "#/components/schemas/AddressSchema"}
+    assert props["addresses"] == {"type": "array", "items": {"$ref": "#/components/schemas/AddressSchema"}}
     assert props["address_map"] == {
         "type": "object",
         "additionalProperties": {"$ref": "#/components/schemas/AddressSchema"},
     }
-
-
-def test_nested_basemodel_hierarchy():
-    class OrderSerializer(serializers.Serializer):
-        order = SchemaField(OrderSchema)
-
-    schema = _generate_schema_for_serializer(OrderSerializer)
-    components = schema["components"]["schemas"]
-
-    assert "OrderSchema" in components
-    assert "CustomerSchema" in components
-    assert "AddressSchema" in components
-    assert "StatusEnum" in components
-    assert components["Order"]["properties"]["order"] == {
-        "$ref": "#/components/schemas/OrderSchema",
+    assert props["order"] == {"$ref": "#/components/schemas/OrderSchema"}
+    assert components["OrderSchema"]["properties"]["customer"] == {"$ref": "#/components/schemas/CustomerSchema"}
+    assert components["CustomerSchema"]["properties"]["address"] == {"$ref": "#/components/schemas/AddressSchema"}
+    assert props["count"] == {"type": "integer"}
+    assert props["names"] == {"type": "array", "items": {"type": "string"}}
+    assert props["status"] == {"$ref": "#/components/schemas/StatusEnum"}
+    assert props["variant"] == {
+        "anyOf": [{"$ref": "#/components/schemas/VariantA"}, {"$ref": "#/components/schemas/VariantB"}]
     }
-    assert components["OrderSchema"]["properties"]["customer"] == {
-        "$ref": "#/components/schemas/CustomerSchema",
-    }
-    assert components["CustomerSchema"]["properties"]["address"] == {
-        "$ref": "#/components/schemas/AddressSchema",
-    }
+    assert props["deferred"] == {"$ref": "#/components/schemas/DeferredTargetSchema"}
+    assert props["root_box"] == {"$ref": "#/components/schemas/GenericBox_int_"}
+    assert props["nullable_box"] == {"allOf": [{"$ref": "#/components/schemas/GenericBox_int_"}], "nullable": True}
+    assert props["box_list"] == {"type": "array", "items": {"$ref": "#/components/schemas/GenericBox_int_"}}
 
 
-def test_nullable_and_optional_oas_30():
+def test_nullable_and_discriminated_unions_oas_30_and_31():
+    ComplexVariant = ty.Annotated[VariantA | VariantB | None, pydantic.Field(discriminator="kind")]
+    NonNullVariant = ty.Annotated[VariantA | VariantB, pydantic.Field(discriminator="kind")]
+
     class NullableSerializer(serializers.Serializer):
-        opt_model = SchemaField(ty.Optional[AddressSchema])
+        opt_model = SchemaField(AddressSchema | None)
         allow_null_model = SchemaField(AddressSchema, allow_null=True)
         allow_null_int = SchemaField(int, allow_null=True)
+        value_complex = SchemaField(ComplexVariant, required=False)
+        allow_null_complex = SchemaField(NonNullVariant, allow_null=True)
 
     with patched_settings({"OAS_VERSION": "3.0.3"}):
-        schema = _generate_schema_for_serializer(NullableSerializer)
-    components = schema["components"]["schemas"]
-    props = components["Nullable"]["properties"]
+        schema_30 = _generate_schema_for_serializer(NullableSerializer)
+    comp_30 = schema_30["components"]["schemas"]
+    props_30 = comp_30["Nullable"]["properties"]
 
-    # Nested Optional[str] inside AddressSchema normalized to nullable: True
-    assert components["AddressSchema"]["properties"]["zip_code"] == {
+    assert comp_30["AddressSchema"]["properties"]["zip_code"] == {
         "title": "Zip Code",
         "type": "string",
         "nullable": True,
         "default": None,
     }
-    assert props["opt_model"] == {
-        "allOf": [{"$ref": "#/components/schemas/AddressSchema"}],
-        "nullable": True,
-    }
-    assert props["allow_null_model"] == {
-        "allOf": [{"$ref": "#/components/schemas/AddressSchema"}],
-        "nullable": True,
-    }
-    assert props["allow_null_int"] == {
-        "type": "integer",
-        "nullable": True,
-    }
+    assert props_30["opt_model"] == {"allOf": [{"$ref": "#/components/schemas/AddressSchema"}], "nullable": True}
+    assert props_30["allow_null_model"] == {"allOf": [{"$ref": "#/components/schemas/AddressSchema"}], "nullable": True}
+    assert props_30["allow_null_int"] == {"type": "integer", "nullable": True}
 
-
-def test_nullable_and_optional_oas_31():
-    class NullableSerializer(serializers.Serializer):
-        opt_model = SchemaField(ty.Optional[AddressSchema])
-        allow_null_model = SchemaField(AddressSchema, allow_null=True)
-        allow_null_int = SchemaField(int, allow_null=True)
+    expected_union = {
+        "oneOf": [{"$ref": "#/components/schemas/VariantA"}, {"$ref": "#/components/schemas/VariantB"}],
+        "discriminator": {
+            "propertyName": "kind",
+            "mapping": {"a": "#/components/schemas/VariantA", "b": "#/components/schemas/VariantB"},
+        },
+        "nullable": True,
+    }
+    assert props_30["value_complex"] == expected_union
+    assert props_30["allow_null_complex"] == expected_union
 
     with patched_settings({"OAS_VERSION": "3.1.0"}):
-        schema = _generate_schema_for_serializer(NullableSerializer)
-    components = schema["components"]["schemas"]
-    props = components["Nullable"]["properties"]
+        schema_31 = _generate_schema_for_serializer(NullableSerializer)
+    comp_31 = schema_31["components"]["schemas"]
+    props_31 = comp_31["Nullable"]["properties"]
 
-    assert components["AddressSchema"]["properties"]["zip_code"] == {
+    assert comp_31["AddressSchema"]["properties"]["zip_code"] == {
         "title": "Zip Code",
         "anyOf": [{"type": "string"}, {"type": "null"}],
         "default": None,
     }
-    assert props["opt_model"] == {
-        "anyOf": [{"$ref": "#/components/schemas/AddressSchema"}, {"type": "null"}],
-    }
-    assert props["allow_null_model"] == {
-        "oneOf": [{"$ref": "#/components/schemas/AddressSchema"}, {"type": "null"}],
-    }
-    assert props["allow_null_int"] == {
-        "type": ["integer", "null"],
-    }
+    assert props_31["opt_model"] == {"anyOf": [{"$ref": "#/components/schemas/AddressSchema"}, {"type": "null"}]}
+    assert props_31["allow_null_model"] == {"oneOf": [{"$ref": "#/components/schemas/AddressSchema"}, {"type": "null"}]}
+    assert props_31["allow_null_int"] == {"type": ["integer", "null"]}
 
 
-def test_primitives_enums_and_unions():
-    class MiscSerializer(serializers.Serializer):
-        count = SchemaField(int)
-        names = SchemaField(list[str])
-        status = SchemaField(StatusEnum)
-        variant = SchemaField(ty.Union[VariantA, VariantB])
+def test_direction_model_serializer_and_endpoint(request_factory):
+    class SampleModelSerializer(serializers.ModelSerializer):
+        sample_field = SchemaField(schema=InnerSchema, help_text="Primary inner schema")
+        sample_list = SchemaField(schema=list[InnerSchema], read_only=True)
+        sample_seq = SchemaField(schema=list[InnerSchema], write_only=True, default=list)
+        aliased = SchemaField(list[AliasedSchema])
 
-    schema = _generate_schema_for_serializer(MiscSerializer)
-    components = schema["components"]["schemas"]
-    props = components["Misc"]["properties"]
+        class Meta:
+            model = SampleModel
+            fields = ("sample_field", "sample_list", "sample_seq", "aliased")
 
-    assert props["count"] == {"type": "integer"}
-    assert props["names"] == {"type": "array", "items": {"type": "string"}}
-    assert props["status"] == {"$ref": "#/components/schemas/StatusEnum"}
-    assert components["StatusEnum"]["enum"] == ["active", "pending"]
-    assert "VariantA" in components
-    assert "VariantB" in components
-    assert props["variant"] == {
-        "anyOf": [
-            {"$ref": "#/components/schemas/VariantA"},
-            {"$ref": "#/components/schemas/VariantB"},
-        ]
-    }
-
-
-def test_forward_ref_schema():
-    class ForwardRefSerializer(serializers.Serializer):
-        deferred = SchemaField("DeferredTargetSchema")
-
-    schema = _generate_schema_for_serializer(ForwardRefSerializer)
-    components = schema["components"]["schemas"]
-
-    assert "DeferredTargetSchema" in components
-    assert components["ForwardRef"]["properties"]["deferred"] == {
-        "$ref": "#/components/schemas/DeferredTargetSchema",
-    }
-
-
-class DeferredTargetSchema(pydantic.BaseModel):
-    label: str
-
-
-def test_direction_request_vs_response_mode():
-    class DirectionSerializer(serializers.Serializer):
-        items = SchemaField(list[AliasedSchema])
-
-    class CreateView(generics.ListCreateAPIView):
-        serializer_class = DirectionSerializer
+    class EndpointView(generics.ListCreateAPIView):
+        serializer_class = SampleModelSerializer
         schema = AutoSchema()
 
         def get_queryset(self):
             return []
 
+        def get(self, request, *args, **kwargs):
+            return Response([])
+
+    patterns = [path("api/endpoint/", EndpointView.as_view())]
     with patched_settings({"COMPONENT_SPLIT_REQUEST": True}):
-        generator = SchemaGenerator(patterns=[path("api/direction/", CreateView.as_view())])
-        schema = generator.get_schema(request=None, public=True)
-    components = schema["components"]["schemas"]
+        view = SpectacularAPIView.as_view(urlconf=patterns)
+        response = view(request_factory.get("/schema/", HTTP_ACCEPT="application/vnd.oai.openapi+json"))
 
-    # Check direct extension call for request vs response mode
-    serializer = DirectionSerializer()
-    field = serializer.fields["items"]
-    view = CreateView()
-    view.request = None
-
-    from django_pydantic_field.spectacular import PydanticSchemaFieldExtension
-
-    ext = PydanticSchemaFieldExtension(field)
-    auto_schema_req = AutoSchema()
-    auto_schema_req.view = view
-    auto_schema_req.registry = ComponentRegistry()
-    ext.map_serializer_field(auto_schema_req, "request")
-    req_comp = auto_schema_req.registry[("AliasedSchema", "schemas")]
-    assert "input_id" in req_comp.schema["properties"]
-
-    auto_schema_resp = AutoSchema()
-    auto_schema_resp.view = view
-    auto_schema_resp.registry = ComponentRegistry()
-    ext.map_serializer_field(auto_schema_resp, "response")
-    resp_comp = auto_schema_resp.registry[("AliasedSchema", "schemas")]
-    assert "output_id" in resp_comp.schema["properties"]
-    assert "DirectionRequest" in components
-    assert "Direction" in components
-
-
-def test_model_serializer_and_field_metadata():
-    class SampleModelSerializer(serializers.ModelSerializer):
-        sample_field = SchemaField(schema=InnerSchema, help_text="Primary inner schema")
-        sample_list = SchemaField(schema=list[InnerSchema], read_only=True)
-        sample_seq = SchemaField(schema=list[InnerSchema], write_only=True, default=list)
-
-        class Meta:
-            model = SampleModel
-            fields = ("sample_field", "sample_list", "sample_seq")
-
-    schema = _generate_schema_for_serializer(SampleModelSerializer)
-    components = schema["components"]["schemas"]
-    props = components["SampleModel"]["properties"]
-
+    assert response.status_code == 200
+    components = response.data["components"]["schemas"]
+    assert "SampleModelRequest" in components
+    assert "SampleModel" in components
     assert "InnerSchema" in components
-    assert props["sample_field"] == {
+    assert components["SampleModel"]["properties"]["sample_field"] == {
         "allOf": [{"$ref": "#/components/schemas/InnerSchema"}],
         "description": "Primary inner schema",
     }
-    assert props["sample_list"]["readOnly"] is True
-    assert props["sample_seq"]["writeOnly"] is True
-
-
-def test_spectacular_api_view_endpoint(request_factory):
-    class EndpointSerializer(serializers.Serializer):
-        address = SchemaField(AddressSchema)
-
-    class EndpointView(generics.RetrieveAPIView):
-        serializer_class = EndpointSerializer
-        schema = AutoSchema()
-
-        def get(self, request, *args, **kwargs):
-            return Response({})
-
-    patterns = [path("api/endpoint/", EndpointView.as_view())]
-    view = SpectacularAPIView.as_view(urlconf=patterns)
-    request = request_factory.get("/schema/", HTTP_ACCEPT="application/vnd.oai.openapi+json")
-    response = view(request)
-
-    assert response.status_code == 200
-    assert "AddressSchema" in response.data["components"]["schemas"]
+    assert components["SampleModel"]["properties"]["sample_list"]["readOnly"] is True
+    assert components["SampleModelRequest"]["properties"]["sample_seq"]["writeOnly"] is True

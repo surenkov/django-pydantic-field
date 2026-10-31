@@ -18,9 +18,7 @@ __all__ = ("SchemaRenderer",)
 
 class SchemaRenderer(mixins.AnnotatedAdapterMixin[types.ST], renderers.JSONRenderer):
     schema_context_key = "renderer_schema"
-    schema_context_keys = ("renderer_schema", "render_schema")
     config_context_key = "renderer_config"
-    config_context_keys = ("renderer_config", "config")
 
     def render(self, data: ty.Any, accepted_media_type=None, renderer_context=None):
         renderer_context = renderer_context or {}

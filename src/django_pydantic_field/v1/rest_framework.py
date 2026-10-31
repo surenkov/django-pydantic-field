@@ -4,11 +4,16 @@ import typing as ty
 
 from django.http import HttpRequest
 from rest_framework import exceptions, parsers, renderers, serializers
-from rest_framework.pagination import BasePagination
 from rest_framework.schemas import openapi
 from rest_framework.schemas.utils import is_list_view
 
-from django_pydantic_field._internal._openapi import translate_adapter_schema, wrap_ref_siblings
+from django_pydantic_field._internal._openapi import (
+    collect_serializer_field_components,
+    fallback_view_context,
+    translate_adapter_schema,
+    wrap_list_or_paginated_schema,
+    wrap_serializer_property_refs,
+)
 from django_pydantic_field.compat.typing import get_args
 from django_pydantic_field.v1 import types
 from django_pydantic_field.v1.compat import pydantic_v1
@@ -29,34 +34,33 @@ __all__ = (
 
 class AnnotatedAdapterMixin(ty.Generic[types.ST]):
     schema_ctx_attr: ty.ClassVar[str] = "schema"
-    schema_ctx_attrs: ty.ClassVar[tuple[str, ...]] = ()
     require_explicit_schema: ty.ClassVar[bool] = False
 
-    def _build_adapter(
-        self,
-        schema: ty.Any,
-        ctx: RequestResponseContext,
-    ) -> types.SchemaAdapter[types.ST]:
-        parent = ctx.get("view")
-        config = ctx.get("config") or ctx.get("renderer_config") or ctx.get("parser_config")
-        export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
-        return types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
-
     def get_adapter(self, ctx: RequestResponseContext) -> ty.Optional[types.SchemaAdapter[types.ST]]:
-        attrs = self.schema_ctx_attrs or (self.schema_ctx_attr,)
-        schema = next((ctx[attr] for attr in attrs if ctx.get(attr) is not None), None)
-        if schema is None:
-            try:
-                schema = get_args(self.__orig_class__)[0]  # type: ignore
-            except (AttributeError, IndexError):
-                schema = None
+        schema = ctx.get(self.schema_ctx_attr)
+        parent = ctx.get("view")
 
-        if schema is None:
-            if self.require_explicit_schema:
-                raise ValueError("Schema should be either explicitly set with annotation or passed in the context")
-            return None
+        if schema is not None:
+            config = ctx.get("config")
+            export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
+            adapter = types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
+            return adapter
 
-        return self._build_adapter(schema, ctx)
+        try:
+            schema = get_args(self.__orig_class__)[0]  # type: ignore
+        except (AttributeError, IndexError):
+            schema = None
+
+        if self.require_explicit_schema and schema is None:
+            raise ValueError("Schema should be either explicitly set with annotation or passed in the context")
+
+        if schema is not None:
+            config = ctx.get("config")
+            export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
+            adapter = types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
+            return adapter
+
+        return None
 
 
 class SchemaField(serializers.Field, ty.Generic[types.ST]):
@@ -91,7 +95,6 @@ class SchemaField(serializers.Field, ty.Generic[types.ST]):
 
 class SchemaRenderer(AnnotatedAdapterMixin[types.ST], renderers.JSONRenderer):
     schema_ctx_attr = "render_schema"
-    schema_ctx_attrs = ("render_schema", "renderer_schema")
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
         renderer_context = renderer_context or {}
@@ -158,32 +161,19 @@ class AutoSchema(openapi.AutoSchema):
         return super().map_field(field)
 
     def map_serializer(self, serializer: serializers.BaseSerializer) -> dict[str, ty.Any]:
-        result = super().map_serializer(serializer)
-        properties = result.get("properties")
-        if isinstance(properties, dict):
-            for prop_name, prop_schema in properties.items():
-                if isinstance(prop_schema, dict):
-                    properties[prop_name] = wrap_ref_siblings(prop_schema)
-        return result
-
-    def _fallback_view_context(self) -> dict[str, ty.Any]:
-        return {
-            "view": self.view,
-            "args": getattr(self.view, "args", ()),
-            "kwargs": getattr(self.view, "kwargs", {}),
-        }
+        return wrap_serializer_property_refs(super().map_serializer(serializer))
 
     def _get_parser_context(self) -> dict[str, ty.Any]:
         try:
             return self.view.get_parser_context(HttpRequest()) or {}
         except Exception:
-            return self._fallback_view_context()
+            return fallback_view_context(self.view)
 
     def _get_renderer_context(self) -> dict[str, ty.Any]:
         try:
             return self.view.get_renderer_context() or {}
         except Exception:
-            return self._fallback_view_context()
+            return fallback_view_context(self.view)
 
     def map_parsers(self, path: str, method: str) -> list[ty.Any]:
         request_types: list[ty.Any] = []
@@ -220,52 +210,36 @@ class AutoSchema(openapi.AutoSchema):
 
         return response_types
 
-    def _collect_field_components(self, field: serializers.Field) -> dict[str, ty.Any]:
-        if isinstance(field, SchemaField):
-            return self._translate_adapter(
-                field.adapter,
-                unwrap_root_nullable=bool(field.allow_null),
-            ).components
-        if isinstance(field, (serializers.ListSerializer, serializers.ListField)) and isinstance(
-            field.child, serializers.Field
-        ):
-            return self._collect_field_components(field.child)
-        if isinstance(field, serializers.Serializer):
-            defs: dict[str, ty.Any] = {}
-            for child_field in field.fields.values():
-                defs.update(self._collect_field_components(child_field))
-            return defs
-        return {}
-
     def get_components(self, path: str, method: str) -> dict[str, ty.Any]:
         components = dict(super().get_components(path, method))
         upper_method = method.upper()
+
+        def translate_field(adapter: types.SchemaAdapter[ty.Any], unwrap_null: bool) -> OpenAPISchema:
+            return self._translate_adapter(adapter, unwrap_root_nullable=unwrap_null)
 
         if upper_method in ("PUT", "PATCH", "POST"):
             request_serializer = self.get_request_serializer(path, method)
             if isinstance(request_serializer, serializers.Serializer):
                 for field in request_serializer.fields.values():
-                    components.update(self._collect_field_components(field))
+                    components.update(collect_serializer_field_components(field, SchemaField, translate_field))
 
-        parser_ctx = self._get_parser_context()
-        for parser_type in self.view.parser_classes:
-            parser = parser_type()
-            if isinstance(parser, SchemaParser):
-                adapter = parser.get_adapter(parser_ctx)
-                components.update(self._translate_adapter(adapter).components)
+            parser_ctx = self._get_parser_context()
+            for parser_type in self.view.parser_classes:
+                parser = parser_type()
+                if isinstance(parser, SchemaParser):
+                    components.update(self._translate_adapter(parser.get_adapter(parser_ctx)).components)
 
         if upper_method != "DELETE":
             response_serializer = self.get_response_serializer(path, method)
             if isinstance(response_serializer, serializers.Serializer):
                 for field in response_serializer.fields.values():
-                    components.update(self._collect_field_components(field))
+                    components.update(collect_serializer_field_components(field, SchemaField, translate_field))
 
-        renderer_ctx = self._get_renderer_context()
-        for renderer_type in self.view.renderer_classes:
-            renderer = renderer_type()
-            if isinstance(renderer, SchemaRenderer):
-                adapter = renderer.get_adapter(renderer_ctx)
-                components.update(self._translate_adapter(adapter).components)
+            renderer_ctx = self._get_renderer_context()
+            for renderer_type in self.view.renderer_classes:
+                renderer = renderer_type()
+                if isinstance(renderer, SchemaRenderer):
+                    components.update(self._translate_adapter(renderer.get_adapter(renderer_ctx)).components)
 
         return components
 
@@ -302,7 +276,7 @@ class AutoSchema(openapi.AutoSchema):
             if isinstance(response_type, tuple):
                 media_type, response_schema = response_type
                 if list_view and response_schema:
-                    response_schema = self._wrap_list_response_schema(response_schema)
+                    response_schema = wrap_list_or_paginated_schema(response_schema, self.get_paginator())
                 content_types[media_type] = {"schema": response_schema}
             else:
                 response_schema = self._get_serializer_response_schema(path, method)
@@ -323,16 +297,9 @@ class AutoSchema(openapi.AutoSchema):
 
         return get_reference(serializer)
 
-    def _wrap_list_response_schema(self, schema: dict[str, ty.Any]) -> dict[str, ty.Any]:
-        response_schema = schema if schema.get("type") == "array" else {"type": "array", "items": schema}
-        paginator: BasePagination = self.get_paginator()  # type: ignore
-        if paginator:
-            response_schema = paginator.get_paginated_response_schema(response_schema)
-        return response_schema
-
     def _get_serializer_response_schema(self, path: str, method: str) -> dict[str, ty.Any]:
         serializer = self.get_response_serializer(path, method)
         item_schema = self.get_reference(serializer) if isinstance(serializer, serializers.Serializer) else {}
         if is_list_view(path, method, self.view):
-            return self._wrap_list_response_schema(item_schema)
+            return wrap_list_or_paginated_schema(item_schema, self.get_paginator())
         return item_schema

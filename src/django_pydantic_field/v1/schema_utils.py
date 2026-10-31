@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import typing as ty
 
+import typing_extensions as te
+
 from django_pydantic_field._internal._annotation_utils import get_namespace
 from django_pydantic_field.compat.pydantic import ConfigType
+from django_pydantic_field.compat.typing import get_args, get_origin
 from django_pydantic_field.v1.compat import display_as_type, inherit_config, pydantic_v1
 
 
@@ -20,6 +23,14 @@ def get_field_schema_name(schema) -> str:
     return f"FieldSchema[{display_as_type(schema)}]"
 
 
+def _make_nullable_schema(schema: ty.Any) -> ty.Any:
+    if get_origin(schema) is te.Annotated:
+        args = get_args(schema)
+        if args:
+            return te.Annotated[(args[0] | None, *args[1:])]
+    return schema | None
+
+
 def prepare_schema(
     schema: ty.Type[pydantic_v1.BaseModel],
     config: ty.Any | None = None,
@@ -27,9 +38,10 @@ def prepare_schema(
     owner: ty.Any = None,
 ) -> ty.Type[pydantic_v1.BaseModel]:
     type_name = get_field_schema_name(schema)
+    root_type = _make_nullable_schema(schema) if allow_null else schema
     wrapped_schema = pydantic_v1.create_model(
         type_name,
-        __root__=((schema | None) if allow_null else schema, ...),
+        __root__=(root_type, ...),
         __config__=inherit_configs(schema, config),
     )
 
