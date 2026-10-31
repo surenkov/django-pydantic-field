@@ -14,7 +14,9 @@ if ty.TYPE_CHECKING:
 class AnnotatedAdapterMixin(ty.Generic[types.ST]):
     media_type: ty.ClassVar[str]
     schema_context_key: ty.ClassVar[str] = "response_schema"
+    schema_context_keys: ty.ClassVar[tuple[str, ...]] = ()
     config_context_key: ty.ClassVar[str] = "response_schema_config"
+    config_context_keys: ty.ClassVar[tuple[str, ...]] = ()
 
     def get_adapter(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
         adapter = self._make_adapter_from_context(ctx)
@@ -23,21 +25,29 @@ class AnnotatedAdapterMixin(ty.Generic[types.ST]):
 
         return adapter
 
-    def _make_adapter_from_context(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
-        schema = ctx.get(self.schema_context_key)
-        if schema is not None:
-            config = ctx.get(self.config_context_key)
-            export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
-            return types.SchemaAdapter(schema, config, type(ctx.get("view")), None, **export_kwargs)
+    def _get_context_schema(self, ctx: RequestResponseContext) -> ty.Any:
+        keys = self.schema_context_keys or (self.schema_context_key,)
+        return next((ctx[key] for key in keys if ctx.get(key) is not None), None)
 
-        return schema
+    def _get_context_config(self, ctx: RequestResponseContext) -> ty.Any:
+        keys = self.config_context_keys or (self.config_context_key,)
+        return next((ctx[key] for key in keys if ctx.get(key) is not None), None)
+
+    def _build_adapter(self, schema: ty.Any, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST]:
+        parent = ctx.get("view")
+        config = self._get_context_config(ctx)
+        export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
+        return types.SchemaAdapter(schema, config, type(parent) if parent else None, None, **export_kwargs)
+
+    def _make_adapter_from_context(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
+        schema = self._get_context_schema(ctx)
+        if schema is None:
+            return None
+        return self._build_adapter(schema, ctx)
 
     def _make_adapter_from_annotation(self, ctx: RequestResponseContext) -> types.SchemaAdapter[types.ST] | None:
         try:
             schema = get_args(self.__orig_class__)[0]  # type: ignore
         except (AttributeError, IndexError):
             return None
-
-        config = ctx.get(self.config_context_key)
-        export_kwargs = types.SchemaAdapter.extract_export_kwargs(dict(ctx))
-        return types.SchemaAdapter(schema, config, type(ctx.get("view")), None, **export_kwargs)
+        return self._build_adapter(schema, ctx)

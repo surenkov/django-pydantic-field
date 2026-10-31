@@ -150,3 +150,18 @@ def test_schema_adapter_dump_json():
     with pytest.warns(UserWarning, match="Pydantic serializer warnings"):
         assert adapter.dump_json({1, 2, 3}) == b"[1,2,3]"
         assert adapter.dump_json(["1", "2", "3"]) == b'["1","2","3"]'
+
+
+def test_schema_adapter_root_model_name():
+    T = ty.TypeVar("T")
+
+    class GenericSchema(pydantic.BaseModel, ty.Generic[T]):
+        value: T
+
+    assert types.SchemaAdapter.from_type(InnerSchema).root_model_name == "InnerSchema"
+    assert types.SchemaAdapter.from_type(GenericSchema[int]).root_model_name == "GenericSchema[int]"
+    assert types.SchemaAdapter.from_type(list[InnerSchema]).root_model_name is None
+    assert types.SchemaAdapter.from_type(tuple[int, str]).root_model_name is None
+    assert types.SchemaAdapter.from_type(ty.List[InnerSchema]).root_model_name is None
+    assert types.SchemaAdapter.from_type(InnerSchema | None).root_model_name is None
+    assert types.SchemaAdapter.from_type(int).root_model_name is None

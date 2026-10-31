@@ -7,9 +7,9 @@ from functools import cached_property
 
 import typing_extensions as te
 
-from django_pydantic_field._internal._annotation_utils import get_annotated_type, get_namespace
+from django_pydantic_field._internal._annotation_utils import get_annotated_type, get_namespace, get_origin_type
 from django_pydantic_field.compat.django import BaseContainer, GenericContainer
-from django_pydantic_field.compat.pydantic import PYDANTIC_V1, ConfigType
+from django_pydantic_field.compat.pydantic import PYDANTIC_V1, BaseModelTuple, ConfigType
 
 if ty.TYPE_CHECKING:
     from django.db.models import Model
@@ -101,6 +101,15 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def raw_openapi_schema(
+        self,
+        ref_template: str = "#/components/schemas/{model}",
+        mode: ty.Literal["validation", "serialization"] = "validation",
+    ) -> tuple[dict[str, ty.Any], dict[str, dict[str, ty.Any]]]:
+        """Generate an OpenAPI schema and hoisted component definitions."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def get_default_value(self) -> ST | None:
         """Retrieve the default value from the schema if one is defined."""
         raise NotImplementedError
@@ -128,6 +137,14 @@ class BaseSchemaAdapter(abc.ABC, ty.Generic[ST]):
 
     prepared_schema = cached_property(op.methodcaller("_prepare_schema"))
     """The prepared and resolved schema."""
+
+    @property
+    def root_model_name(self) -> str | None:
+        """Return the name of the root Pydantic BaseModel if the prepared schema is one."""
+        prepared = get_origin_type(self.prepared_schema)
+        if isinstance(prepared, type) and issubclass(prepared, BaseModelTuple):
+            return prepared.__name__
+        return None
 
     def _prepare_schema(self) -> ty.Any:
         """Internal method to prepare the schema by guessing it from annotations if needed,
