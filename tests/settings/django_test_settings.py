@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.admin",
+    "django_pydantic_field",
     "tests.sample_app",
     "tests.test_app",
 ]

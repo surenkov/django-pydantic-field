@@ -91,6 +91,37 @@ def test_model_serializer_marshalling_with_schema_field():
     assert serializer.data == expected_data
 
 
+def test_auto_model_serializer_v1():
+    class AutoSampleModelV1Serializer(serializers.ModelSerializer):
+        class Meta:
+            model = SampleModelV1
+            fields = ("sample_field", "sample_list", "sample_seq")
+
+    serializer = AutoSampleModelV1Serializer()
+    assert isinstance(serializer.fields["sample_field"], rest_framework.SchemaField)
+    assert isinstance(serializer.fields["sample_list"], rest_framework.SchemaField)
+    assert isinstance(serializer.fields["sample_seq"], rest_framework.SchemaField)
+
+    input_serializer = AutoSampleModelV1Serializer(
+        data={
+            "sample_field": {"stub_str": "abc", "stub_list": ["2022-07-01"]},
+            "sample_list": [{"stub_str": "def", "stub_int": 2, "stub_list": ["2022-07-02"]}],
+        }
+    )
+    assert input_serializer.is_valid(raise_exception=True)
+    assert input_serializer.validated_data == {
+        "sample_field": InnerSchemaV1(stub_str="abc", stub_int=1, stub_list=[date(2022, 7, 1)]),
+        "sample_list": [InnerSchemaV1(stub_str="def", stub_int=2, stub_list=[date(2022, 7, 2)])],
+    }
+
+    class AnnotatedV1Serializer(serializers.Serializer):
+        item: InnerSchemaV1 = rest_framework.SchemaField()
+
+    annotated = AnnotatedV1Serializer(data={"item": {"stub_str": "v1", "stub_list": ["2022-07-01"]}})
+    assert annotated.is_valid(raise_exception=True)
+    assert annotated.validated_data == {"item": InnerSchemaV1(stub_str="v1", stub_int=1, stub_list=[date(2022, 7, 1)])}
+
+
 @pytest.mark.parametrize(
     "export_kwargs",
     [

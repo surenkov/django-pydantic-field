@@ -124,3 +124,41 @@ def linter_test_model_assertions(model: LinterTestModel):
     te.assert_type(model.subclassed_psf_nullable, SimpleSchema | None)
     te.assert_type(model.subclassed_psf_v1_nullable, SimpleSchema | None)
     te.assert_type(model.subclassed_psf_v2_nullable, SimpleSchema | None)
+
+
+from rest_framework import serializers  # noqa: E402
+
+from django_pydantic_field.rest_framework import SchemaField as DRFSchemaField  # noqa: E402
+from django_pydantic_field.v1.rest_framework import SchemaField as DRFSchemaFieldV1  # noqa: E402
+from django_pydantic_field.v2.rest_framework import SchemaField as DRFSchemaFieldV2  # noqa: E402
+
+
+class LinterTestSerializer(serializers.Serializer):
+    explicit = DRFSchemaField(SimpleSchema)
+    explicit_list = DRFSchemaField(t.List[SimpleSchema])
+    annotated: SimpleSchema = DRFSchemaField()
+    annotated_list: list[SimpleSchema] = DRFSchemaField(default=list)
+    forward_ref: "SimpleSchema" = DRFSchemaField()
+    forward_arg = DRFSchemaField("SimpleSchema")
+    annotated_union: te.Annotated[t.Union[int, float], pydantic.Field(gt=0)] = DRFSchemaField()
+    explicit_annotated = DRFSchemaField(te.Annotated[t.Union[int, float], pydantic.Field(gt=0)])
+
+    v1_annotated: SimpleSchema = DRFSchemaFieldV1()
+    v1_explicit = DRFSchemaFieldV1(SimpleSchema)
+    v2_annotated: SimpleSchema = DRFSchemaFieldV2()
+    v2_explicit = DRFSchemaFieldV2(SimpleSchema)
+
+
+def linter_test_serializer_assertions(serializer: LinterTestSerializer):
+    te.assert_type(serializer.explicit, DRFSchemaField[SimpleSchema])
+    te.assert_type(serializer.explicit_list, DRFSchemaField[t.List[SimpleSchema]])
+    te.assert_type(serializer.annotated, SimpleSchema)
+    te.assert_type(serializer.annotated_list, list[SimpleSchema])
+    te.assert_type(serializer.forward_ref, SimpleSchema)
+    te.assert_type(serializer.forward_arg, DRFSchemaField[Unknown])
+    te.assert_type(serializer.annotated_union, t.Union[int, float])
+    te.assert_type(serializer.explicit_annotated, DRFSchemaField[Unknown])
+    te.assert_type(serializer.v1_annotated, SimpleSchema)
+    te.assert_type(serializer.v1_explicit, DRFSchemaFieldV1[SimpleSchema])
+    te.assert_type(serializer.v2_annotated, SimpleSchema)
+    te.assert_type(serializer.v2_explicit, DRFSchemaFieldV2[SimpleSchema])
