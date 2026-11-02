@@ -14,6 +14,7 @@ from django_pydantic_field._internal._openapi import (
     wrap_list_or_paginated_schema,
     wrap_serializer_property_refs,
 )
+from django_pydantic_field._internal._rest_framework import bind_serializer_field, register_serializer_field
 from django_pydantic_field.compat.typing import get_args
 from django_pydantic_field.v1 import types
 from django_pydantic_field.v1.compat import pydantic_v1
@@ -66,20 +67,54 @@ class AnnotatedAdapterMixin(ty.Generic[types.ST]):
 class SchemaField(serializers.Field, ty.Generic[types.ST]):
     adapter: types.SchemaAdapter[types.ST]
 
+    if ty.TYPE_CHECKING:
+
+        @ty.overload
+        def __new__(
+            cls,
+            schema: type[types.ST],
+            config: ConfigType | None = None,
+            **kwargs: ty.Any,
+        ) -> SchemaField[types.ST]: ...
+        @ty.overload
+        def __new__(
+            cls,
+            schema: ty.ForwardRef | str,
+            config: ConfigType | None = None,
+            **kwargs: ty.Any,
+        ) -> SchemaField[ty.Any]: ...
+        @ty.overload
+        def __new__(
+            cls,
+            schema: None = None,
+            config: ConfigType | None = None,
+            **kwargs: ty.Any,
+        ) -> ty.Any: ...
+        @ty.overload
+        def __new__(
+            cls,
+            schema: ty.Any,
+            config: ConfigType | None = None,
+            **kwargs: ty.Any,
+        ) -> SchemaField[ty.Any]: ...
+
     def __init__(
         self,
-        schema: ty.Type[types.ST],
+        schema: ty.Type[types.ST] | ty.ForwardRef | str | ty.Any = None,
         config: ty.Optional[ConfigType] = None,
         **kwargs,
     ):
-        self.export_params = types.SchemaAdapter.extract_export_kwargs(kwargs)
+        kwargs.pop("encoder", None)
+        kwargs.pop("decoder", None)
+        self.schema = schema
+        self.config = config
+        self.export_kwargs = self.export_params = types.SchemaAdapter.extract_export_kwargs(kwargs)
         super().__init__(**kwargs)
-        self.adapter = types.SchemaAdapter(schema, config, None, None, allow_null=self.allow_null, **self.export_params)
+        self.adapter = types.SchemaAdapter(schema, config, None, None, allow_null=self.allow_null, **self.export_kwargs)
 
     def bind(self, field_name, parent):
-        if not self.adapter.is_bound:
-            self.adapter.bind(type(parent), field_name)
         super().bind(field_name, parent)
+        bind_serializer_field(self, field_name, parent)
 
     def to_internal_value(self, data: ty.Any) -> ty.Optional[types.ST]:
         try:
@@ -303,3 +338,6 @@ class AutoSchema(openapi.AutoSchema):
         if is_list_view(path, method, self.view):
             return wrap_list_or_paginated_schema(item_schema, self.get_paginator())
         return item_schema
+
+
+register_serializer_field()

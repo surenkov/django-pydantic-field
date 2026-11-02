@@ -5,6 +5,7 @@ import typing as ty
 import pydantic
 from rest_framework import exceptions, fields
 
+from django_pydantic_field._internal._rest_framework import bind_serializer_field, register_serializer_field
 from django_pydantic_field.compat import deprecation
 from django_pydantic_field.v2 import types
 
@@ -19,12 +20,45 @@ if ty.TYPE_CHECKING:
 class SchemaField(fields.Field, ty.Generic[types.ST]):
     adapter: types.SchemaAdapter
 
+    if ty.TYPE_CHECKING:
+
+        @ty.overload
+        def __new__(
+            cls,
+            schema: type[types.ST],
+            config: pydantic.ConfigDict | None = None,
+            **kwargs: ty.Any,
+        ) -> SchemaField[types.ST]: ...
+        @ty.overload
+        def __new__(
+            cls,
+            schema: ty.ForwardRef | str,
+            config: pydantic.ConfigDict | None = None,
+            **kwargs: ty.Any,
+        ) -> SchemaField[ty.Any]: ...
+        @ty.overload
+        def __new__(
+            cls,
+            schema: None = None,
+            config: pydantic.ConfigDict | None = None,
+            **kwargs: ty.Any,
+        ) -> ty.Any: ...
+        @ty.overload
+        def __new__(
+            cls,
+            schema: ty.Any,
+            config: pydantic.ConfigDict | None = None,
+            **kwargs: ty.Any,
+        ) -> SchemaField[ty.Any]: ...
+
     def __init__(
         self,
-        schema: type[types.ST],
+        schema: type[types.ST] | ty.ForwardRef | str | ty.Any = None,
         config: pydantic.ConfigDict | None = None,
         **kwargs,
     ):
+        kwargs.pop("encoder", None)
+        kwargs.pop("decoder", None)
         deprecation.truncate_deprecated_v1_export_kwargs(kwargs)
         allow_null = kwargs.get("allow_null", False)
 
@@ -35,9 +69,8 @@ class SchemaField(fields.Field, ty.Generic[types.ST]):
         super().__init__(**kwargs)
 
     def bind(self, field_name: str, parent: BaseSerializer):
-        if not self.adapter.is_bound:
-            self.adapter.bind(type(parent), field_name)
         super().bind(field_name, parent)
+        bind_serializer_field(self, field_name, parent)
 
     def to_internal_value(self, data: ty.Any):
         try:
@@ -53,3 +86,6 @@ class SchemaField(fields.Field, ty.Generic[types.ST]):
             return self.adapter.dump_python(prep_value)
         except pydantic.ValidationError as exc:
             raise exceptions.ValidationError(ty.cast(ty.Any, exc.errors()), code="invalid")
+
+
+register_serializer_field()

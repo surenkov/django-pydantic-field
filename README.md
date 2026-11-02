@@ -23,6 +23,15 @@ It offers full support for Pydantic v1 and v2, type safety and integration with 
 pip install django-pydantic-field
 ```
 
+Add `"django_pydantic_field"` to `INSTALLED_APPS` in your `settings.py` to enable automatic integrations (such as Django REST Framework `ModelSerializer` field mapping and `drf-spectacular` OpenAPI extensions):
+
+```python
+INSTALLED_APPS = [
+    ...,
+    "django_pydantic_field",
+]
+```
+
 ## Basic Usage
 
 The `SchemaField` can be used by passing the schema as the first argument (Django-like style) or by using type annotations.
@@ -153,6 +162,8 @@ class MyModelAdmin(admin.ModelAdmin):
 
 ### Serializers
 
+`SchemaField` supports explicit schemas, serializer-level type annotations, and automatic resolution inside `ModelSerializer` (when `"django_pydantic_field"` is in `INSTALLED_APPS` or `django_pydantic_field.rest_framework` is imported):
+
 ```python
 from rest_framework import serializers
 from django_pydantic_field.rest_framework import SchemaField
@@ -160,6 +171,13 @@ from django_pydantic_field.rest_framework import SchemaField
 
 class MySerializer(serializers.Serializer):
     pydantic_field = SchemaField(Foo)
+    annotated_field: list[Foo] = SchemaField()
+
+
+class MyModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MyModel
+        fields = ("bar", "foo", "items", "optional_foo")
 ```
 
 ### Typed Views (Parsers & Renderers)

@@ -34,11 +34,45 @@ class _SchemaFieldKwargs(_FieldKwargs[ST], ExportKwargs, total=False):
 class _DeprecatedSchemaFieldKwargs(_FieldKwargs[ST], DeprecatedExportKwargs, total=False):
     pass
 
+_AnnotatedAlias: ty.TypeAlias = ty.Any
+
 class SchemaField(Field, ty.Generic[ST]):
+    @ty.overload
+    def __new__(
+        cls,
+        schema: type[ST],
+        config: ConfigType | None = ...,
+        *args: ty.Any,
+        **kwargs: te.Unpack[_SchemaFieldKwargs[ST]],
+    ) -> SchemaField[ST]: ...
+    @ty.overload
+    def __new__(
+        cls,
+        schema: ty.ForwardRef | str,
+        config: ConfigType | None = ...,
+        *args: ty.Any,
+        **kwargs: te.Unpack[_SchemaFieldKwargs[ty.Any]],
+    ) -> SchemaField[ty.Any]: ...
+    @ty.overload
+    def __new__(
+        cls,
+        schema: None = None,
+        config: ConfigType | None = ...,
+        *args: ty.Any,
+        **kwargs: te.Unpack[_SchemaFieldKwargs[ty.Any]],
+    ) -> ty.Any: ...
+    @ty.overload
+    def __new__(
+        cls,
+        schema: _AnnotatedAlias,
+        config: ConfigType | None = ...,
+        *args: ty.Any,
+        **kwargs: te.Unpack[_SchemaFieldKwargs[ty.Any]],
+    ) -> SchemaField[ty.Any]: ...
     @ty.overload
     def __init__(
         self,
-        schema: ty.Type[ST] | ty.ForwardRef | str,
+        schema: ty.Type[ST] | ty.ForwardRef | str | _AnnotatedAlias | None = None,
         config: ConfigType | None = ...,
         *args,
         **kwargs: te.Unpack[_SchemaFieldKwargs[ST]],
@@ -49,7 +83,7 @@ class SchemaField(Field, ty.Generic[ST]):
     )
     def __init__(
         self,
-        schema: ty.Type[ST] | ty.ForwardRef | str,
+        schema: ty.Type[ST] | ty.ForwardRef | str | _AnnotatedAlias | None = None,
         config: ConfigType | None = ...,
         *args,
         **kwargs: te.Unpack[_DeprecatedSchemaFieldKwargs[ST]],
