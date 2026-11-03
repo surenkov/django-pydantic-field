@@ -107,6 +107,24 @@ class DeferredFoo(pydantic.BaseModel):
     ...
 ```
 
+### Error Handling & Schema Evolution
+
+By default, `SchemaField` validates data strictly when reading from the database or assigning attributes (`errors="raise"`). When schemas evolve or legacy rows contain invalid data, you can configure how validation errors are handled via the `errors` argument:
+
+- `"raise"` (default): Raises `django.core.exceptions.ValidationError` on invalid data.
+- `"ignore"`: Returns the raw unvalidated value (e.g., `dict` or `list`) when validation fails, allowing models to be queried, updated, or deleted without crashing.
+- `"coerce"`: Falls back to the field's `default` value, or `None` if `null=True` (raises `ValidationError` if neither is configured).
+
+```python
+class EvolvingModel(models.Model):
+    # Keep raw data in-place if existing database rows do not match Foo
+    legacy_foo: Foo = SchemaField(errors="ignore")
+
+    # Fall back to default value or None on validation failure
+    fallback_foo: Foo = SchemaField(default=Foo(count=0), errors="coerce")
+    nullable_foo: Foo | None = SchemaField(null=True, errors="coerce")
+```
+
 ## Pydantic Version Support
 
 The package automatically detects the Pydantic version in your environment and adapts accordingly.
@@ -225,6 +243,7 @@ The field performs validation during Django's `manage.py check` command:
 - `pydantic.E001`: Schema resolution errors.
 - `pydantic.E002`: Default value serialization errors.
 - `pydantic.W003`: Data integrity warnings for `include`/`exclude` configurations.
+- `pydantic.W004`: Warning when `errors="coerce"` is set on a non-nullable field without a default value.
 
 ## Contributing
 To get `django-pydantic-field` up and running in development mode:
