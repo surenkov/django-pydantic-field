@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import typing as ty
 
 from django.core import checks, exceptions
@@ -19,6 +20,8 @@ from django_pydantic_field.types import SchemaAdapterResolver
 from . import types
 
 __all__ = ("PydanticDjangoJSONEncoder", "PydanticSchemaField", "SchemaField")
+
+_VALIDATION_EXCEPTIONS = (*ValidationErrorsTuple, ValueError, TypeError)
 
 
 class PydanticDjangoJSONEncoder(DjangoJSONEncoder):
@@ -60,8 +63,14 @@ class UninitializedSchemaAttribute(SchemaAttribute[types.ST]):
 
 class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
     adapter: types.BaseSchemaAdapter[types.ST]
+    errors: types.ErrorHandlingMode
 
     def __init__(self, schema=None, config=None, *args, **kwargs):
+        errors: types.ErrorHandlingMode = kwargs.pop("errors", "raise")
+        if errors not in types.VALID_ERROR_MODES:
+            raise ValueError(f"Invalid error handling mode {errors!r}. Expected one of {types.VALID_ERROR_MODES!r}.")
+        self.errors = errors
+
         encoder = kwargs.pop("encoder", None)
         if encoder is None or encoder is DjangoJSONEncoder:
             encoder = PydanticDjangoJSONEncoder
@@ -95,6 +104,8 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
 
         prep_schema = GenericContainer.wrap(self.adapter.prepared_schema)
         kwargs.update(schema=prep_schema, config=self.config, **self.export_kwargs)
+        if self.errors != "raise":
+            kwargs["errors"] = self.errors
 
         return field_name, import_path, args, kwargs
 
@@ -139,22 +150,64 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
                     hint = "Please review `import` and `export` arguments."
                     performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.W003"))
 
+        if self.errors == "coerce" and not self.null and not self.has_default():
+            message = (
+                "Coercing errors on a non-nullable field without a default value will still raise ValidationError."
+            )
+            hint = "Set `null=True` or provide a `default` value when using `errors='coerce'`."
+            performed_checks.append(checks.Warning(message, obj=self, hint=hint, id="pydantic.W004"))
+
         return performed_checks
 
     def validate(self, value: ty.Any, model_instance: ty.Any) -> None:
-        value = self.adapter.validate_python(value)
+        value = self.to_python(value)
         return super(JSONField, self).validate(value, model_instance)
 
     def to_python(self, value: ty.Any):
-        try:
-            value = self.adapter.validate_json(value)
-        except ValueError:
-            """This is an expected error, this step is required to parse serialized values."""
+        if isinstance(value, (str, bytes, bytearray)):
+            try:
+                return self.adapter.validate_json(value)
+            except _VALIDATION_EXCEPTIONS as json_exc:
+                try:
+                    return self.adapter.validate_python(value)
+                except _VALIDATION_EXCEPTIONS as py_exc:
+                    return self._resolve_validation_error(value, json_exc, py_exc=py_exc)
 
         try:
             return self.adapter.validate_python(value)
-        except ValidationErrorsTuple as exc:
-            raise exceptions.ValidationError(str(exc), code="invalid") from exc
+        except _VALIDATION_EXCEPTIONS as exc:
+            return self._resolve_validation_error(value, exc)
+
+    def _resolve_validation_error(
+        self,
+        value: ty.Any,
+        exc: Exception,
+        *,
+        py_exc: Exception | None = None,
+    ) -> ty.Any:
+        if py_exc is not None:
+            try:
+                value = json.loads(value, cls=self.decoder)
+            except ValueError:
+                exc = py_exc
+
+        if self.errors == "ignore":
+            return value
+
+        if self.errors == "coerce":
+            if self.has_default():
+                try:
+                    return self.get_default()
+                except _VALIDATION_EXCEPTIONS:
+                    pass
+            if self.null:
+                return None
+
+        error_params = {
+            "errors": exc.errors() if isinstance(exc, ValidationErrorsTuple) else [],
+            "field": self,
+        }
+        raise exceptions.ValidationError(str(exc), code="invalid", params=error_params) from exc
 
     def from_db_value(self, value, expression, connection):
         if value is None:
@@ -163,10 +216,7 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
         if isinstance(expression, KeyTransform):
             return super().from_db_value(value, expression, connection)
 
-        try:
-            return self.adapter.validate_json(value)
-        except ValueError:
-            return super().from_db_value(value, expression, connection)
+        return self.to_python(value)
 
     def get_prep_value(self, value: ty.Any):
         value = self._prepare_raw_value(value)

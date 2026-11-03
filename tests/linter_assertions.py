@@ -91,6 +91,15 @@ class LinterTestModel(models.Model):
     default_val: SimpleSchema = SchemaField(default=SimpleSchema(count=42))
     default_callable: SimpleSchema = SchemaField(default=lambda: SimpleSchema(count=42))
 
+    # Error handling mode support
+    errors_ignore: SimpleSchema = SchemaField(errors="ignore")
+    errors_coerce: SimpleSchema = SchemaField(default=SimpleSchema(count=42), errors="coerce")
+    errors_ignore_no_annotation = SchemaField(SimpleSchema, errors="ignore")
+    errors_coerce_nullable = SchemaField(SimpleSchema, null=True, errors="coerce")
+    errors_v1_ignore = SchemaFieldV1(SimpleSchema, errors="ignore")
+    errors_v2_coerce = SchemaFieldV2(SimpleSchema, null=True, errors="coerce")
+    direct_psf_errors = PydanticSchemaField(SimpleSchema, errors="ignore")
+
 
 def linter_test_model_assertions(model: LinterTestModel):
     te.assert_type(model.simple, SimpleSchema)
@@ -124,6 +133,14 @@ def linter_test_model_assertions(model: LinterTestModel):
     te.assert_type(model.subclassed_psf_nullable, SimpleSchema | None)
     te.assert_type(model.subclassed_psf_v1_nullable, SimpleSchema | None)
     te.assert_type(model.subclassed_psf_v2_nullable, SimpleSchema | None)
+
+    te.assert_type(model.errors_ignore, SimpleSchema)
+    te.assert_type(model.errors_coerce, SimpleSchema)
+    te.assert_type(model.errors_ignore_no_annotation, SimpleSchema)
+    te.assert_type(model.errors_coerce_nullable, SimpleSchema | None)
+    te.assert_type(model.errors_v1_ignore, SimpleSchema)
+    te.assert_type(model.errors_v2_coerce, SimpleSchema | None)
+    te.assert_type(model.direct_psf_errors, SimpleSchema)
 
 
 from rest_framework import serializers  # noqa: E402

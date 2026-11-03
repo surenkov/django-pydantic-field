@@ -10,7 +10,7 @@ import typing_extensions as te
 
 from django_pydantic_field.types import ST, BaseSchemaAdapter, SchemaAdapterResolver
 from django_pydantic_field.v1 import schema_utils
-from django_pydantic_field.v1.compat import pydantic_v1
+from django_pydantic_field.v1.compat import pydantic_encoder, pydantic_v1
 
 
 class ExportKwargs(te.TypedDict, total=False):
@@ -63,9 +63,13 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         if exclude_fields is not None:
             dict_kwargs["exclude"] = {"__root__": dict_kwargs["exclude"]}
 
-        model_instance = self.wrapped_schema.parse_obj(value)
         if mode == "json":
-            return json.loads(model_instance.json(**dict_kwargs))
+            return json.loads(self._dump_raw_json(value, dict_kwargs))
+
+        try:
+            model_instance = self.wrapped_schema.parse_obj(value)
+        except pydantic_v1.ValidationError:
+            return value
 
         return model_instance.dict(**dict_kwargs)["__root__"]
 
@@ -78,8 +82,14 @@ class SchemaAdapter(BaseSchemaAdapter[ST]):
         if "exclude" in json_kwargs and json_kwargs["exclude"] is not None:
             json_kwargs["exclude"] = {"__root__": json_kwargs["exclude"]}
 
-        model_instance = self.wrapped_schema.parse_obj(value)
-        return model_instance.json(**json_kwargs).encode()
+        return self._dump_raw_json(value, json_kwargs).encode()
+
+    def _dump_raw_json(self, value: ty.Any, export_kwargs: ty.Mapping[str, ty.Any]) -> str:
+        try:
+            model_instance = self.wrapped_schema.parse_obj(value)
+        except pydantic_v1.ValidationError:
+            return json.dumps(value, default=pydantic_encoder)
+        return model_instance.json(**export_kwargs)
 
     def json_schema(self) -> dict[str, ty.Any]:
         by_alias = self.export_kwargs.get("by_alias", True)
