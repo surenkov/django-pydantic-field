@@ -6,7 +6,10 @@ from datetime import date
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import connection, models
-from django.db.models import Value
+from django.db.models import ExpressionWrapper, F, OuterRef, Subquery, Value
+from django.db.models.expressions import RawSQL
+from django.db.models.fields.json import KeyTransform
+from django.db.models.functions import Cast, JSONObject
 from django.db.models.signals import pre_delete
 from django.test.utils import isolate_apps
 
@@ -26,33 +29,34 @@ V1_SKIP = pytest.mark.skipif(
 )
 
 
+FIELD_SCHEMA_PARAMS = pytest.mark.parametrize(
+    "field_cls, schema_cls",
+    [
+        (fields.SchemaField, InnerSchema),
+        pytest.param(fields_v1.SchemaField, InnerSchemaV1, marks=V1_SKIP),
+    ],
+)
+
+QUERY_ANNOTATION_PARAMS = pytest.mark.parametrize(
+    "model_cls, field_cls, schema_cls",
+    [
+        (SampleModel, fields.SchemaField, InnerSchema),
+        pytest.param(SampleModelV1, fields_v1.SchemaField, InnerSchemaV1, marks=V1_SKIP),
+    ],
+)
+
+
 def _insert_raw_sample_row(
-    model_or_table: ty.Any,
+    model_cls: type[models.Model],
     sample_field_data: ty.Any,
     sample_list_data: ty.Any = None,
 ) -> int:
-    if isinstance(model_or_table, type) and issubclass(model_or_table, models.Model):
-        model_cls = model_or_table
-    elif "v1" in str(model_or_table).lower():
-        model_cls = SampleModelV1
-    else:
-        model_cls = SampleModel
-
-    if isinstance(sample_field_data, (str, bytes, bytearray)):
-        try:
-            sample_field_data = json.loads(sample_field_data)
-        except (ValueError, TypeError):
-            pass
-
-    if isinstance(sample_list_data, (str, bytes, bytearray)):
-        try:
-            sample_list_data = json.loads(sample_list_data)
-        except (ValueError, TypeError):
-            pass
-
     field = model_cls._meta.get_field("sample_field")
+    list_field = model_cls._meta.get_field("sample_list")
     original_errors = field.errors
+    original_list_errors = list_field.errors
     field.errors = "ignore"
+    list_field.errors = "ignore"
     try:
         instance = model_cls.objects.create(
             sample_field=sample_field_data,
@@ -62,6 +66,17 @@ def _insert_raw_sample_row(
         return instance.pk
     finally:
         field.errors = original_errors
+        list_field.errors = original_list_errors
+
+
+def _assert_annotated_queryset(qs: models.QuerySet, expected: dict[str, ty.Any]) -> None:
+    obj = qs.get()
+    for name, expected_val in expected.items():
+        assert getattr(obj, name) == expected_val
+
+    assert qs.values(*expected.keys()).get() == expected
+    for name, expected_val in expected.items():
+        assert qs.values_list(name, flat=True).get() == expected_val
 
 
 # ============================================================================
@@ -107,7 +122,7 @@ def test_system_check_w004_on_coerce_without_fallback():
 @isolate_apps("tests.test_app")
 def test_system_check_no_w004_when_nullable_or_default():
     class ValidCoerceModel(models.Model):
-        nullable_field: ty.Optional[InnerSchema] = SchemaField(null=True, errors="coerce")
+        nullable_field: InnerSchema | None = SchemaField(null=True, errors="coerce")
         default_field: InnerSchema = SchemaField(
             default=lambda: InnerSchema(stub_str="default", stub_list=[]),
             errors="coerce",
@@ -125,13 +140,7 @@ def test_system_check_no_w004_when_nullable_or_default():
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "field_cls, schema_cls",
-    [
-        (fields.SchemaField, InnerSchema),
-        pytest.param(fields_v1.SchemaField, InnerSchemaV1, marks=V1_SKIP),
-    ],
-)
+@FIELD_SCHEMA_PARAMS
 def test_errors_raise_to_python_and_validate(field_cls, schema_cls):
     field = field_cls(schema=schema_cls, errors="raise")
 
@@ -162,8 +171,8 @@ def test_errors_raise_to_python_and_validate(field_cls, schema_cls):
 
 def test_errors_raise_on_corrupted_db_row_and_annotations():
     pk = _insert_raw_sample_row(
-        SampleModel._meta.db_table,
-        json.dumps({"stub_str": "corrupted_no_list"}),
+        SampleModel,
+        {"stub_str": "corrupted_no_list"},
     )
 
     # Fetching model instance raises ValidationError
@@ -203,13 +212,7 @@ def test_string_schema_handles_plain_and_json_strings():
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "field_cls, schema_cls",
-    [
-        (fields.SchemaField, InnerSchema),
-        pytest.param(fields_v1.SchemaField, InnerSchemaV1, marks=V1_SKIP),
-    ],
-)
+@FIELD_SCHEMA_PARAMS
 def test_errors_ignore_to_python_and_prep_value(field_cls, schema_cls):
     field = field_cls(schema=schema_cls, errors="ignore")
 
@@ -241,8 +244,8 @@ def test_errors_ignore_orm_lifecycle_and_signal_deletion(model_cls, monkeypatch)
     monkeypatch.setattr(field, "errors", "ignore")
 
     pk = _insert_raw_sample_row(
-        model_cls._meta.db_table,
-        json.dumps({"stub_str": "legacy_enum_value", "stub_list": "not-a-list"}),
+        model_cls,
+        {"stub_str": "legacy_enum_value", "stub_list": "not-a-list"},
     )
 
     # 1. Load corrupted instance without crashing
@@ -262,8 +265,8 @@ def test_errors_ignore_orm_lifecycle_and_signal_deletion(model_cls, monkeypatch)
 
     # 4. Insert another corrupted row and verify queryset.delete() works even with pre_delete signal
     corrupted_pk = _insert_raw_sample_row(
-        model_cls._meta.db_table,
-        json.dumps({"broken": True}),
+        model_cls,
+        {"broken": True},
     )
     deleted_snapshots = []
 
@@ -301,13 +304,7 @@ def test_errors_ignore_annotation():
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-    "field_cls, schema_cls",
-    [
-        (fields.SchemaField, InnerSchema),
-        pytest.param(fields_v1.SchemaField, InnerSchemaV1, marks=V1_SKIP),
-    ],
-)
+@FIELD_SCHEMA_PARAMS
 def test_errors_coerce_with_callable_and_static_default(field_cls, schema_cls):
     default_instance = schema_cls(stub_str="fallback", stub_list=[date(2020, 1, 1)])
 
@@ -328,13 +325,7 @@ def test_errors_coerce_with_callable_and_static_default(field_cls, schema_cls):
     assert field_static.to_python('{"invalid": "data"}') == expected_static
 
 
-@pytest.mark.parametrize(
-    "field_cls, schema_cls",
-    [
-        (fields.SchemaField, InnerSchema),
-        pytest.param(fields_v1.SchemaField, InnerSchemaV1, marks=V1_SKIP),
-    ],
-)
+@FIELD_SCHEMA_PARAMS
 def test_errors_coerce_with_nullable_no_default(field_cls, schema_cls):
     field_nullable = field_cls(
         schema=schema_cls,
@@ -369,21 +360,15 @@ def test_errors_coerce_orm_db_hydration(monkeypatch):
     monkeypatch.setattr(field, "default", lambda: fallback)
 
     pk = _insert_raw_sample_row(
-        SampleModel._meta.db_table,
-        json.dumps({"corrupted": 123}),
+        SampleModel,
+        {"corrupted": 123},
     )
 
     instance = SampleModel.objects.get(pk=pk)
     assert instance.sample_field == fallback
 
 
-@pytest.mark.parametrize(
-    "field_cls, schema_cls",
-    [
-        (fields.SchemaField, InnerSchema),
-        pytest.param(fields_v1.SchemaField, InnerSchemaV1, marks=V1_SKIP),
-    ],
-)
+@FIELD_SCHEMA_PARAMS
 def test_from_db_value_with_predecoded_python_objects(field_cls, schema_cls):
     """Simulate database drivers (e.g. psycopg on PostgreSQL) that pass decoded dicts/lists to from_db_value."""
     raw_invalid_dict = {"stub_str": "from_driver", "stub_list": "not_a_list"}
@@ -408,13 +393,7 @@ def test_from_db_value_with_predecoded_python_objects(field_cls, schema_cls):
     assert field_coerce.from_db_value(raw_invalid_dict, None, connection) == fallback
 
 
-@pytest.mark.parametrize(
-    "field_cls, schema_cls",
-    [
-        (fields.SchemaField, InnerSchema),
-        pytest.param(fields_v1.SchemaField, InnerSchemaV1, marks=V1_SKIP),
-    ],
-)
+@FIELD_SCHEMA_PARAMS
 def test_errors_coerce_with_broken_callable_default(field_cls, schema_cls):
     """Verify fallback when a callable default itself fails validation under errors='coerce'."""
     broken_nullable = field_cls(
@@ -434,3 +413,202 @@ def test_errors_coerce_with_broken_callable_default(field_cls, schema_cls):
     with pytest.raises(ValidationError) as exc_info:
         broken_nonnull.to_python('{"invalid": "input"}')
     assert exc_info.value.code == "invalid"
+
+
+# ============================================================================
+# 5. Query Annotations, Expressions & KeyTransforms (Issue #80)
+# ============================================================================
+
+
+@QUERY_ANNOTATION_PARAMS
+def test_valid_query_annotations_hydrate_to_schema(model_cls, field_cls, schema_cls):
+    item = schema_cls(stub_str="item0", stub_int=7, stub_list=[date(2023, 2, 2)])
+    instance = model_cls.objects.create(
+        sample_field=schema_cls(stub_str="root", stub_int=1, stub_list=[date(2023, 1, 1)]),
+        sample_list=[item],
+    )
+    valid_json = json.dumps({"stub_str": "from_sql", "stub_int": 3, "stub_list": ["2023-03-03"]})
+    expected_from_sql = schema_cls(stub_str="from_sql", stub_int=3, stub_list=[date(2023, 3, 3)])
+    expected_from_val = schema_cls(stub_str="from_val", stub_int=2, stub_list=[date(2023, 4, 4)])
+    expected_from_json_obj = schema_cls(stub_str="from_json_obj", stub_int=5, stub_list=[date(2023, 1, 1)])
+
+    qs = model_cls.objects.filter(pk=instance.pk).annotate(
+        ann_value=Value(
+            {"stub_str": "from_val", "stub_int": 2, "stub_list": ["2023-04-04"]},
+            output_field=field_cls(schema_cls),
+        ),
+        ann_raw_sql=RawSQL(
+            "%s",
+            (valid_json,),
+            output_field=field_cls(schema_cls),
+        ),
+        ann_json_obj=ExpressionWrapper(
+            JSONObject(
+                stub_str=Value("from_json_obj"),
+                stub_int=Value(5),
+                stub_list=F("sample_field__stub_list"),
+            ),
+            output_field=field_cls(schema_cls),
+        ),
+        ann_cast=Cast("sample_list__0", output_field=field_cls(schema_cls)),
+        ann_wrapper=ExpressionWrapper(F("sample_list__0"), output_field=field_cls(schema_cls)),
+        ann_key_transform=KeyTransform("0", "sample_list", output_field=field_cls(schema_cls)),
+        ann_subquery=Subquery(
+            model_cls.objects.filter(pk=OuterRef("pk")).values("sample_list__0")[:1],
+            output_field=field_cls(schema_cls),
+        ),
+    )
+
+    _assert_annotated_queryset(
+        qs,
+        {
+            "ann_value": expected_from_val,
+            "ann_raw_sql": expected_from_sql,
+            "ann_json_obj": expected_from_json_obj,
+            "ann_cast": item,
+            "ann_wrapper": item,
+            "ann_key_transform": item,
+            "ann_subquery": item,
+        },
+    )
+
+
+@QUERY_ANNOTATION_PARAMS
+def test_malformed_query_annotations_raise_by_default(model_cls, field_cls, schema_cls):
+    pk = _insert_raw_sample_row(
+        model_cls,
+        sample_field_data={"stub_str": "ok", "stub_int": 1, "stub_list": ["2023-01-01"]},
+        sample_list_data=[{"stub_str": "bad_elem_missing_list"}],
+    )
+    invalid_json = json.dumps({"stub_str": "missing_stub_list"})
+
+    expressions = [
+        Value({"stub_str": "missing_stub_list"}, output_field=field_cls(schema_cls)),
+        RawSQL("%s", (invalid_json,), output_field=field_cls(schema_cls)),
+        ExpressionWrapper(
+            JSONObject(stub_str=Value("missing_stub_list")),
+            output_field=field_cls(schema_cls),
+        ),
+        Cast("sample_list__0", output_field=field_cls(schema_cls)),
+        ExpressionWrapper(F("sample_list__0"), output_field=field_cls(schema_cls)),
+        KeyTransform("0", "sample_list", output_field=field_cls(schema_cls)),
+        Subquery(
+            model_cls.objects.filter(pk=OuterRef("pk")).values("sample_list__0")[:1],
+            output_field=field_cls(schema_cls),
+        ),
+    ]
+
+    base_qs = model_cls.objects.filter(pk=pk).only("id")
+    for expr in expressions:
+        qs = base_qs.annotate(bad_ann=expr)
+        with pytest.raises(ValidationError):
+            list(qs)
+        with pytest.raises(ValidationError):
+            list(qs.values("bad_ann"))
+        with pytest.raises(ValidationError):
+            list(qs.values_list("bad_ann", flat=True))
+
+
+@QUERY_ANNOTATION_PARAMS
+def test_malformed_query_annotations_ignore_and_coerce(model_cls, field_cls, schema_cls):
+    pk = _insert_raw_sample_row(
+        model_cls,
+        sample_field_data={"stub_str": "ok", "stub_int": 1, "stub_list": ["2023-01-01"]},
+        sample_list_data=[{"stub_str": "bad_elem_missing_list"}],
+    )
+    invalid_payload = {"stub_str": "bad_elem_missing_list"}
+    invalid_json = json.dumps(invalid_payload)
+    fallback = schema_cls(stub_str="coerced_ann", stub_list=[date(2020, 1, 1)])
+
+    qs = (
+        model_cls.objects.filter(pk=pk)
+        .only("id")
+        .annotate(
+            ignore_json_obj=ExpressionWrapper(
+                JSONObject(stub_str=Value("bad_elem_missing_list")),
+                output_field=field_cls(schema_cls, errors="ignore"),
+            ),
+            ignore_raw_sql=RawSQL(
+                "%s",
+                (invalid_json,),
+                output_field=field_cls(schema_cls, errors="ignore"),
+            ),
+            ignore_key_transform=KeyTransform(
+                "0",
+                "sample_list",
+                output_field=field_cls(schema_cls, errors="ignore"),
+            ),
+            coerce_val=Value(
+                invalid_payload,
+                output_field=field_cls(schema_cls, errors="coerce", default=lambda: fallback),
+            ),
+            coerce_json_obj=ExpressionWrapper(
+                JSONObject(stub_str=Value("bad_elem_missing_list")),
+                output_field=field_cls(schema_cls, errors="coerce", default=lambda: fallback),
+            ),
+            coerce_raw_sql=RawSQL(
+                "%s",
+                (invalid_json,),
+                output_field=field_cls(schema_cls, errors="coerce", default=lambda: fallback),
+            ),
+            coerce_key_transform=KeyTransform(
+                "0",
+                "sample_list",
+                output_field=field_cls(schema_cls, errors="coerce", default=lambda: fallback),
+            ),
+            coerce_null=KeyTransform(
+                "0",
+                "sample_list",
+                output_field=field_cls(schema_cls, errors="coerce", null=True),
+            ),
+        )
+    )
+
+    _assert_annotated_queryset(
+        qs,
+        {
+            "ignore_json_obj": invalid_payload,
+            "ignore_raw_sql": invalid_payload,
+            "ignore_key_transform": invalid_payload,
+            "coerce_val": fallback,
+            "coerce_json_obj": fallback,
+            "coerce_raw_sql": fallback,
+            "coerce_key_transform": fallback,
+            "coerce_null": None,
+        },
+    )
+
+
+@QUERY_ANNOTATION_PARAMS
+def test_implicit_key_transforms_bypass_parent_schema_validation(model_cls, field_cls, schema_cls):
+    instance = model_cls.objects.create(
+        sample_field=schema_cls(stub_str="hello", stub_int=42, stub_list=[date(2023, 5, 5)]),
+        sample_list=[schema_cls(stub_str="elem0", stub_int=9, stub_list=[date(2023, 6, 6)])],
+    )
+    expected_elem_dict = {"stub_str": "elem0", "stub_int": 9, "stub_list": ["2023-06-06"]}
+
+    values_row = (
+        model_cls.objects.filter(pk=instance.pk)
+        .values("sample_field__stub_str", "sample_field__stub_int", "sample_list__0")
+        .get()
+    )
+    assert values_row == {
+        "sample_field__stub_str": "hello",
+        "sample_field__stub_int": 42,
+        "sample_list__0": expected_elem_dict,
+    }
+
+    qs = model_cls.objects.filter(pk=instance.pk).annotate(
+        extracted_str=F("sample_field__stub_str"),
+        extracted_elem=KeyTransform("0", "sample_list"),
+        annotated_schema=Value(
+            {"stub_str": "from_ann", "stub_int": 11, "stub_list": ["2023-07-07"]},
+            output_field=field_cls(schema_cls),
+        ),
+        chained_from_ann=KeyTransform("stub_str", "annotated_schema"),
+    )
+    obj = qs.get()
+    assert obj.extracted_str == "hello"
+    assert obj.extracted_elem == expected_elem_dict
+    assert obj.annotated_schema == schema_cls(stub_str="from_ann", stub_int=11, stub_list=[date(2023, 7, 7)])
+    assert obj.chained_from_ann == "from_ann"
