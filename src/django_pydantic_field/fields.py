@@ -213,7 +213,9 @@ class PydanticSchemaField(JSONField, SchemaAdapterResolver[types.ST]):
         if value is None:
             return value
 
-        if isinstance(expression, KeyTransform):
+        if isinstance(expression, KeyTransform) and (
+            expression.output_field is getattr(expression.lhs, "_output_field_or_none", None)
+        ):
             return super().from_db_value(value, expression, connection)
 
         return self.to_python(value)
