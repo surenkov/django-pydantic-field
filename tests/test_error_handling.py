@@ -26,15 +26,42 @@ V1_SKIP = pytest.mark.skipif(
 )
 
 
-def _insert_raw_sample_row(table_name: str, sample_field_json: str, sample_list_json: str = "[]") -> int:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            f"INSERT INTO {table_name} (sample_field, sample_list, sample_seq) VALUES (%s, %s, %s)",
-            [sample_field_json, sample_list_json, "[]"],
+def _insert_raw_sample_row(
+    model_or_table: ty.Any,
+    sample_field_data: ty.Any,
+    sample_list_data: ty.Any = None,
+) -> int:
+    if isinstance(model_or_table, type) and issubclass(model_or_table, models.Model):
+        model_cls = model_or_table
+    elif "v1" in str(model_or_table).lower():
+        model_cls = SampleModelV1
+    else:
+        model_cls = SampleModel
+
+    if isinstance(sample_field_data, (str, bytes, bytearray)):
+        try:
+            sample_field_data = json.loads(sample_field_data)
+        except (ValueError, TypeError):
+            pass
+
+    if isinstance(sample_list_data, (str, bytes, bytearray)):
+        try:
+            sample_list_data = json.loads(sample_list_data)
+        except (ValueError, TypeError):
+            pass
+
+    field = model_cls._meta.get_field("sample_field")
+    original_errors = field.errors
+    field.errors = "ignore"
+    try:
+        instance = model_cls.objects.create(
+            sample_field=sample_field_data,
+            sample_list=sample_list_data if sample_list_data is not None else [],
+            sample_seq=[],
         )
-        if hasattr(cursor, "lastrowid") and cursor.lastrowid:
-            return cursor.lastrowid
-    return SampleModel.objects.order_by("-pk").values_list("pk", flat=True).first()
+        return instance.pk
+    finally:
+        field.errors = original_errors
 
 
 # ============================================================================
