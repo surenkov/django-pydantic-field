@@ -26,6 +26,7 @@ class SchemaAttribute(ty.Generic[types.ST]):
     def __get__(self, instance: ty.Any, owner: ty.Any) -> types.ST: ...
 
 class PydanticSchemaField(JSONField[_SchemaT, _SchemaT]):
+    errors: types.ErrorHandlingMode
     def __set__(self, instance: ty.Any, value: _SchemaT) -> None: ...
     @ty.overload
     def __get__(self, instance: None, owner: ty.Any) -> SchemaAttribute[_SchemaT]: ...
@@ -38,6 +39,7 @@ class PydanticSchemaField(JSONField[_SchemaT, _SchemaT]):
         config: types.ConfigType | None = ...,
         *args: ty.Any,
         null: ty.Literal[True],
+        errors: types.ErrorHandlingMode = ...,
         **kwargs: ty.Any,
     ) -> None: ...
     @ty.overload
@@ -46,6 +48,7 @@ class PydanticSchemaField(JSONField[_SchemaT, _SchemaT]):
         schema: type[types.ST],
         config: types.ConfigType | None = ...,
         *args: ty.Any,
+        errors: types.ErrorHandlingMode = ...,
         **kwargs: ty.Any,
     ) -> None: ...
     @ty.overload
@@ -56,6 +59,7 @@ class PydanticSchemaField(JSONField[_SchemaT, _SchemaT]):
         # fmt: on
         config: types.ConfigType | None = ...,
         *args: ty.Any,
+        errors: types.ErrorHandlingMode = ...,
         **kwargs: ty.Any,
     ) -> None: ...
 
@@ -66,6 +70,7 @@ def SchemaField(
     default: ty.Callable[[], _DT] | ty.Callable[[], _DT | None] | _DT | None | BaseExpression = ...,
     *args: ty.Any,
     null: ty.Literal[True],
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> PydanticSchemaField[types.ST | None]: ...
 @ty.overload
@@ -74,6 +79,7 @@ def SchemaField(
     config: types.ConfigType = ...,
     default: ty.Callable[[], _DT] | _DT | BaseExpression = ...,
     *args: ty.Any,
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> PydanticSchemaField[types.ST]: ...
 @ty.overload
@@ -82,6 +88,7 @@ def SchemaField(
     config: types.ConfigType = ...,
     default: ty.Callable[[], _DT] | _DT | BaseExpression = ...,
     *args: ty.Any,
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> ty.Any: ...
 @ty.overload
@@ -90,6 +97,7 @@ def SchemaField(
     config: types.ConfigType = ...,
     default: ty.Callable[[], _DT] | _DT | BaseExpression = ...,
     *args: ty.Any,
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> ty.Any: ...
 @ty.overload
@@ -98,5 +106,6 @@ def SchemaField(
     config: types.ConfigType = ...,
     default: ty.Callable[[], _DT] | _DT | BaseExpression = ...,
     *args: ty.Any,
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> ty.Any: ...

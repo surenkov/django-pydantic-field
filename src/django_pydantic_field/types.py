@@ -29,6 +29,8 @@ if ty.TYPE_CHECKING:
 
 
 ST = ty.TypeVar("ST")
+ErrorHandlingMode: te.TypeAlias = ty.Literal["raise", "ignore", "coerce"]
+VALID_ERROR_MODES: tuple[ErrorHandlingMode, ...] = ("raise", "ignore", "coerce")
 
 
 class ImproperlyConfiguredSchema(ValueError):
@@ -234,5 +236,6 @@ __all__ = (
     "BaseSchemaAdapter",
     "ConfigType",
     "DjangoModelType",
+    "ErrorHandlingMode",
     "ImproperlyConfiguredSchema",
 )

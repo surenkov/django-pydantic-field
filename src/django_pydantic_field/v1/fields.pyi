@@ -13,6 +13,7 @@ __all__ = ("PydanticDjangoJSONEncoder", "PydanticSchemaField", "SchemaField")
 _SchemaT = ty.TypeVar("_SchemaT")
 
 class PydanticSchemaField(_PydanticSchemaField[_SchemaT]):
+    errors: types.ErrorHandlingMode
     @ty.overload
     def __init__(
         self: PydanticSchemaField[types.ST | None],
@@ -20,6 +21,7 @@ class PydanticSchemaField(_PydanticSchemaField[_SchemaT]):
         config: types.ConfigType = None,
         *args: ty.Any,
         null: ty.Literal[True],
+        errors: types.ErrorHandlingMode = ...,
         **kwargs: ty.Any,
     ) -> None: ...
     @ty.overload
@@ -28,6 +30,7 @@ class PydanticSchemaField(_PydanticSchemaField[_SchemaT]):
         schema: type[types.ST],
         config: types.ConfigType = None,
         *args: ty.Any,
+        errors: types.ErrorHandlingMode = ...,
         **kwargs: ty.Any,
     ) -> None: ...
     @ty.overload
@@ -36,6 +39,7 @@ class PydanticSchemaField(_PydanticSchemaField[_SchemaT]):
         schema: ty.ForwardRef | str | None = None,
         config: types.ConfigType = None,
         *args: ty.Any,
+        errors: types.ErrorHandlingMode = ...,
         **kwargs: ty.Any,
     ) -> None: ...
 
@@ -46,6 +50,7 @@ def SchemaField(
     default: ty.Callable[[], types.ST] | types.ST | ty.Any = ...,
     *args: ty.Any,
     null: ty.Literal[True],
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> PydanticSchemaField[types.ST | None]: ...
 @ty.overload
@@ -54,6 +59,7 @@ def SchemaField(
     config: types.ConfigType = None,
     default: ty.Callable[[], types.ST] | types.ST | ty.Any = ...,
     *args: ty.Any,
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> PydanticSchemaField[types.ST]: ...
 @ty.overload
@@ -61,6 +67,7 @@ def SchemaField(
     schema: ty.ForwardRef | str,
     config: types.ConfigType = None,
     *args: ty.Any,
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> ty.Any: ...
 @ty.overload
@@ -68,5 +75,6 @@ def SchemaField(
     schema: None = None,
     config: types.ConfigType = None,
     *args: ty.Any,
+    errors: types.ErrorHandlingMode = ...,
     **kwargs: ty.Any,
 ) -> ty.Any: ...
