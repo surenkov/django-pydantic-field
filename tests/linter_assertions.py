@@ -53,6 +53,8 @@ class LinterTestModel(models.Model):
     builtin_dict: dict[str, int] = SchemaField()
     generic_int_no_annotation = SchemaField(GenericSchema[int])
     builtin_dict_no_annotation = SchemaField(dict[str, int])
+    builtin_int_float_dict: dict[int, float] = SchemaField()
+    builtin_int_float_dict_no_annotation = SchemaField(dict[int, float])
 
     # Explicit Version Fields
     v1_field: SimpleSchema = SchemaFieldV1()
@@ -107,6 +109,12 @@ def linter_test_model_assertions(model: LinterTestModel):
     te.assert_type(model.optional, t.Optional[SimpleSchema])
     te.assert_type(model.generic_int, GenericSchema[int])
     te.assert_type(model.builtin_dict, dict[str, int])
+    te.assert_type(model.generic_int_no_annotation, GenericSchema[int])
+    te.assert_type(model.builtin_dict_no_annotation, dict[str, int])
+    te.assert_type(model.builtin_int_float_dict, dict[int, float])
+    te.assert_type(model.builtin_int_float_dict_no_annotation, dict[int, float])
+    LinterTestModel(builtin_int_float_dict={1: 2.0})
+    LinterTestModel(builtin_int_float_dict_no_annotation={1: 2.0})
     te.assert_type(model.v1_field, SimpleSchema)
     te.assert_type(model.v2_field, SimpleSchema)
     te.assert_type(model.forward_ref, SimpleSchema)
