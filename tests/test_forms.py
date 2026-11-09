@@ -19,6 +19,7 @@ from django_jsonform.widgets import JSONFormWidget
 
 from django_pydantic_field import fields, forms
 from django_pydantic_field._internal._jsonform import coerce_jsonform_data, normalize_jsonform_schema
+from django_pydantic_field.compat.pydantic import PYDANTIC_V2
 from django_pydantic_field.v1 import fields as fields_v1
 from django_pydantic_field.v1 import forms as forms_v1
 from django_pydantic_field.v1.compat import pydantic_v1
@@ -28,6 +29,10 @@ from tests.test_app.models import ExampleSchema, SampleForwardRefModel, SampleSc
 V1_SKIP = pytest.mark.skipif(
     sys.version_info >= (3, 14) or pydantic_v1 is None,
     reason="Pydantic V1 is incompatible with Python 3.14+",
+)
+V2_SKIP = pytest.mark.skipif(
+    not PYDANTIC_V2,
+    reason="Pydantic V2 is required",
 )
 
 
@@ -124,19 +129,21 @@ class RecursiveNodeModel(pydantic.BaseModel):
     children: list[RecursiveNodeModel] = pydantic.Field(default_factory=list)
 
 
-RecursiveNodeModel.model_rebuild()
+if PYDANTIC_V2:
+    RecursiveNodeModel.model_rebuild()
 
+    class MutualRootA(pydantic.RootModel["MutualRootB | dict[str, str | None] | None"]):
+        pass
 
-class MutualRootA(pydantic.RootModel["MutualRootB | dict[str, str | None] | None"]):
-    pass
+    class MutualRootB(pydantic.RootModel["MutualRootA | int | None"]):
+        pass
 
-
-class MutualRootB(pydantic.RootModel["MutualRootA | int | None"]):
-    pass
-
-
-MutualRootA.model_rebuild()
-MutualRootB.model_rebuild()
+    MutualRootA.model_rebuild()
+    MutualRootB.model_rebuild()
+else:
+    RecursiveNodeModel.update_forward_refs()
+    MutualRootA = None
+    MutualRootB = None
 
 
 class UnionBranchA(pydantic.BaseModel):
@@ -296,7 +303,12 @@ def test_empty_form_values(forms_mod, schema_cls):
 @pytest.mark.parametrize(
     "forms_mod, schema_cls, expected",
     [
-        (forms, InnerSchema, '{"stub_str":"abc","stub_int":1,"stub_list":["1970-01-01"]}'),
+        pytest.param(
+            forms,
+            InnerSchema,
+            '{"stub_str":"abc","stub_int":1,"stub_list":["1970-01-01"]}',
+            marks=V2_SKIP,
+        ),
         pytest.param(
             forms_v1,
             InnerSchemaV1,
@@ -323,6 +335,7 @@ def test_prepare_value_export_params_v1():
     assert expected == field.prepare_value({"stub_str": "abc", "stub_list": ["1970-01-01"]})
 
 
+@V2_SKIP
 @pytest.mark.parametrize(
     "value, expected",
     [
@@ -337,6 +350,7 @@ def test_root_value_passes(value, expected):
     assert field.prepare_value(value) == expected
 
 
+@V2_SKIP
 @pytest.mark.parametrize(
     "value, initial, expected",
     [
@@ -374,7 +388,7 @@ def test_empty_required_raises(forms_mod, schema_cls):
 @pytest.mark.parametrize(
     "forms_mod, schema_cls, is_v2",
     [
-        (forms, InnerSchema, True),
+        pytest.param(forms, InnerSchema, True, marks=V2_SKIP),
         pytest.param(forms_v1, InnerSchemaV1, False, marks=V1_SKIP),
     ],
 )
@@ -395,7 +409,7 @@ def test_invalid_schema_raises(forms_mod, schema_cls, is_v2):
 @pytest.mark.parametrize(
     "forms_mod, schema_cls, is_v2",
     [
-        (forms, InnerSchema, True),
+        pytest.param(forms, InnerSchema, True, marks=V2_SKIP),
         pytest.param(forms_v1, InnerSchemaV1, False, marks=V1_SKIP),
     ],
 )
@@ -489,6 +503,7 @@ def test_form_field_export_kwargs_v1_json_dumps(export_kwargs):
     assert field.prepare_value(value)
 
 
+@V2_SKIP
 def test_annotated_acceptance():
     field = forms.SchemaField(te.Annotated[InnerSchema, pydantic.Field(title="Inner Schema")])
     value = InnerSchema.model_validate({"stub_str": "abc", "stub_list": ["1970-01-01"]})
@@ -645,7 +660,7 @@ def test_issue_64_empty_model_and_type_field_safety(forms_mod, empty_cls, type_f
 @pytest.mark.parametrize(
     "forms_mod, model_cls, is_v2",
     [
-        (forms, OptionalFieldsModel, True),
+        pytest.param(forms, OptionalFieldsModel, True, marks=V2_SKIP),
         pytest.param(forms_v1, OptionalFieldsModelV1, False, marks=V1_SKIP),
     ],
 )
@@ -681,7 +696,7 @@ def test_issue_65_jsonform_optional_schema_normalization(forms_mod, model_cls, i
 @pytest.mark.parametrize(
     "forms_mod, model_cls, is_v2",
     [
-        (forms, OptionalFieldsModel, True),
+        pytest.param(forms, OptionalFieldsModel, True, marks=V2_SKIP),
         pytest.param(forms_v1, OptionalFieldsModelV1, False, marks=V1_SKIP),
     ],
 )
@@ -821,7 +836,7 @@ def test_issue_66_jsonform_tuples_and_namedtuples(
 @pytest.mark.parametrize(
     "forms_mod, composed_cls, is_v2",
     [
-        (forms, ComposedIssuesModel, True),
+        pytest.param(forms, ComposedIssuesModel, True, marks=V2_SKIP),
         pytest.param(forms_v1, ComposedIssuesModelV1, False, marks=V1_SKIP),
     ],
 )
@@ -869,11 +884,12 @@ def test_recursive_and_cyclic_ref_schemas():
     assert cleaned.parent is not None and cleaned.parent.opt_tag is None
     assert cleaned.children[0].opt_tag is None
 
-    # Mutual cyclic RootModels should not hit RecursionError during normalization or coercion
-    mutual_widget = forms.JSONFormSchemaWidget(MutualRootA)
-    _assert_valid_jsonform_schema_node(mutual_widget.schema)
-    mutual_schema = forms.SchemaField(MutualRootA).adapter.json_schema()
-    assert json.loads(coerce_jsonform_data('{"k": ""}', mutual_schema)) == {"k": None}
+    if PYDANTIC_V2:
+        # Mutual cyclic RootModels should not hit RecursionError during normalization or coercion
+        mutual_widget = forms.JSONFormSchemaWidget(MutualRootA)
+        _assert_valid_jsonform_schema_node(mutual_widget.schema)
+        mutual_schema = forms.SchemaField(MutualRootA).adapter.json_schema()
+        assert json.loads(coerce_jsonform_data('{"k": ""}', mutual_schema)) == {"k": None}
 
     # Direct cyclic $ref guard in synthetic schema
     cyclic_schema = {
