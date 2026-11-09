@@ -13,11 +13,12 @@ class PydanticDjangoJSONEncoder(DjangoJSONEncoder): ...
 
 _AnnotatedAlias: ty.TypeAlias = ty.Any
 _DT: ty.TypeAlias = ty.Any
-_SchemaT = ty.TypeVar("_SchemaT")
+_SchemaT = te.TypeVar("_SchemaT", default=ty.Any)
+_GetT = te.TypeVar("_GetT", default=_SchemaT)
 
 @ty.type_check_only
 class SchemaAttribute(ty.Generic[types.ST]):
-    field: PydanticSchemaField[types.ST]
+    field: PydanticSchemaField[types.ST, types.ST]
     @ty.overload
     def __get__(self, instance: None, owner: ty.Any) -> te.Self: ...
     @ty.overload
@@ -25,15 +26,15 @@ class SchemaAttribute(ty.Generic[types.ST]):
     @ty.overload
     def __get__(self, instance: ty.Any, owner: ty.Any) -> types.ST: ...
 
-class PydanticSchemaField(JSONField[_SchemaT, _SchemaT]):
+class PydanticSchemaField(JSONField[_SchemaT, _GetT]):
     def __set__(self, instance: ty.Any, value: _SchemaT) -> None: ...
     @ty.overload
-    def __get__(self, instance: None, owner: ty.Any) -> SchemaAttribute[_SchemaT]: ...
+    def __get__(self, instance: None, owner: ty.Any) -> SchemaAttribute[_GetT]: ...
     @ty.overload
-    def __get__(self, instance: Model, owner: ty.Any) -> _SchemaT: ...
+    def __get__(self, instance: Model, owner: ty.Any) -> _GetT: ...
     @ty.overload
     def __init__(
-        self: PydanticSchemaField[types.ST | None],
+        self: PydanticSchemaField[types.ST | None, types.ST | None],
         schema: type[types.ST] | type[types.ST | None],
         config: types.ConfigType | None = ...,
         *args: ty.Any,
@@ -42,7 +43,7 @@ class PydanticSchemaField(JSONField[_SchemaT, _SchemaT]):
     ) -> None: ...
     @ty.overload
     def __init__(
-        self: PydanticSchemaField[types.ST],
+        self: PydanticSchemaField[types.ST, types.ST],
         schema: type[types.ST],
         config: types.ConfigType | None = ...,
         *args: ty.Any,
@@ -67,7 +68,7 @@ def SchemaField(
     *args: ty.Any,
     null: ty.Literal[True],
     **kwargs: ty.Any,
-) -> PydanticSchemaField[types.ST | None]: ...
+) -> PydanticSchemaField[types.ST | None, types.ST | None]: ...
 @ty.overload
 def SchemaField(
     schema: type[types.ST],
@@ -75,7 +76,7 @@ def SchemaField(
     default: ty.Callable[[], _DT] | _DT | BaseExpression = ...,
     *args: ty.Any,
     **kwargs: ty.Any,
-) -> PydanticSchemaField[types.ST]: ...
+) -> PydanticSchemaField[types.ST, types.ST]: ...
 @ty.overload
 def SchemaField(
     schema: ty.ForwardRef | str,

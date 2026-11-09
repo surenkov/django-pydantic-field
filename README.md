@@ -49,6 +49,7 @@ class MyModel(models.Model):
 
     # Supports standard Python types and annotations
     items: list[Foo] = SchemaField(default=list)
+    mapping = SchemaField(dict[int, float], default=dict)
 
     # null=True correctly infers t.Optional[Foo] for type checkers
     optional_foo = SchemaField(Foo, null=True, default=None)
@@ -62,6 +63,9 @@ assert model.foo.count == 42
 
 typing.assert_type(model.optional_foo, Foo | None)
 ```
+
+> [!TIP]
+> When using multi-parameter generics such as `dict[K, V]`, pass the type directly to `SchemaField(dict[K, V])` (rather than annotating `field: dict[K, V] = SchemaField()`) for seamless compatibility and full type checking across all `django-stubs` versions.
 
 ### Supported Types
 
