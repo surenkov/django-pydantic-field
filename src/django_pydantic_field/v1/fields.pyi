@@ -1,5 +1,7 @@
 import typing as ty
 
+import typing_extensions as te
+
 from django_pydantic_field import types
 from django_pydantic_field.fields import (
     PydanticDjangoJSONEncoder as PydanticDjangoJSONEncoder,
@@ -10,12 +12,13 @@ from django_pydantic_field.fields import (
 
 __all__ = ("PydanticDjangoJSONEncoder", "PydanticSchemaField", "SchemaField")
 
-_SchemaT = ty.TypeVar("_SchemaT")
+_SchemaT = te.TypeVar("_SchemaT", default=ty.Any)
+_GetT = te.TypeVar("_GetT", default=_SchemaT)
 
-class PydanticSchemaField(_PydanticSchemaField[_SchemaT]):
+class PydanticSchemaField(_PydanticSchemaField[_SchemaT, _GetT]):
     @ty.overload
     def __init__(
-        self: PydanticSchemaField[types.ST | None],
+        self: PydanticSchemaField[types.ST | None, types.ST | None],
         schema: type[types.ST] | type[types.ST | None],
         config: types.ConfigType = None,
         *args: ty.Any,
@@ -24,7 +27,7 @@ class PydanticSchemaField(_PydanticSchemaField[_SchemaT]):
     ) -> None: ...
     @ty.overload
     def __init__(
-        self: PydanticSchemaField[types.ST],
+        self: PydanticSchemaField[types.ST, types.ST],
         schema: type[types.ST],
         config: types.ConfigType = None,
         *args: ty.Any,
@@ -47,7 +50,7 @@ def SchemaField(
     *args: ty.Any,
     null: ty.Literal[True],
     **kwargs: ty.Any,
-) -> PydanticSchemaField[types.ST | None]: ...
+) -> PydanticSchemaField[types.ST | None, types.ST | None]: ...
 @ty.overload
 def SchemaField(
     schema: type[types.ST],
@@ -55,7 +58,7 @@ def SchemaField(
     default: ty.Callable[[], types.ST] | types.ST | ty.Any = ...,
     *args: ty.Any,
     **kwargs: ty.Any,
-) -> PydanticSchemaField[types.ST]: ...
+) -> PydanticSchemaField[types.ST, types.ST]: ...
 @ty.overload
 def SchemaField(
     schema: ty.ForwardRef | str,
