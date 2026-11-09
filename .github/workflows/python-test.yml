@@ -5,10 +5,12 @@ on:
     branches:
       - dev
       - master
+      - "*-backports"
   pull_request:
     branches:
       - dev
       - master
+      - "*-backports"
     types:
       - opened
       - synchronize
