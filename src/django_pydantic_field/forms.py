@@ -8,6 +8,7 @@ from django.forms.fields import InvalidJSONInput, JSONField, JSONString
 from django.utils.translation import gettext_lazy as _
 
 from django_pydantic_field import types
+from django_pydantic_field._internal._jsonform import coerce_jsonform_data, normalize_jsonform_schema
 from django_pydantic_field.compat.pydantic import ValidationErrorsTuple
 
 if ty.TYPE_CHECKING:
@@ -60,6 +61,8 @@ class SchemaField(JSONField, types.SchemaAdapterResolver, ty.Generic[types.ST]):
         if data is None:
             return None
         try:
+            if self._is_jsonform_widget and isinstance(data, (str, bytes)) and not isinstance(data, JSONString):
+                data = coerce_jsonform_data(data, self.adapter.json_schema())
             return self.adapter.validate_json(data)
         except ValidationErrorsTuple:
             return InvalidJSONInput(data)
@@ -110,15 +113,23 @@ class SchemaField(JSONField, types.SchemaAdapterResolver, ty.Generic[types.ST]):
         if not isinstance(value, (str, bytes)):
             value = self.adapter.validate_python(value)
         elif not isinstance(value, JSONString):
+            if self._is_jsonform_widget:
+                value = coerce_jsonform_data(value, self.adapter.json_schema())
             value = self.adapter.validate_json(value)
 
         return value
+
+    @property
+    def _is_jsonform_widget(self) -> bool:
+        return not isinstance(self.widget, type) and isinstance(self.widget, _JSONFormWidget)
 
 
 try:
     from django_jsonform.widgets import JSONFormWidget as _JSONFormWidget
 except ImportError:
     from django.forms.widgets import Textarea
+
+    _JSONFormWidget = ()  # type: ignore[assignment]
 
     def _prepare_jsonform_widget(widget, adapter: types.BaseSchemaAdapter[types.ST]) -> Widget | type[Widget]:
         return widget
@@ -145,7 +156,7 @@ else:
                 allow_null=adapter.allow_null,
             )
         elif issubclass(widget, _JSONFormWidget):
-            widget = widget(schema=adapter.json_schema())
+            widget = widget(schema=normalize_jsonform_schema(adapter.json_schema()))
 
         return widget
 
@@ -163,4 +174,4 @@ else:
 
             SchemaAdapter = self.get_schema_adapter_class()
             adapter = SchemaAdapter(schema, config, None, None, allow_null, **export_kwargs)
-            super().__init__(adapter.json_schema(), **kwargs)
+            super().__init__(normalize_jsonform_schema(adapter.json_schema()), **kwargs)
