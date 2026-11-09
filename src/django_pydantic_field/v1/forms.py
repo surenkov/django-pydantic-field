@@ -1,5 +1,6 @@
 import typing as ty
 
+from django_pydantic_field._internal._jsonform import normalize_jsonform_schema
 from django_pydantic_field.forms import JSONFormSchemaWidget as _JSONFormSchemaWidget
 from django_pydantic_field.forms import SchemaField as _SchemaField
 from django_pydantic_field.v1.types import ST, SchemaAdapter, V1SchemaAdapterResolver
@@ -32,7 +33,7 @@ else:
                 allow_null=adapter.allow_null,
             )
         elif issubclass(widget, _JSONFormWidget):
-            return widget(schema=adapter.json_schema())
+            return widget(schema=normalize_jsonform_schema(adapter.json_schema()))
 
         return widget
 

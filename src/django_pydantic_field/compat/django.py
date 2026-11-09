@@ -113,7 +113,10 @@ class GenericContainer(BaseContainer):
             wrapped_args = tuple(map(cls.wrap, args))
             return cls(te.Annotated, wrapped_args)
         if isinstance(value, GenericTypes):
-            wrapped_args = tuple(map(cls.wrap, get_args(value)))
+            raw_args = get_args(value)
+            if not raw_args and get_origin(value) is tuple and getattr(value, "__args__", None) in ((), ((),)):
+                raw_args = ((),)
+            wrapped_args = tuple(map(cls.wrap, raw_args))
             return cls(get_origin(value), wrapped_args)
         if DataclassContainer.is_dataclass_instance(value):
             return DataclassContainer.wrap(value)
@@ -135,6 +138,11 @@ class GenericContainer(BaseContainer):
             return origin
 
         unwrapped_args = tuple(map(BaseContainer.unwrap, value.args))
+        if unwrapped_args == ((),):
+            try:
+                return origin[()]
+            except TypeError:
+                return types.GenericAlias(origin, ())
         try:
             # This is a fallback for Python < 3.8, please be careful with that
             return origin[unwrapped_args]

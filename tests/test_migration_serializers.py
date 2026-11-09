@@ -34,6 +34,7 @@ test_types = [
     ty.Union[ty.Literal["foo"], list[str]],
     list[ty.Union[int, bool]],
     tuple[list[ty.Literal[1]], ty.Union[str, ty.Literal["foo"]]],
+    tuple[()],
     ty.ForwardRef("str"),
     SecretStr,
     Annotated[int, annotated_types.Gt(gt=0)],
